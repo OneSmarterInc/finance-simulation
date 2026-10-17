@@ -1,84 +1,59 @@
 <div class="flexee-page">
+    <x-page-header eyebrow="Administration" title="Institutions" description="Add an institution before adding its faculty and courses." />
 
-    <x-page-header
-        eyebrow="Administration"
-        title="Institutions"
-        description="View institutions and their simulation activity."
-    >
-        <x-slot:actions>
-            <flux:button :href="route('admin.dashboard')" icon="arrow-left">
-                Dashboard
-            </flux:button>
-        </x-slot:actions>
-    </x-page-header>
+    @if ($statusMessage)
+        <flux:callout variant="success" icon="check-circle" :heading="$statusMessage" role="status" />
+    @endif
+    @if ($errors->any())
+        <flux:callout variant="danger" icon="exclamation-triangle" :heading="$errors->first()" role="alert" />
+    @endif
 
-    <div class="space-y-4">
+    <flux:card>
+        <form wire:submit="create" class="flex flex-wrap items-end gap-3">
+            <flux:input wire:model="name" label="New institution" placeholder="Institution name" class="min-w-72" />
+            <flux:button type="submit" icon="plus" variant="primary">Add institution</flux:button>
+        </form>
+    </flux:card>
 
-        @forelse ($institutions as $institution)
-
-            <flux:card class="!p-5">
-
-                <div class="flex items-start justify-between gap-4">
-
-                    <div>
-                        <flux:heading size="lg">
-                            {{ $institution->name }}
-                        </flux:heading>
-
-                        <flux:text class="mt-1">
-                            Institution
-                        </flux:text>
-                    </div>
-
-                </div>
-
-                <div class="mt-5 grid gap-3 md:grid-cols-3">
-
-                    <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                        <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                            Faculty
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-zinc-900 dark:text-white">
-                            {{ $institution->faculty_count }}
-                        </div>
-                    </div>
-
-                    <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                        <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                            Students
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-zinc-900 dark:text-white">
-                            {{ $institution->students_count }}
-                        </div>
-                    </div>
-
-                    <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                        <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                            Courses
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-zinc-900 dark:text-white">
-                            {{ $institution->courses_count }}
-                        </div>
-                    </div>
-
-                </div>
-
-            </flux:card>
-
-        @empty
-
-            <flux:card class="space-y-3">
-                <flux:heading size="lg">
-                    No institutions
-                </flux:heading>
-
-                <flux:text>
-                    There are currently no institutions configured.
-                </flux:text>
-            </flux:card>
-
-        @endforelse
-
-    </div>
-
+    <flux:card>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                    <tr class="border-b border-zinc-200 text-zinc-500 dark:border-white/10">
+                        <th class="px-3 py-2 font-medium">Institution</th>
+                        <th class="px-3 py-2 font-medium">Faculty</th>
+                        <th class="px-3 py-2 font-medium">Students</th>
+                        <th class="px-3 py-2 font-medium">Courses</th>
+                        <th class="px-3 py-2"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-200 dark:divide-white/10">
+                    @forelse ($institutions as $institution)
+                        <tr wire:key="institution-{{ $institution->id }}">
+                            <td class="px-3 py-3 font-medium">
+                                @if ($editingId === $institution->id)
+                                    <form wire:submit="rename" class="flex items-center gap-2">
+                                        <flux:input size="sm" wire:model="editingName" />
+                                        <flux:button size="sm" type="submit">Save</flux:button>
+                                    </form>
+                                @else
+                                    {{ $institution->name }}
+                                @endif
+                            </td>
+                            <td class="px-3 py-3">{{ $institution->faculty_count }}</td>
+                            <td class="px-3 py-3">{{ $institution->students_count }}</td>
+                            <td class="px-3 py-3">{{ $institution->courses_count }}</td>
+                            <td class="px-3 py-3 text-right">
+                                @if ($editingId !== $institution->id)
+                                    <flux:button size="xs" variant="ghost" icon="pencil" wire:click="edit('{{ $institution->id }}')">Rename</flux:button>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="px-3 py-6 text-zinc-500">No institutions yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </flux:card>
 </div>

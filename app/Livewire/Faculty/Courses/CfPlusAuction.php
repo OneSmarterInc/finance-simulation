@@ -34,7 +34,7 @@ class CfPlusAuction extends Component
     public function settle(CfPlusAuctionSettlementService $settlement): void
     {
         $results = $settlement->settle($this->faculty(), $this->course);
-        $this->statusMessage = "Auction settled for {$results->count()} targets.";
+        $this->statusMessage = "Settled. Students can now see the reveal for {$results->count()} firms.";
     }
 
     public function overrideTie(string $resultId, CfPlusAuctionSettlementService $settlement): void
@@ -52,7 +52,18 @@ class CfPlusAuction extends Component
 
         $bidderEvidence = $settled->isEmpty() ? collect() : $reveal->forFaculty($this->course, $this->faculty());
 
-        return view('livewire.faculty.courses.cf-plus-auction', ['settled' => $settled, 'participation' => $participation, 'offerCount' => CfPlusOffer::query()->where('course_id', $this->course->id)->count(), 'bidderEvidence' => $bidderEvidence]);
+        $status = \App\Services\Courses\CourseStatus::for($this->course);
+
+        return view('livewire.faculty.courses.cf-plus-auction', [
+            'settled' => $settled,
+            'participation' => $participation,
+            'offerCount' => CfPlusOffer::query()->where('course_id', $this->course->id)->count(),
+            'bidderEvidence' => $bidderEvidence,
+            'status' => $status,
+            // Items 63 and 65: nothing to do here until the stage opens; Settle only once every quarter has closed.
+            'stageOpen' => $status->evaluationOpen(),
+            'canSettle' => $status->isFinished(),
+        ]);
     }
 
     private function faculty(): Faculty

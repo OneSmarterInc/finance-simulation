@@ -2,17 +2,8 @@
     <x-page-header
         :eyebrow="$course->name"
         title="Evaluation stage"
-        description="Before settlement, sealed values remain private. After settlement, outcomes and funding evidence are available."
-    >
-        <x-slot:actions>
-            <flux:button
-                :href="route('dashboard')"
-                icon="arrow-left"
-            >
-                Back to dashboard
-            </flux:button>
-        </x-slot:actions>
-    </x-page-header>
+        description="Teams study each other's published statements, receive a consultant's valuation of each rival and place sealed offers. You settle the stage once the last quarter closes, and students then see the reveal."
+    />
 
     @if($statusMessage)
         <flux:callout
@@ -32,7 +23,20 @@
         />
     @endif
 
-    @if($settled->isEmpty())
+    @if($settled->isEmpty() && ! $stageOpen)
+
+        {{-- Item 63: before the stage opens, a plain page instead of a live auction --}}
+        <flux:card class="space-y-3">
+            <flux:heading size="lg" level="2">The evaluation stage hasn't opened yet</flux:heading>
+            <flux:text>{{ $status->evaluationOpensText() }}</flux:text>
+            <flux:text>
+                When it opens, every firm's membership freezes and every firm's published statements and notes become visible to its rivals.
+                Each team then sees, for every rival, the statements, a consultant's valuation and the most it could fund, and saves a sealed offer for a controlling stake.
+                You'll see here how many offers each firm has received, never the amounts.
+            </flux:text>
+        </flux:card>
+
+    @elseif($settled->isEmpty())
 
         {{-- PRE-SETTLEMENT --}}
         <flux:card class="space-y-5">
@@ -43,7 +47,10 @@
                     </flux:heading>
 
                     <flux:text class="mt-1">
-                        Sealed offers remain private until the final settlement.
+                        Offers stay sealed until you settle. You see how many each firm has received, never the amounts.
+                        @if (($active = $status->active()) && $active->state === 'open')
+                            Quarter {{ $active->quarter_number }} closes {{ \App\Support\Dates::dateTime($active->decision_deadline_at) }} ({{ \App\Support\Dates::remaining($active->decision_deadline_at) }}).
+                        @endif
                     </flux:text>
                 </div>
 
@@ -88,19 +95,15 @@
             @endif
 
             <div class="border-t border-zinc-200 pt-4 dark:border-white/10">
-                <flux:button
-                    wire:click="settle"
-                    wire:loading.attr="disabled"
-                    type="button"
-                    icon="lock-closed"
-                    variant="primary"
-                >
-                    Settle final auction
-                </flux:button>
-
-                <flux:text size="sm" class="mt-2">
-                    Settlement is permitted only after every course quarter has been closed.
-                </flux:text>
+                @if ($canSettle)
+                    <flux:button wire:click="settle" wire:loading.attr="disabled" type="button" icon="lock-closed" variant="primary"
+                        wire:confirm="Settle the evaluation stage? The highest offer for each firm wins, and students see the reveal straight away.">
+                        Settle and show the reveal
+                    </flux:button>
+                    <flux:text size="sm" class="mt-2">Settle when you're ready to show the class; you can run the reveal live.</flux:text>
+                @else
+                    <flux:text size="sm">You can settle once the last quarter has closed.</flux:text>
+                @endif
             </div>
         </flux:card>
 

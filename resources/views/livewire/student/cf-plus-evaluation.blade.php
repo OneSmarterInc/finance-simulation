@@ -21,11 +21,14 @@
             heading="The evaluation stage hasn't opened yet"
         >
             <flux:text>
-                {{ $availabilityMessage }}
+                {{ \App\Services\Courses\CourseStatus::for($firm->course)->evaluationOpensText() }}
             </flux:text>
 
             <flux:text class="mt-2">
-                Please return when the evaluation window has been opened for this course.
+                In the evaluation stage, every firm's published statements and notes become visible to the other teams.
+                For each rival your team receives a consultant's valuation, decides what a controlling stake is worth,
+                and places a sealed offer it can afford to fund. When your instructor settles the stage, each firm's
+                true worth is shown beside the price paid.
             </flux:text>
         </flux:callout>
     @else

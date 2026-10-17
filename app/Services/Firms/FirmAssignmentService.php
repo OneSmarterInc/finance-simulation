@@ -26,6 +26,11 @@ class FirmAssignmentService
     {
         $this->courses->authorize($actor, $course);
         $this->assertAuctionUniverseMutable($course);
+        // Item 28: a firm added after Quarter 4 opens has no Quarter 4 to build on,
+        // so every later close would fail. Firms are fixed once play starts.
+        if ($course->quarters()->where('quarter_number', '>=', 4)->where('state', '!=', \App\Models\CourseQuarter::LOCKED)->exists()) {
+            throw ValidationException::withMessages(['firm' => 'Firms can\'t be added once Quarter 4 has opened. Place new students in an existing firm instead.']);
+        }
         $data = Validator::make(compact('code', 'name'), [
             'code' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
             'name' => ['required', 'string', 'max:255'],

@@ -42,7 +42,7 @@
 
                 <flux:sidebar.item icon="rectangle-stack" :href="route('admin.courses')"
                     :current="request()->routeIs('admin.courses')" wire:navigate> 
-                    {{ __('Simulation Courses') }} 
+                    {{ __('Courses') }} 
                 </flux:sidebar.item>
 
             </flux:sidebar.group>

@@ -25,8 +25,8 @@
         ], true) ? $navRoute : 'faculty.courses.quarters';
     @endphp
 
-    <flux:sidebar.group class="grid">
-        <div class="mb-1 flex items-start justify-between gap-2 px-1">
+    <flux:sidebar.group class="grid min-w-0 grid-cols-1">
+        <div class="mb-1 flex min-w-0 items-start justify-between gap-2 px-1">
             <div class="min-w-0">
                 <p class="truncate text-sm font-semibold text-zinc-900 dark:text-white">{{ $navCourse->name }}</p>
                 <p class="truncate text-xs text-zinc-500">{{ \App\Support\Product::name($navCourse) }}</p>

@@ -4,18 +4,28 @@ namespace App\Livewire\Faculty\Courses;
 
 use App\Models\Course;
 use App\Models\Faculty;
+use App\Models\Firm;
+use App\Models\Student;
+use App\Services\Firms\FirmAssignmentService;
+use App\Services\Students\StudentAccess;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
+/**
+ * Students page (walkthrough items 42 to 45): the course link, everyone
+ * registered with their firm and access status, unplaced students first
+ * with a firm picker right in the row.
+ */
 #[Layout('layouts.app')]
 class Students extends Component
 {
     public Course $course;
 
-    public string $sortBy = 'name';
+    /** @var array<string, string> firm chosen per unplaced student id */
+    public array $placement = [];
 
-    public string $sortDirection = 'asc';
+    public string $statusMessage = '';
 
     public function mount(Course $course): void
     {
@@ -23,76 +33,50 @@ class Students extends Component
 
         abort_unless(
             $course->faculty_id === $faculty->id
-                || $course->facultyRoles()
-                ->where('faculty_id', $faculty->id)
-                ->where('role', 'co_faculty')
-                ->exists(),
+                || $course->facultyRoles()->where('faculty_id', $faculty->id)->where('role', 'co_faculty')->exists(),
             403
         );
 
         $this->course = $course;
     }
 
+    public function place(string $studentId, FirmAssignmentService $service): void
+    {
+        abort_unless($this->course->faculty_id === $this->faculty()->id, 403);
+        if (blank($this->placement[$studentId] ?? null)) {
+            $this->addError('placement', 'Choose a firm first.');
+
+            return;
+        }
+        $student = Student::query()->with('user')->findOrFail($studentId);
+        $firm = Firm::query()->where('course_id', $this->course->id)->findOrFail($this->placement[$studentId]);
+
+        $service->assign($this->faculty(), $this->course, $firm, $student);
+        unset($this->placement[$studentId]);
+        $this->statusMessage = "{$student->user?->name} is now in {$firm->name}.";
+    }
+
     public function render(): View
     {
-        $participants = $this->course->enrollments()
-
+        $enrollments = $this->course->enrollments()
             ->with([
-
                 'student.user',
-
-                'student.firmMemberships' => function ($query): void {
-
-                    $query->where('course_id', $this->course->id)
-
-                        ->with('firm');
-                },
-
+                'student.firmMemberships' => fn ($query) => $query->where('course_id', $this->course->id)->with('firm'),
             ])
-
-            ->orderBy('created_at')
-
-            ->get();
-
-        $participants = match ($this->sortBy) {
-
-            'firm' => $this->sortDirection === 'asc'
-
-                ? $participants->sortBy(
-
-                    fn($enrollment) => $enrollment->student?->firmMemberships->first()?->firm?->name ?? 'ZZZZ'
-
-                )
-
-                : $participants->sortByDesc(
-
-                    fn($enrollment) => $enrollment->student?->firmMemberships->first()?->firm?->name ?? ''
-
-                ),
-
-            'registered' => $this->sortDirection === 'asc'
-
-                ? $participants->sortBy('created_at')
-
-                : $participants->sortByDesc('created_at'),
-
-            default => $this->sortDirection === 'asc'
-
-                ? $participants->sortBy(
-
-                    fn($enrollment) => strtolower($enrollment->student?->user?->name ?? '')
-
-                )
-
-                : $participants->sortByDesc(
-
-                    fn($enrollment) => strtolower($enrollment->student?->user?->name ?? '')
-
-                ),
-        };
+            ->get()
+            ->sortBy(fn ($enrollment) => [
+                $enrollment->student?->firmMemberships->isNotEmpty() ? 1 : 0,
+                $enrollment->student?->firmMemberships->first()?->firm?->name ?? '',
+                strtolower($enrollment->student?->user?->name ?? ''),
+            ])
+            ->values();
 
         return view('livewire.faculty.courses.students', [
-            'participants' => $participants,
+            'enrollments' => $enrollments,
+            'firms' => $this->course->firms()->orderBy('code')->get(),
+            'paymentRequired' => StudentAccess::required(),
+            'isOwner' => $this->course->faculty_id === $this->faculty()->id,
+            'registrationUrl' => $this->course->registration_token ? url('/register/course/'.$this->course->registration_token) : null,
         ]);
     }
 
@@ -101,22 +85,5 @@ class Students extends Component
         abort_unless(auth()->check() && auth()->user()->faculty, 403);
 
         return auth()->user()->faculty;
-    }
-
-    public function sort(string $column): void
-    {
-        abort_unless(
-            in_array($column, ['name', 'firm', 'registered'], true),
-            400
-        );
-
-        if ($this->sortBy === $column) {
-            $this->sortDirection = $this->sortDirection === 'asc'
-                ? 'desc'
-                : 'asc';
-        } else {
-            $this->sortBy = $column;
-            $this->sortDirection = 'asc';
-        }
     }
 }

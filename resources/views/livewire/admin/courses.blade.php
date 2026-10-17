@@ -1,8 +1,8 @@
-<div class="space-y-6">
+<div class="flexee-page">
     <x-page-header
         eyebrow="Administration"
-        title="Simulation Courses"
-        description="View simulation courses, assignments, and deployment status."
+        title="Courses"
+        description="Prepare a course for a faculty member; they finish and run it from their own pages."
     >
         <x-slot:actions>
             <flux:button
@@ -12,15 +12,6 @@
                 wire:navigate
             >
                 Add New Course
-            </flux:button>
-
-            <flux:button
-                :href="route('admin.dashboard')"
-                variant="ghost"
-                icon="arrow-left"
-                wire:navigate
-            >
-                Dashboard
             </flux:button>
         </x-slot:actions>
     </x-page-header>
@@ -33,7 +24,7 @@
                         <th class="px-6 py-4 font-medium">Course</th>
                         <th class="px-6 py-4 font-medium">Institution</th>
                         <th class="px-6 py-4 font-medium">Faculty</th>
-                        <th class="px-6 py-4 font-medium">Scenario</th>
+                        <th class="px-6 py-4 font-medium">Product</th>
                         <th class="px-6 py-4 font-medium">Status</th>
                         <th class="px-6 py-4 text-center font-medium">Quarters</th>
                         <th class="px-6 py-4 text-center font-medium">Firms</th>
@@ -57,14 +48,14 @@
                             </td>
 
                             <td class="px-6 py-4 text-zinc-600 dark:text-zinc-300">
-                                {{ $course->scenario->name }}
+                                {{ \App\Support\Product::fullName($course) }}
                             </td>
 
                             <td class="px-6 py-4">
                                 <flux:badge
                                     :color="$course->status === \App\Models\Course::STATUS_DEPLOYED ? 'green' : 'zinc'"
                                 >
-                                    {{ ucfirst($course->status) }}
+                                    {{ $course->status === \App\Models\Course::STATUS_DEPLOYED ? 'Running' : 'Setup not finished' }}
                                 </flux:badge>
                             </td>
 
@@ -93,7 +84,7 @@
                                 colspan="8"
                                 class="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400"
                             >
-                                No simulation courses found.
+                                No courses yet.
                             </td>
                         </tr>
                     @endforelse

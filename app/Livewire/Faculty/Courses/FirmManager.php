@@ -7,11 +7,16 @@ use App\Models\Faculty;
 use App\Models\Firm;
 use App\Models\Student;
 use App\Services\Courses\CourseConfigurationService;
+use App\Services\Courses\CourseStatus;
 use App\Services\Firms\FirmAssignmentService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
+/**
+ * Firms page (walkthrough items 28 to 33): who is in each firm, how each
+ * firm stands this quarter, and the setup forms moved below once play starts.
+ */
 #[Layout('layouts.app')]
 class FirmManager extends Component
 {
@@ -25,6 +30,8 @@ class FirmManager extends Component
 
 	public string $firmId = '';
 
+	public string $statusMessage = '';
+
 	public function mount(Course $course): void
 	{
 		app(CourseConfigurationService::class)->authorize($this->faculty(), $course);
@@ -34,147 +41,84 @@ class FirmManager extends Component
 
 	public function createFirm(FirmAssignmentService $service): void
 	{
-		$service->createFirm(
-			$this->faculty(),
-			$this->course,
-			$this->code,
-			$this->name
-		);
-
+		$firm = $service->createFirm($this->faculty(), $this->course, $this->code, $this->name);
 		$this->reset('code', 'name');
+		$this->statusMessage = "{$firm->name} created. Its warm-up quarters are generated once a student is placed in it.";
 	}
 
 	public function enrollAndAssign(FirmAssignmentService $service): void
 	{
+		if (blank($this->studentId) || blank($this->firmId)) {
+			$this->addError('placement', 'Choose a student and a firm.');
+
+			return;
+		}
 		$student = Student::query()->findOrFail($this->studentId);
 		$firm = Firm::query()->findOrFail($this->firmId);
 
-		$service->enroll(
-			$this->faculty(),
-			$this->course,
-			$student
-		);
-
-		$service->assign(
-			$this->faculty(),
-			$this->course,
-			$firm,
-			$student
-		);
+		$service->enroll($this->faculty(), $this->course, $student);
+		$service->assign($this->faculty(), $this->course, $firm, $student);
 
 		$this->reset('studentId', 'firmId');
+		$this->statusMessage = "{$student->user?->name} is now in {$firm->name}.";
+	}
+
+	/** Item 30: the service could remove a student from a firm, but no screen called it. */
+	public function removeMember(string $studentId, FirmAssignmentService $service): void
+	{
+		$student = Student::query()->with('user')->findOrFail($studentId);
+		$service->unassign($this->faculty(), $this->course, $student);
+		$this->statusMessage = "{$student->user?->name} has been removed from their firm.";
 	}
 
 	public function importDemoStudents(FirmAssignmentService $service): void
 	{
 		abort_unless(config('flexee.demo_tools'), 404);
 
-		$service->importDemoStudents(
-			$this->faculty(),
-			$this->course,
-		);
+		$service->importDemoStudents($this->faculty(), $this->course);
 	}
 
 	public function render(): View
 	{
+		$status = CourseStatus::for($this->course);
 		$firms = $this->course->firms()
-			->withCount(['memberships', 'engineResults'])
+			->with(['memberships.student.user'])
 			->orderBy('code')
 			->get();
 
-		/*
-         * IMPORTANT:
-         * Only students enrolled in THIS course are available
-         * for firm assignment.
-         */
 		$students = Student::query()
 			->with('user')
 			->where('institution_id', $this->course->institution_id)
-			->whereHas('enrollments', function ($query) {
-				$query->where('course_id', $this->course->id);
-			})
-			->whereDoesntHave('firmMemberships', function ($query) {
-                $query->where('course_id', $this->course->id);
-        	})
+			->whereHas('enrollments', fn ($query) => $query->where('course_id', $this->course->id))
+			->whereDoesntHave('firmMemberships', fn ($query) => $query->where('course_id', $this->course->id))
 			->orderBy('id')
 			->get();
 
-		$enrolledCount = $this->course->enrollments()->count();
-
-		$assignedCount = $this->course->enrollments()
-			->whereHas('student.firmMemberships', function ($query) {
-				$query->where('course_id', $this->course->id);
-			})
-			->count();
-
-		$pendingCount = $enrolledCount - $assignedCount;
-
-		/*
-         * Demo import should only be visible while there are
-         * unassigned demo students that can still be imported.
-         */
-		$demoStudents = [
-			['Student One', 'student@example.com'],
-			['Student Two', 'student2@example.com'],
-			['Student Three', 'student3@example.com'],
-			['Student Four', 'student4@example.com'],
-			['Student Five', 'student5@example.com'],
-			['Student Six', 'student6@example.com'],
-			['Student Seven', 'student7@example.com'],
-			['Student Eight', 'student8@example.com'],
-			['Student Nine', 'student9@example.com'],
-			['Student Ten', 'student10@example.com'],
-			['Student Eleven', 'student11@example.com'],
-			['Student Twelve', 'student12@example.com'],
-			['Student Thirteen', 'student13@example.com'],
-			['Student Fourteen', 'student14@example.com'],
-			['Student Fifteen', 'student15@example.com'],
-		];
-
-		$demoEmails = collect($demoStudents)
-			->pluck(1)
-			->values();
-
-		$importableDemoCount = Student::query()
-			->where('institution_id', $this->course->institution_id)
-			->whereHas('user', function ($query) use ($demoEmails) {
-				$query->whereIn('email', $demoEmails);
-			})
-			->whereDoesntHave('enrollments', function ($query) {
-				$query->where('course_id', $this->course->id);
-			})
-			->count();
-
-		$totalFirmCapacity = $firms->count() * 2;
-		$assignedStudentsCount = $firms->sum('memberships_count');
-		$availableFirmSlots = max(
-				0,
-				$totalFirmCapacity - $assignedStudentsCount
-		);
+		$current = $status->current();
+		$started = $this->course->quarters()->where('quarter_number', '>=', 4)->where('state', '!=', 'locked')->exists();
 
 		$showDemoImport = config('flexee.demo_tools')
-		&& $firms->isNotEmpty()
-		&& $importableDemoCount > 0
-		&& $availableFirmSlots > 0;
+			&& ! $started
+			&& $firms->isNotEmpty()
+			&& Student::query()
+				->where('institution_id', $this->course->institution_id)
+				->whereHas('user', fn ($query) => $query->where('email', 'like', 'student%@example.com'))
+				->whereDoesntHave('enrollments', fn ($query) => $query->where('course_id', $this->course->id))
+				->exists();
 
 		return view('livewire.faculty.courses.firm-manager', [
+			'status' => $status,
+			'current' => $current,
+			'started' => $started,
 			'firms' => $firms,
 			'students' => $students,
-			'enrolledCount' => $enrolledCount,
-			'assignedCount' => $assignedCount,
-			'pendingCount' => $pendingCount,
 			'showDemoImport' => $showDemoImport,
-			'importableDemoCount' => $importableDemoCount,
-			'availableFirmSlots' => $availableFirmSlots,
 		]);
 	}
 
 	private function faculty(): Faculty
 	{
-		abort_unless(
-			auth()->check() && auth()->user()->faculty,
-			403
-		);
+		abort_unless(auth()->check() && auth()->user()->faculty, 403);
 
 		return auth()->user()->faculty;
 	}
