@@ -94,7 +94,7 @@ class CoursePreparation extends Component
                 'quarter_number' => (int) $quarter->quarter_number,
                 'starts_on' => $quarter->starts_on->format('Y-m-d'),
                 'ends_on' => $quarter->ends_on->format('Y-m-d'),
-                'decision_deadline_at' => $quarter->decision_deadline_at->format('Y-m-d'),
+                'decision_deadline_at' => \App\Support\Dates::localDate($quarter->decision_deadline_at),
             ])
             ->values()
             ->all();

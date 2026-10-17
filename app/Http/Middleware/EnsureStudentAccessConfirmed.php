@@ -18,8 +18,9 @@ class EnsureStudentAccessConfirmed
 
         if ($user?->student && ! $user->faculty && $firm instanceof Firm
             && ! StudentAccess::isPaid($user->student, $firm->course)) {
-            // Livewire actions on a page opened before access was withdrawn.
-            abort_unless($request->isMethod('GET'), 403);
+            // Livewire re-runs this middleware for actions with a faked GET request,
+            // and ignores a non-redirect response, so refuse outright there.
+            abort_if(app(\Livewire\Mechanisms\HandleRequests\HandleRequests::class)->isLivewireRoute(), 403);
 
             return response()->view('access-pending', ['firm' => $firm], 200);
         }

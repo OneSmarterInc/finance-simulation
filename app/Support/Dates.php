@@ -2,14 +2,25 @@
 
 namespace App\Support;
 
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use DateTimeInterface;
 
 /**
  * One readable date style on every faculty and student screen
- * (walkthrough items 25 and 43): "19 Sep 2026" and "20 Oct 2026, 11:59 pm".
+ * (walkthrough items 25 and 43): "19 Sep 2026" and "20 Oct 2026, 11:59 pm EDT".
+ *
+ * Timestamps are stored in UTC; they are shown, and deadlines are entered,
+ * in config('flexee.display_timezone').
  */
 final class Dates
 {
+    public static function zone(): string
+    {
+        return (string) (config('flexee.display_timezone') ?: 'UTC');
+    }
+
+    /** For date-only values (a quarter's start date): no time zone shift. */
     public static function day(?DateTimeInterface $date): string
     {
         return $date ? $date->format('j M Y') : '';
@@ -17,10 +28,10 @@ final class Dates
 
     public static function dateTime(?DateTimeInterface $date): string
     {
-        return $date ? $date->format('j M Y, g:i a T') : '';
+        return $date ? CarbonImmutable::instance($date)->setTimezone(self::zone())->format('j M Y, g:i a T') : '';
     }
 
-    /** "in 3 days", "in 5 hours", or "passed" when the moment is behind us. */
+    /** "3 days 4 hours left", or "passed" when the moment is behind us. */
     public static function remaining(?DateTimeInterface $date): string
     {
         if (! $date) {
@@ -32,6 +43,26 @@ final class Dates
             return 'passed';
         }
 
-        return $now->diffForHumans($date, ['syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE, 'parts' => 2]).' left';
+        return $now->diffForHumans($date, ['syntax' => CarbonInterface::DIFF_ABSOLUTE, 'parts' => 2]).' left';
+    }
+
+    /**
+     * A deadline typed by faculty, in the display zone, as UTC. A bare date
+     * ("2026-10-20") means the end of that day, 23:59.
+     */
+    public static function deadlineFromInput(string $value): CarbonImmutable
+    {
+        $value = trim($value);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            $value .= ' 23:59:00';
+        }
+
+        return CarbonImmutable::parse($value, self::zone())->utc();
+    }
+
+    /** The calendar date of a stored deadline as faculty see it, for date inputs. */
+    public static function localDate(?DateTimeInterface $date): ?string
+    {
+        return $date ? CarbonImmutable::instance($date)->setTimezone(self::zone())->toDateString() : null;
     }
 }

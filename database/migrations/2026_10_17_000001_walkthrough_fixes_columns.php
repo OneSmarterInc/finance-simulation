@@ -47,9 +47,10 @@ return new class extends Migration
             $table->timestamp('deadline_extended_at')->nullable();
         });
 
-        // Deadlines were entered as dates and stored at 00:00, the first minute
-        // of the day. With automatic close that would close a quarter a day
-        // early, so quarters not yet closed move to 23:59 on the same date.
+        // Deadlines were entered as dates and stored at 00:00 UTC, the first
+        // minute of the day. With automatic close that would close a quarter a
+        // day early, so quarters not yet closed move to 23:59 on the same date
+        // in the display time zone (config flexee.display_timezone), in UTC.
         DB::table('course_quarters')
             ->whereIn('state', ['locked', 'open'])
             ->whereNotNull('decision_deadline_at')
@@ -58,8 +59,9 @@ return new class extends Migration
             ->each(function ($row): void {
                 $deadline = \Carbon\CarbonImmutable::parse($row->decision_deadline_at);
                 if ($deadline->format('H:i:s') === '00:00:00') {
+                    $endOfDay = \Carbon\CarbonImmutable::parse($deadline->toDateString().' 23:59:00', config('flexee.display_timezone', 'UTC'))->utc();
                     DB::table('course_quarters')->where('id', $row->id)
-                        ->update(['decision_deadline_at' => $deadline->setTime(23, 59)]);
+                        ->update(['decision_deadline_at' => $endOfDay->toDateTimeString()]);
                 }
             });
     }

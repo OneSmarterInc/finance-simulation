@@ -64,6 +64,27 @@ class AdminAndAccessTest extends TestCase
         $this->actingAs($student->user)->get(route('firms.dashboard', $firm))->assertOk()->assertSee('Where your firm stands');
     }
 
+    public function test_deadlines_are_entered_and_shown_in_the_display_time_zone(): void
+    {
+        config(['flexee.display_timezone' => 'America/New_York']);
+
+        $stored = \App\Support\Dates::deadlineFromInput('2026-10-20');
+        $this->assertSame('2026-10-21 03:59:00', $stored->toDateTimeString());
+        $this->assertSame('20 Oct 2026, 11:59 pm EDT', \App\Support\Dates::dateTime($stored));
+        $this->assertSame('2026-10-20', \App\Support\Dates::localDate($stored));
+    }
+
+    public function test_an_unpaid_student_cannot_act_through_an_open_livewire_page(): void
+    {
+        config(['flexee.require_payment' => true]);
+        [$course, $firm, $student, $q4] = $this->phase7bCourse('Gate on actions');
+        Enrollment::query()->create(['course_id' => $course->id, 'student_id' => $student->id, 'institution_id' => $course->institution_id]);
+        app(QuarterManagementService::class)->open($course->faculty, $q4);
+
+        $this->actingAs($student->user)->get(route('student.decisions.workspace', [$firm, $q4]))
+            ->assertOk()->assertSee('Access opens once your registration is confirmed')->assertDontSee('Save draft');
+    }
+
     public function test_firms_cannot_be_added_once_quarter_four_opens(): void
     {
         [$course, , , $q4] = $this->phase7bCourse('Firm lock');

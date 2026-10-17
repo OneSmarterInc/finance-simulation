@@ -113,7 +113,7 @@ class QuarterManagementService
             throw ValidationException::withMessages(['deadline' => 'Only the open quarter\'s deadline can be extended.']);
         }
         try {
-            $new = CarbonImmutable::parse($deadline);
+            $new = \App\Support\Dates::deadlineFromInput($deadline);
         } catch (Throwable) {
             throw ValidationException::withMessages(['deadline' => 'Enter a valid date and time.']);
         }
