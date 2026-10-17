@@ -47,6 +47,12 @@ class AppServiceProvider extends ServiceProvider
                 }
             );
 
+        // Re-apply these on Livewire actions, not only on the first page load.
+        \Livewire\Livewire::addPersistentMiddleware([
+            \App\Http\Middleware\AdminMiddleware::class,
+            \App\Http\Middleware\EnsureStudentAccessConfirmed::class,
+        ]);
+
         $this->configureDefaults();
     }
 

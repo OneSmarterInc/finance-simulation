@@ -81,7 +81,7 @@ class CoursePreparation extends Component
         $this->scenario_id = $course->scenario_id;
         $this->starts_on = $course->starts_on?->format('Y-m-d');
         $this->ends_on = $course->ends_on?->format('Y-m-d');
-        $this->payment_mode = $course->payment_mode;
+        $this->payment_mode = $course->payment_mode ?? 'standard';
         $this->cf_plus_enabled = (bool) $course->cf_plus_enabled;
         $this->build_quarters = $course->build_quarters;
         $this->adversarial_quarters = $course->adversarial_quarters;
@@ -94,7 +94,7 @@ class CoursePreparation extends Component
                 'quarter_number' => (int) $quarter->quarter_number,
                 'starts_on' => $quarter->starts_on->format('Y-m-d'),
                 'ends_on' => $quarter->ends_on->format('Y-m-d'),
-                'decision_deadline_at' => $quarter->decision_deadline_at->format('Y-m-d'),
+                'decision_deadline_at' => \App\Support\Dates::localDate($quarter->decision_deadline_at),
             ])
             ->values()
             ->all();

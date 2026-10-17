@@ -38,7 +38,7 @@ class CourseConfigurationService
             $this->authorize($actor, $course);
         }
         if ($data['cf_plus_enabled'] && collect(['build_quarters', 'adversarial_quarters', 'post_bid_quarters'])->contains(fn ($key) => empty($data[$key]))) {
-            throw ValidationException::withMessages(['cf_plus_enabled' => 'All CF Plus phase counts are required.']);
+            throw ValidationException::withMessages(['cf_plus_enabled' => 'Enter the number of quarters for each part of the evaluation stage.']);
         }
         if (! $data['cf_plus_enabled']) {
             $data['build_quarters'] = $data['adversarial_quarters'] = $data['post_bid_quarters'] = null;
@@ -62,12 +62,25 @@ class CourseConfigurationService
             'quarters.*.starts_on' => ['required', 'date'], 'quarters.*.ends_on' => ['required', 'date'],
             'quarters.*.decision_deadline_at' => ['required', 'date'],
         ])->validate();
+        // A deadline given as a date means the end of that day in the display
+        // time zone, stored as UTC.
+        $quarters = array_map(function (array $quarter): array {
+            if (filled($quarter['decision_deadline_at'] ?? null)) {
+                try {
+                    $quarter['decision_deadline_at'] = \App\Support\Dates::deadlineFromInput((string) $quarter['decision_deadline_at'])->toDateTimeString();
+                } catch (\Throwable) {
+                    // left as given; the validator reports it
+                }
+            }
+
+            return $quarter;
+        }, $quarters);
         $ordered = collect($quarters)->sortBy('quarter_number')->values();
         foreach ($ordered as $index => $quarter) {
             $start = CarbonImmutable::parse($quarter['starts_on']);
             $end = CarbonImmutable::parse($quarter['ends_on']);
             $deadline = CarbonImmutable::parse($quarter['decision_deadline_at']);
-            if ((int) $quarter['quarter_number'] !== $index + 1 || $start->gt($end) || $deadline->lt($start) || $deadline->gt($end)) {
+            if ((int) $quarter['quarter_number'] !== $index + 1 || $start->gt($end) || $deadline->setTimezone(\App\Support\Dates::zone())->startOfDay()->lt($start) || $deadline->setTimezone(\App\Support\Dates::zone())->startOfDay()->gt($end)) {
                 throw ValidationException::withMessages(['quarters' => 'Quarter sequence and dates must be coherent.']);
             }
             if ($start->lt($course->starts_on) || $end->gt($course->ends_on) || ($index && $start->lte(CarbonImmutable::parse($ordered[$index - 1]['ends_on'])))) {
@@ -76,7 +89,7 @@ class CourseConfigurationService
         }
         $minimum = 3 + (int) $course->build_quarters + (int) $course->adversarial_quarters + (int) $course->post_bid_quarters;
         if ($course->cf_plus_enabled && $ordered->count() < $minimum) {
-            throw ValidationException::withMessages(['quarters' => "CF Plus requires at least {$minimum} quarters."]);
+            throw ValidationException::withMessages(['quarters' => "With the evaluation stage added, this course needs at least {$minimum} quarters."]);
         }
         DB::transaction(function () use ($course, $ordered): void {
             $keep = [];

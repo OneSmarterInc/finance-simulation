@@ -10,6 +10,7 @@ use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
+/** Admin dashboard (walkthrough items 1 to 3): linked counts and where every course stands. */
 #[Layout('layouts.admin')]
 class Dashboard extends Component
 {
@@ -20,6 +21,8 @@ class Dashboard extends Component
             'facultyCount' => Faculty::query()->count(),
             'studentCount' => Student::query()->count(),
             'courseCount' => Course::query()->count(),
+            'courses' => Course::query()->with(['institution', 'faculty.user'])->withCount(['firms', 'enrollments'])
+                ->orderByDesc('created_at')->get(),
         ]);
     }
 }

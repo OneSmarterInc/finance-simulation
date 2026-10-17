@@ -20,6 +20,7 @@ class Courses extends Component
             ->where('student_id', $user->student->id)
             ->with([
                 'firm.course',
+                'student',
             ])
             ->whereHas('firm.course', function ($query) {
                 $query->where('status', 'deployed');
@@ -31,15 +32,19 @@ class Courses extends Component
             $firm = $membership->firm;
             $course = $firm?->course;
 
-            $activeQuarter = $course?->quarters()
-                ->whereIn('state', ['open', 'processing'])
-                ->orderBy('quarter_number')
-                ->first();
+            $status = \App\Services\Courses\CourseStatus::for($course);
+            $activeQuarter = $status->active();
 
             return [
                 'firm' => $firm,
                 'course' => $course,
+                'status' => $status,
                 'activeQuarter' => $activeQuarter,
+                'teamStatus' => $activeQuarter ? $status->firmStatus($firm, $activeQuarter) : null,
+                'teammates' => $firm->memberships()->with('student.user')->get()
+                    ->reject(fn ($m) => $m->student_id === $membership->student_id)
+                    ->map(fn ($m) => $m->student?->user?->name)->filter()->values(),
+                'paid' => \App\Services\Students\StudentAccess::isPaid($membership->student, $course),
                 'assignedAt' => $membership->assigned_at,
             ];
         });

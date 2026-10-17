@@ -16,9 +16,12 @@
                 <dt class="text-zinc-600 dark:text-zinc-400">{{ \App\Support\Presentation\FinancialValueFormatter::label($key) }}</dt>
                 <dd class="break-words text-right font-mono text-sm font-medium tabular-nums text-zinc-950 dark:text-white">
                     @if(is_numeric($value))
-                        {{ $currency && ! in_array($key, $nonMonetaryKeys, true)
-                            ? \App\Support\Presentation\FinancialValueFormatter::currency($value)
-                            : \App\Support\Presentation\FinancialValueFormatter::number($value) }}
+                        @php($format = \App\Support\Presentation\FinancialValueFormatter::formatFor((string) $key))
+                        {{ $format !== 'currency'
+                            ? \App\Support\Presentation\StatementPresenter::format((float) $value, $format)
+                            : ($currency && ! in_array($key, $nonMonetaryKeys, true)
+                                ? \App\Support\Presentation\FinancialValueFormatter::currency($value)
+                                : \App\Support\Presentation\FinancialValueFormatter::number($value)) }}
                     @elseif(is_bool($value))
                         {{ $value ? 'Yes' : 'No' }}
                     @else

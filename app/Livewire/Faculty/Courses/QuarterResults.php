@@ -2,21 +2,30 @@
 
 namespace App\Livewire\Faculty\Courses;
 
+use App\Livewire\InheritedHistory;
 use App\Models\Course;
 use App\Models\CourseFacultyRole;
-use App\Models\Faculty;
 use App\Models\Firm;
 use App\Models\FirmEngineResult;
+use App\Services\Accounting\AccountingChangeDisclosures;
+use App\Services\Decisions\FirmDecisionHistory;
+use App\Services\Decisions\FirmDecisionService;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
+/**
+ * Quarter results (walkthrough item 52): one report at a time in tabs.
+ * Read one firm across its quarters, or compare every firm in one quarter.
+ */
 #[Layout('layouts.app')]
 class QuarterResults extends Component
 {
     public Course $course;
+
+    #[Url(as: 'view')]
+    public string $mode = 'firm';
 
     #[Url(as: 'firm')]
     public ?string $selectedFirm = null;
@@ -27,116 +36,80 @@ class QuarterResults extends Component
     public function mount(Course $course): void
     {
         $this->authorizeAccess($course);
-
         $this->course = $course;
+        $this->mode = in_array($this->mode, ['firm', 'quarter'], true) ? $this->mode : 'firm';
 
-        $firms = $this->course->firms()
-            ->orderBy('code')
-            ->get();
-
+        $firms = $this->course->firms()->orderBy('code')->get();
         if ($firms->isEmpty()) {
             return;
         }
-
-        if (
-            $this->selectedFirm === null
-            || ! $firms->contains('id', $this->selectedFirm)
-        ) {
+        if ($this->selectedFirm === null || ! $firms->contains('id', $this->selectedFirm)) {
             $this->selectedFirm = $firms->first()->id;
         }
-
-        $this->setDefaultQuarter();
+        $quarters = $this->availableQuarters();
+        if ($this->selectedQuarter === null || ! $quarters->contains($this->selectedQuarter)) {
+            $this->selectedQuarter = $quarters->last();
+        }
     }
 
-    public function selectFirm(string $firmId): void
+    public function showFirm(string $firmId): void
     {
-        abort_unless(
-            $this->course->firms()
-                ->whereKey($firmId)
-                ->exists(),
-            404
-        );
-
+        abort_unless($this->course->firms()->whereKey($firmId)->exists(), 404);
+        $this->mode = 'firm';
         $this->selectedFirm = $firmId;
-        $this->setDefaultQuarter();
     }
 
-    public function selectQuarter(int $quarter): void
+    public function showQuarter(int $quarter): void
     {
-        abort_unless(
-            $this->selectedFirm !== null
-            && FirmEngineResult::query()
-                ->where('course_id', $this->course->id)
-                ->where('firm_id', $this->selectedFirm)
-                ->where('quarter_number', $quarter)
-                ->exists(),
-            404
-        );
-
+        abort_unless($this->availableQuarters()->contains($quarter), 404);
+        $this->mode = 'quarter';
         $this->selectedQuarter = $quarter;
     }
 
-    public function render(): View
+    public function render(FirmDecisionHistory $history, FirmDecisionService $decisions, AccountingChangeDisclosures $disclosures): View
     {
-        /** @var Collection<int, Firm> $firms */
-        $firms = $this->course->firms()
-            ->orderBy('code')
-            ->get();
+        $firms = $this->course->firms()->orderBy('code')->get();
+        $columns = [];
+        $decisionColumns = [];
+        $disclosureColumns = [];
 
-        /** @var Collection<int, FirmEngineResult> $results */
-        $results = collect();
-
-        $selected = null;
-
-        if ($this->selectedFirm !== null) {
-            $results = FirmEngineResult::query()
-                ->where('course_id', $this->course->id)
-                ->where('firm_id', $this->selectedFirm)
-                ->orderBy('quarter_number')
-                ->get();
-
-            $selected = $results->firstWhere(
-                'quarter_number',
-                $this->selectedQuarter
-            );
+        if ($this->mode === 'firm' && $this->selectedFirm) {
+            $firm = $firms->firstWhere('id', $this->selectedFirm);
+            $results = FirmEngineResult::query()->where('course_id', $this->course->id)
+                ->where('firm_id', $this->selectedFirm)->orderBy('quarter_number')->get();
+            foreach ($results as $result) {
+                $label = InheritedHistory::columnLabel($result);
+                $columns[$label] = $result;
+                $decisionColumns[$label] = $history->forQuarter($firm, $result->quarter_number);
+                $disclosureColumns[$label] = $disclosures->forQuarter($firm, $result->quarter_number);
+            }
+        } elseif ($this->mode === 'quarter' && $this->selectedQuarter) {
+            $results = FirmEngineResult::query()->where('course_id', $this->course->id)
+                ->where('quarter_number', $this->selectedQuarter)->get()->keyBy('firm_id');
+            foreach ($firms as $firm) {
+                if ($result = $results->get($firm->id)) {
+                    $columns[$firm->name] = $result;
+                    $decisionColumns[$firm->name] = $history->forQuarter($firm, $this->selectedQuarter);
+                    $disclosureColumns[$firm->name] = $disclosures->forQuarter($firm, $this->selectedQuarter);
+                }
+            }
         }
 
         return view('livewire.faculty.courses.quarter-results', [
             'firms' => $firms,
-            'results' => $results,
-            'selected' => $selected,
-            'trendRows' => $results->map(
-                fn (FirmEngineResult $result): array => [
-                    'quarter' => $result->quarter_number,
-                    'revenue' => $result->income_statement['net_revenue'] ?? null,
-                    'cash' => $result->fields['bs_cash'] ?? null,
-                    'equity' => $result->balance_sheet['equity'] ?? null,
-                    'operating_margin' => $result->fields['n5_cov_margin'] ?? null,
-                ]
-            ),
+            'quarters' => $this->availableQuarters(),
+            'columns' => $columns,
+            'decisionColumns' => $decisionColumns,
+            'disclosureColumns' => $disclosureColumns,
+            'parameters' => $firms->isNotEmpty() ? $decisions->parameters($firms->first()) : [],
         ]);
     }
 
-    private function setDefaultQuarter(): void
+    /** @return \Illuminate\Support\Collection<int, int> */
+    private function availableQuarters(): \Illuminate\Support\Collection
     {
-        if ($this->selectedFirm === null) {
-            $this->selectedQuarter = null;
-
-            return;
-        }
-
-        $available = FirmEngineResult::query()
-            ->where('course_id', $this->course->id)
-            ->where('firm_id', $this->selectedFirm)
-            ->orderBy('quarter_number')
-            ->pluck('quarter_number');
-
-        if (
-            $this->selectedQuarter === null
-            || ! $available->contains($this->selectedQuarter)
-        ) {
-            $this->selectedQuarter = $available->last();
-        }
+        return FirmEngineResult::query()->where('course_id', $this->course->id)
+            ->distinct()->orderBy('quarter_number')->pluck('quarter_number');
     }
 
     private function authorizeAccess(Course $course): void

@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    <x-page-header eyebrow="FLEXEE ADMINISTRATION" title="Course Preparation" :description="$course ? 'Configure course: ' . $course->name : 'Create a new simulation course.'">
+    <x-page-header eyebrow="Administration" title="Course Preparation" :description="$course ? 'Configure course: ' . $course->name : 'Create a new simulation course.'">
         <x-slot:actions>
             <flux:button :href="route('admin.courses')" variant="ghost" icon="arrow-left" wire:navigate>
                 Simulation Courses
@@ -88,33 +88,30 @@
 
                 <flux:input wire:model="ends_on" type="date" label="Ends On" />
 
-                <flux:select wire:model="payment_mode" label="Payment Mode">
-                    <option value="standard">Standard</option>
-                </flux:select>
             </div>
 
             <div class="mt-8 space-y-6 border-t border-zinc-200 pt-6 dark:border-zinc-700">
                 <div>
                     <h3 class="font-medium text-zinc-900 dark:text-white">
-                        CF Plus
+                        Evaluation stage
                     </h3>
 
                     <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                        Enable CF Plus configuration for this course if required.
+                        Adds quarters at the end where teams study each other's firms and bid for them, making the course Flexee Financial Accounting+.
                     </p>
                 </div>
 
-                <flux:checkbox wire:model="cf_plus_enabled" label="Enable CF Plus" />
+                <flux:checkbox wire:model="cf_plus_enabled" label="Add the evaluation stage (Flexee Financial Accounting+)" />
 
                 @if ($cf_plus_enabled)
                     <div class="grid gap-6 md:grid-cols-3">
-                        <flux:input wire:model="build_quarters" type="number" min="0" label="Build Quarters" />
+                        <flux:input wire:model="build_quarters" type="number" min="0" label="Operating quarters first (from Quarter 4)" />
 
                         <flux:input wire:model="adversarial_quarters" type="number" min="0"
-                            label="Adversarial Quarters" />
+                            label="Evaluation quarters" />
 
                         <flux:input wire:model="post_bid_quarters" type="number" min="0"
-                            label="Post-Bid Quarters" />
+                            label="Quarters after the evaluation" />
                     </div>
                 @endif
             </div>
@@ -163,8 +160,8 @@
 
                 @if ($cf_plus_enabled)
                     <flux:callout class="mt-6" variant="warning" icon="information-circle"
-                        heading="CF Plus schedule requirement"
-                        text="CF Plus needs 3 warm-up + {{ $build_quarters }} build + {{ $adversarial_quarters }} adversarial + {{ $post_bid_quarters }} post-bid quarters." />
+                        heading="Schedule for the evaluation stage"
+                        text="This course needs 3 warm-up + {{ $build_quarters }} operating + {{ $adversarial_quarters }} evaluation + {{ $post_bid_quarters }} later quarters." />
                 @endif
 
                 <div class="mt-6 overflow-x-auto">
@@ -349,9 +346,7 @@
 
                 <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
 
-                    CF Manufacturing has no additional Admin-configurable industry
-
-                    settings in this preparation phase. Protected prices, demand,
+                    Manufacturing has no further settings to choose here. Protected prices, demand,
 
                     accounting, tax, financing, and engine parameters remain
 
@@ -389,7 +384,7 @@
                 <flux:text class="mt-2">
                     This Faculty member will manage the course after deployment,
                     including teams, quarters, accounting elections, decisions,
-                    CF Plus, and other Faculty operations.
+                    the evaluation stage, and other faculty operations.
                 </flux:text>
             </div>
 
@@ -490,7 +485,7 @@
 
                         <div>
                             <dt class="text-xs text-zinc-500">
-                                CF Plus
+                                Evaluation stage
                             </dt>
                             <dd>
                                 <flux:badge :color="$cf_plus_enabled ? 'emerald' : 'zinc'">

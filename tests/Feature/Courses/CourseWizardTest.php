@@ -34,7 +34,7 @@ class CourseWizardTest extends TestCase
         $this->actingAs($faculty->user);
         $scenario = Scenario::query()->where('code', 'cf_manufacturing')->firstOrFail();
         Livewire::test(CourseWizard::class)
-            ->assertSee('Step 1 of 6')->assertSee('Enable CF Plus')
+            ->assertSee('Step 1 of 6')->assertSee('Add the evaluation stage')
             ->set('name', 'Livewire Course')->set('institution_id', $faculty->institution_id)->set('scenario_id', $scenario->id)
             ->set('starts_on', '2027-01-01')->set('ends_on', '2027-12-31')->set('payment_mode', 'invoice')
             ->call('saveSetup')->assertHasNoErrors()->assertSet('step', 2);

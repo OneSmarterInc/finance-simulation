@@ -1,29 +1,15 @@
 <div class="flexee-page">
     <x-page-header
         :eyebrow="$firm->course->name"
-        :title="$firm->name.' inherited history'"
-        description="Validated, read-only warm-up statements for Quarters 1 through 3."
+        :title="$firm->name.' history'"
+        description="Every closed quarter side by side, with the decisions that produced it. Quarters 1 to 3 are the warm-up, run for the firm before the team took over."
     />
 
-    @forelse($results as $result)
-        <flux:card class="space-y-5">
-            <div class="flex items-center justify-between gap-3">
-                <flux:heading size="xl" level="2">Quarter {{ $result->quarter_number }}</flux:heading>
-                <flux:badge color="sky" icon="lock-closed">Inherited · read-only</flux:badge>
-            </div>
-
-            <div class="grid gap-6 xl:grid-cols-3">
-                @foreach(['income_statement' => 'Income statement', 'balance_sheet' => 'Balance sheet', 'cash_flow_statement' => 'Cash flow statement'] as $key => $label)
-                    <section class="min-w-0 rounded-md bg-zinc-50 p-4 dark:bg-white/5">
-                        <flux:heading size="lg" level="3">{{ $label }}</flux:heading>
-                        <div class="mt-3 overflow-x-auto">
-                            <x-financial-array :values="$result->{$key}" currency />
-                        </div>
-                    </section>
-                @endforeach
-            </div>
+    @if ($results->isEmpty())
+        <flux:callout icon="clock" heading="No quarters yet" text="The warm-up quarters appear here as soon as the firm is set up." />
+    @else
+        <flux:card>
+            <x-firm-report :columns="$columns" :decisions="$decisionColumns" :disclosures="$disclosureColumns" :parameters="$parameters" />
         </flux:card>
-    @empty
-        <flux:callout icon="clock" heading="Inherited history is not initialized yet" text="Warm-up statements will appear here when initialization is complete." />
-    @endforelse
+    @endif
 </div>

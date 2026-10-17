@@ -24,11 +24,11 @@ class FirmQuarterDecision extends Model
 
     public const LOCKED = 'locked';
 
-    protected $fillable = ['firm_id', 'course_id', 'course_quarter_id', 'institution_id', 'draft_payload', 'submitted_payload', 'resolved_payload', 'dividend', 'state', 'submitted_at', 'locked_at'];
+    protected $fillable = ['firm_id', 'course_id', 'course_quarter_id', 'institution_id', 'draft_payload', 'submitted_payload', 'resolved_payload', 'dividend', 'state', 'submitted_at', 'locked_at', 'carried_forward', 'submitted_by_student_id'];
 
     protected function casts(): array
     {
-        return ['draft_payload' => 'array', 'submitted_payload' => 'array', 'resolved_payload' => 'array', 'dividend' => 'decimal:2', 'submitted_at' => 'datetime', 'locked_at' => 'datetime'];
+        return ['draft_payload' => 'array', 'submitted_payload' => 'array', 'resolved_payload' => 'array', 'dividend' => 'decimal:2', 'submitted_at' => 'datetime', 'locked_at' => 'datetime', 'carried_forward' => 'boolean'];
     }
 
     protected static function booted(): void
@@ -57,6 +57,12 @@ class FirmQuarterDecision extends Model
     public function quarter(): BelongsTo
     {
         return $this->belongsTo(CourseQuarter::class, 'course_quarter_id');
+    }
+
+    /** @return BelongsTo<Student, $this> */
+    public function submittedBy(): BelongsTo
+    {
+        return $this->belongsTo(Student::class, 'submitted_by_student_id');
     }
 
     /** @return HasOne<FirmQuarterClose, $this> */

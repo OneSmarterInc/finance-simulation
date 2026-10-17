@@ -10,7 +10,7 @@
     >
 
     <title>
-        @yield('title', 'FLEXEE')
+        @yield('title', \App\Support\Product::NAME)
     </title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])

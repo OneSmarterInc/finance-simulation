@@ -51,4 +51,20 @@ class Faculty extends Model
     {
         return $this->hasMany(CourseFacultyRole::class);
     }
+
+    /**
+     * Courses this faculty member owns or co-teaches, newest first.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Course>
+     */
+    public function teachingCourses(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Course::query()
+            ->where(function ($query): void {
+                $query->where('faculty_id', $this->id)
+                    ->orWhereHas('facultyRoles', fn ($roles) => $roles->where('faculty_id', $this->id));
+            })
+            ->orderByDesc('created_at')
+            ->get();
+    }
 }

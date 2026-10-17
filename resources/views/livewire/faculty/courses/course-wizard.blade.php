@@ -1,5 +1,5 @@
 <div class="flexee-page">
-    <x-page-header eyebrow="Faculty · Courses" title="CF Manufacturing course"
+    <x-page-header :eyebrow="$course?->name ?? 'New course'" :title="($cf_plus_enabled ? \App\Support\Product::PLUS_NAME : \App\Support\Product::NAME).' · '.\App\Support\Product::INDUSTRY"
         description="{{ $deployed ? 'Review the deployed course configuration.' : 'Configure the signed six-step course setup and deployment workflow.' }}">
         <x-slot:actions>
             @if ($deployed)
@@ -85,27 +85,25 @@
 
                     <flux:input wire:model="ends_on" type="date" label="Course ends" />
 
-                    <div class="md:col-span-2">
-                        <flux:input wire:model="payment_mode" type="text" maxlength="100"
-                            label="Payment or access mode" placeholder="Optional configuration reference" />
-
-                        <flux:text size="sm" class="mt-1">
-                            Configuration only; no billing or payout behavior is performed.
-                        </flux:text>
-                    </div>
                 </div>
 
-                {{-- CF Plus --}}
+                {{-- Evaluation stage (makes the course Flexee Financial Accounting+) --}}
                 <div class="border-y border-zinc-200 py-5 dark:border-zinc-700">
                     <flux:checkbox wire:model.live="cf_plus_enabled"
-                        label="Enable CF Plus adversarial and post-bid phases" />
+                        label="Add the evaluation stage (Flexee Financial Accounting+)" />
+
+                    <flux:text size="sm" class="mt-2">
+                        Adds quarters at the end of the course where teams study each other's published statements,
+                        receive a consultant's valuation and place sealed offers for rival firms. The reveal then shows
+                        what each firm was really worth. Leave this off for Flexee Financial Accounting.
+                    </flux:text>
 
                     @if ($cf_plus_enabled)
                         <div class="mt-4 grid gap-4 sm:grid-cols-3">
                             @foreach ([
-        'build_quarters' => 'Build quarters',
-        'adversarial_quarters' => 'Adversarial quarters',
-        'post_bid_quarters' => 'Post-bid quarters',
+        'build_quarters' => 'Operating quarters first (from Quarter 4)',
+        'adversarial_quarters' => 'Evaluation quarters',
+        'post_bid_quarters' => 'Quarters after the evaluation',
     ] as $field => $label)
                                 <flux:input wire:model="{{ $field }}" type="number" min="1"
                                     :label="$label" />
@@ -122,16 +120,15 @@
                     </div>
 
                     <flux:text size="sm" class="mt-2">
-                        When enabled, students can choose in Quarter 4 to either
-                        continue with the simulation's default accounting settings
-                        or propose different accounting methods for faculty review.
-                        When disabled, the existing default accounting workflow is used.
+                        When on, each team can keep the default accounting methods or ask to change
+                        them, with a written reason, once per quarter. You approve or decline each request.
+                        When off, every firm reports with the defaults below.
                     </flux:text>
 
                     @if ($accounting_election_enabled)
                         <flux:callout class="mt-4" variant="info" icon="information-circle"
                             heading="Student accounting-election workflow enabled"
-                            text="Students will be able to use the default accounting settings or propose accounting-method changes in Quarter 4. Faculty approval is required only when a student proposes a change." />
+                            text="Teams can keep the default accounting methods or ask to change them. Each request comes to you with the team's reason, and nothing changes until you approve it." />
                     @else
                         <flux:callout class="mt-4" variant="warning" icon="information-circle"
                             heading="Default accounting workflow"
@@ -164,8 +161,8 @@
             </div>
 
             @if ($cf_plus_enabled)
-                <flux:callout variant="warning" icon="information-circle" heading="CF Plus schedule requirement"
-                    text="CF Plus needs 3 warm-up + {{ $build_quarters }} build + {{ $adversarial_quarters }} adversarial + {{ $post_bid_quarters }} post-bid quarters." />
+                <flux:callout variant="warning" icon="information-circle" heading="Schedule for the evaluation stage"
+                    text="This course needs 3 warm-up + {{ $build_quarters }} operating + {{ $adversarial_quarters }} evaluation + {{ $post_bid_quarters }} later quarters." />
             @endif
 
             <div class="overflow-x-auto">
@@ -175,7 +172,7 @@
                             <th class="p-2">Quarter</th>
                             <th class="p-2">Start</th>
                             <th class="p-2">End</th>
-                            <th class="p-2">Decision deadline</th>
+                            <th class="p-2">Decision deadline (end of day)</th>
                         </tr>
                     </thead>
 
@@ -235,7 +232,7 @@
         <form wire:submit="saveEnablements" class="space-y-5">
 
             <flux:callout variant="success" icon="information-circle" heading="Student control begins at Quarter 4"
-                text="Q1-Q3 are reserved for system-generated warm-up history. Quarter 4 requires Forecasting, Procurement (sourcing), and Production. Operating categories stay open after activation. Certification is independent." />
+                text="Quarters 1 to 3 are the warm-up, run by the simulation. Quarter 4 must open forecasting, sourcing and production, and an area stays open once you open it. Open the other areas gradually so each quarter gives students something new to explain." />
 
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[760px] text-sm">
@@ -255,11 +252,15 @@
                         @foreach ($categories as $category)
                             <tr class="border-b border-zinc-200 dark:border-zinc-800">
                                 <th class="p-3 text-left font-medium">
-                                    {{ $category->code === 'sourcing' ? 'Procurement' : $category->display_name }}
+                                    {{ \App\Support\Presentation\DecisionPresenter::categoryLabel($category->code) }}
 
                                     @if ($category->code === 'certification')
                                         <span class="block text-xs font-normal text-zinc-500">
-                                            Independent exception
+                                            Nothing for students to enter yet; recorded automatically
+                                        </span>
+                                    @elseif ($category->code === 'notes_elections')
+                                        <span class="block text-xs font-normal text-zinc-500">
+                                            On the decision form only when student accounting-election control is off
                                         </span>
                                     @endif
                                 </th>
@@ -313,9 +314,8 @@
                 </flux:heading>
 
                 <flux:text class="mt-2">
-                    CF Manufacturing has no additional faculty-configurable industry
-                    settings in Phase 6. Protected prices, demand, accounting, tax,
-                    financing, and engine parameters remain scenario-controlled.
+                    Manufacturing has no further settings for you to choose. Prices, demand, tax,
+                    financing and the other industry parameters are set by the simulation.
                 </flux:text>
             </div>
 
@@ -379,69 +379,82 @@
     @else
         <div class="space-y-6">
 
+            @php
+                $reviewQuarters = $course->quarters()->with('enablements.category')->orderBy('quarter_number')->get();
+                $reviewStatus = \App\Services\Courses\CourseStatus::for($course);
+                $reviewCategories = $course->scenario->decisionCategories()->orderBy('sort_order')->get();
+                $defaults = \App\Support\Scenario\CfManufacturingScenarioDefinition::fixedWarmupPayload('notes_elections');
+            @endphp
             <flux:card class="space-y-6">
-
-                <div>
-                    <div class="flex items-center justify-between gap-4">
-                        <flux:heading size="lg">
-                            Course configuration
-                        </flux:heading>
-
-                        @if ($deployed || $course->status === 'deployed')
-                            <flux:badge color="emerald">
-                                Deployed
-                            </flux:badge>
-                        @endif
-                    </div>
-
-                    <dl class="mt-4 grid gap-4 sm:grid-cols-2">
-
-                        <div>
-                            <dt class="text-xs text-zinc-500">
-                                Course
-                            </dt>
-
-                            <dd class="font-medium">
-                                {{ $course->name }}
-                            </dd>
-                        </div>
-
-                        <div>
-                            <dt class="text-xs text-zinc-500">
-                                Scenario
-                            </dt>
-
-                            <dd class="font-medium">
-                                {{ $course->scenario->name }}
-                            </dd>
-                        </div>
-
-                        <div>
-                            <dt class="text-xs text-zinc-500">
-                                Schedule
-                            </dt>
-
-                            <dd>
-                                {{ count($quarters) }} quarters,
-                                {{ $starts_on }} to {{ $ends_on }}
-                            </dd>
-                        </div>
-
-                        <div>
-                            <dt class="text-xs text-zinc-500">
-                                CF Plus
-                            </dt>
-
-                            <dd>
-                                <flux:badge :color="$cf_plus_enabled ? 'emerald' : 'zinc'">
-                                    {{ $cf_plus_enabled ? 'Enabled' : 'Disabled' }}
-                                </flux:badge>
-                            </dd>
-                        </div>
-
-                    </dl>
+                <div class="flex items-center justify-between gap-4">
+                    <flux:heading size="lg">Course configuration</flux:heading>
+                    @if ($deployed || $course->status === 'deployed')
+                        <flux:badge color="emerald">Running</flux:badge>
+                    @endif
                 </div>
 
+                <dl class="grid gap-4 sm:grid-cols-2">
+                    <div><dt class="text-xs text-zinc-500">Course</dt><dd class="font-medium">{{ $course->name }}</dd></div>
+                    <div><dt class="text-xs text-zinc-500">Product</dt><dd class="font-medium">{{ \App\Support\Product::fullName($course) }}</dd></div>
+                    <div><dt class="text-xs text-zinc-500">Dates</dt>
+                        <dd>{{ \App\Support\Dates::day($course->starts_on) }} to {{ \App\Support\Dates::day($course->ends_on) }}, {{ $reviewQuarters->count() }} quarters</dd></div>
+                    <div><dt class="text-xs text-zinc-500">Evaluation stage</dt>
+                        <dd>{{ $cf_plus_enabled ? 'Added: opens with Quarter '.$reviewStatus->evaluationStart() : 'Not added' }}</dd></div>
+                </dl>
+
+                {{-- Item 23: the schedule and the decision areas, read-only once running --}}
+                <div class="space-y-2">
+                    <flux:heading size="md">Schedule</flux:heading>
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[640px] text-sm">
+                            <thead>
+                                <tr class="border-b border-zinc-200 text-left text-zinc-500 dark:border-white/10">
+                                    <th class="py-2 pr-4 font-medium">Quarter</th><th class="py-2 pr-4 font-medium">Starts</th>
+                                    <th class="py-2 pr-4 font-medium">Decisions due</th><th class="py-2 pr-4 font-medium">State</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-zinc-200 dark:divide-white/10">
+                                @foreach ($reviewQuarters as $q)
+                                    <tr>
+                                        <td class="py-2 pr-4 font-medium">Quarter {{ $q->quarter_number }}
+                                            @if ($reviewStatus->isEvaluationQuarter($q)) <span class="text-xs text-violet-700 dark:text-violet-300">· evaluation stage</span> @endif</td>
+                                        <td class="py-2 pr-4">{{ \App\Support\Dates::day($q->starts_on) }}</td>
+                                        <td class="py-2 pr-4">{{ $q->quarter_number <= 3 ? 'Warm-up' : \App\Support\Dates::dateTime($q->decision_deadline_at) }}</td>
+                                        <td class="py-2 pr-4">{{ $reviewStatus->stateLabel($q) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <flux:heading size="md">Decision areas open to students</flux:heading>
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[640px] text-sm">
+                            <thead>
+                                <tr class="border-b border-zinc-200 text-zinc-500 dark:border-white/10">
+                                    <th class="py-2 pr-4 text-left font-medium">Area</th>
+                                    @foreach ($reviewQuarters->where('quarter_number', '>=', 4) as $q)
+                                        <th class="px-2 py-2 text-center font-medium">Q{{ $q->quarter_number }}</th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-zinc-200 dark:divide-white/10">
+                                @foreach ($reviewCategories as $category)
+                                    <tr>
+                                        <th class="py-2 pr-4 text-left font-normal">{{ \App\Support\Presentation\DecisionPresenter::categoryLabel($category->code) }}</th>
+                                        @foreach ($reviewQuarters->where('quarter_number', '>=', 4) as $q)
+                                            @php($on = (bool) $q->enablements->firstWhere('scenario_decision_category_id', $category->id)?->enabled)
+                                            <td class="px-2 py-2 text-center {{ $on ? 'text-emerald-700 dark:text-emerald-300' : 'text-zinc-400' }}">{{ $on ? 'Open' : '–' }}</td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <flux:text size="sm">Areas not open to students are chosen by the simulation each quarter.</flux:text>
+                </div>
             </flux:card>
 
             {{-- ====================================================
@@ -467,7 +480,7 @@
 
                         <div>
                             <flux:heading size="md">
-                                Student Registration
+                                Student registration
                             </flux:heading>
 
                             <flux:text class="mt-1">
@@ -553,13 +566,13 @@
 
                         <div>
                             <flux:heading size="md">
-                                Student Accounting Election Control
+                                Student accounting-election control
                             </flux:heading>
 
                             <flux:text class="mt-1">
                                 {{ $accounting_election_enabled
                                     ? 'Enabled for this simulation'
-                                    : 'Disabled — default accounting settings will be used' }}
+                                    : 'Off: every firm uses the default methods' }}
                             </flux:text>
                         </div>
 
@@ -571,68 +584,23 @@
 
                 </div>
 
-                @if ($accounting_election_enabled)
-                    <div class="mt-4 border-t border-emerald-200 pt-4 dark:border-emerald-800">
-
-                        <flux:text size="sm">
-                            <strong>What this means:</strong>
-                            Students will have the option in Quarter 4 to either
-                            continue with the simulation's default accounting settings
-                            or propose different accounting methods.
-                        </flux:text>
-
-                        <ul class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
-
-                            <li class="flex gap-2">
-                                <span class="text-emerald-600">✓</span>
-                                <span>
-                                    Students can continue with the default accounting
-                                    settings without requesting a change.
-                                </span>
-                            </li>
-
-                            <li class="flex gap-2">
-                                <span class="text-emerald-600">✓</span>
-                                <span>
-                                    Students who choose to change accounting methods
-                                    can submit their proposed selections for faculty review.
-                                </span>
-                            </li>
-
-                            <li class="flex gap-2">
-                                <span class="text-emerald-600">✓</span>
-                                <span>
-                                    Faculty approval is required only when a student
-                                    proposes a change.
-                                </span>
-                            </li>
-
-                            <li class="flex gap-2">
-                                <span class="text-emerald-600">✓</span>
-                                <span>
-                                    Inventory Method remains fixed at FIFO and cannot be changed.
-                                </span>
-                            </li>
-
-                        </ul>
-
-                        <flux:callout class="mt-4" variant="info" icon="information-circle"
-                            heading="Student workflow"
-                            text="Quarter 4 → Choose Default or Change Settings → If changed, submit for faculty review → Continue with the applicable accounting settings." />
-
-                    </div>
-                @else
-                    <div class="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-
-                        <flux:text size="sm">
-                            <strong>What this means:</strong>
-                            Students will use the simulation's existing/default accounting
-                            settings. No accounting-method change request or faculty approval
-                            workflow will be required.
-                        </flux:text>
-
-                    </div>
-                @endif
+                <div class="mt-4 border-t border-zinc-200 pt-4 text-sm dark:border-zinc-700">
+                    <p>
+                        @if ($accounting_election_enabled)
+                            Each team starts with the default methods below and can ask to change them, with a written reason, once per quarter. A request is the team's, filed by any member; you approve or decline it, and an approved change is disclosed in that quarter's notes.
+                        @else
+                            Every firm reports with the default methods below throughout the course.
+                        @endif
+                    </p>
+                    <dl class="mt-3 grid gap-2 sm:grid-cols-2">
+                        @foreach ($defaults as $key => $value)
+                            <div class="flex justify-between gap-3 rounded-md bg-white/60 px-3 py-2 dark:bg-white/5">
+                                <dt class="text-zinc-600 dark:text-zinc-400">{{ \App\Support\Presentation\DecisionPresenter::fieldLabel($key) }}</dt>
+                                <dd class="font-medium">{{ \App\Support\Presentation\DecisionPresenter::valueLabel($key, $value) }}{{ $key === 'inventory_method' ? ' (fixed)' : '' }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </div>
 
             </div>
 
@@ -641,13 +609,8 @@
                  ==================================================== --}}
             @if ($deployed || $course->status === 'deployed')
                 <flux:callout variant="success" icon="check-circle" heading="Course deployed"
-                    text="This course is now active. Course configuration is locked. Use Firms, Quarters, and CF Plus from the faculty dashboard to manage the running simulation." />
+                    text="This course is running and its setup is locked. Use the course pages in the left menu to manage firms, students, quarters and results." />
 
-                <div class="flex justify-start">
-                    <flux:button :href="route('dashboard')" icon="arrow-left">
-                        Back to dashboard
-                    </flux:button>
-                </div>
             @else
                 <flux:callout variant="warning" icon="information-circle" heading="Deployment validation"
                     text="Deployment revalidates the complete schedule, matrix, and faculty ownership atomically." />

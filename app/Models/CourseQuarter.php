@@ -20,11 +20,11 @@ class CourseQuarter extends Model
 
     public const CLOSED = 'closed';
 
-    protected $fillable = ['course_id', 'quarter_number', 'starts_on', 'ends_on', 'decision_deadline_at', 'state', 'opened_at', 'close_started_at', 'closed_at'];
+    protected $fillable = ['course_id', 'quarter_number', 'starts_on', 'ends_on', 'decision_deadline_at', 'state', 'opened_at', 'close_started_at', 'closed_at', 'deadline_extended_at'];
 
     protected function casts(): array
     {
-        return ['quarter_number' => 'integer', 'starts_on' => 'date', 'ends_on' => 'date', 'decision_deadline_at' => 'datetime', 'opened_at' => 'datetime', 'close_started_at' => 'datetime', 'closed_at' => 'datetime'];
+        return ['quarter_number' => 'integer', 'starts_on' => 'date', 'ends_on' => 'date', 'decision_deadline_at' => 'datetime', 'opened_at' => 'datetime', 'close_started_at' => 'datetime', 'closed_at' => 'datetime', 'deadline_extended_at' => 'datetime'];
     }
 
     /** @return BelongsTo<Course, $this> */

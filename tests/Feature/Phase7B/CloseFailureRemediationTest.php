@@ -74,9 +74,7 @@ class CloseFailureRemediationTest extends TestCase
             ->assertSee($firmB->code)
             ->assertSee('Decision:')
             ->assertSee('Retry failed firms')
-            ->assertSee('2')
-            ->assertSee('3')
-            ->assertSee('firms complete.')
+            ->assertSee('2 of 3 firms complete.')
             ->assertDontSee('SQLSTATE')
             ->assertDontSee('Stack trace');
         $snapshots = collect([$firmA, $firmC])->mapWithKeys(function (Firm $firm): array {

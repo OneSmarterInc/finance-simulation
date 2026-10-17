@@ -2,16 +2,21 @@
 
 namespace App\Livewire\Student;
 
+use App\Livewire\InheritedHistory;
 use App\Models\CourseFacultyRole;
 use App\Models\Firm;
-use App\Models\FirmEngineResult;
+use App\Services\Accounting\AccountingChangeDisclosures;
+use App\Services\Courses\CourseStatus;
+use App\Services\Decisions\FirmDecisionHistory;
+use App\Services\Decisions\FirmDecisionService;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Collection;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Url;
 use Livewire\Component;
 
-#[Layout('layouts.student')]
+/**
+ * Where the firm stands now (walkthrough items 70, 71): what the team has
+ * to do this quarter, then the latest quarter beside the one before it.
+ * The full record lives on History (item 41).
+ */
 class FirmDashboard extends Component
 {
     /** @var list<string> */
@@ -23,44 +28,42 @@ class FirmDashboard extends Component
 
     public Firm $firm;
 
-    #[Url(as: 'quarter')]
-    public ?int $selectedQuarter = null;
+    public bool $facultyView = false;
 
     public function mount(Firm $firm): void
     {
         $this->authorizeAccess($firm);
         $this->firm = $firm->load('course');
-        $available = $firm->engineResults()->orderBy('quarter_number')->pluck('quarter_number');
-
-        if ($this->selectedQuarter === null || ! $available->contains($this->selectedQuarter)) {
-            $this->selectedQuarter = $available->last();
-        }
     }
 
-    public function selectQuarter(int $quarter): void
+    public function render(FirmDecisionHistory $history, FirmDecisionService $decisions, AccountingChangeDisclosures $disclosures): View
     {
-        abort_unless($this->firm->engineResults()->where('quarter_number', $quarter)->exists(), 404);
-        $this->selectedQuarter = $quarter;
-    }
-
-    public function render(): View
-    {
-        /** @var Collection<int, FirmEngineResult> $results */
+        $status = CourseStatus::for($this->firm->course);
+        $active = $status->active();
         $results = $this->firm->engineResults()->orderBy('quarter_number')->get();
-        $selected = $results->firstWhere('quarter_number', $this->selectedQuarter);
+        $latest = $results->slice(-2);
+
+        $columns = [];
+        $decisionColumns = [];
+        $disclosureColumns = [];
+        foreach ($latest as $result) {
+            $label = InheritedHistory::columnLabel($result);
+            $columns[$label] = $result;
+            $decisionColumns[$label] = $history->forQuarter($this->firm, $result->quarter_number);
+            $disclosureColumns[$label] = $disclosures->forQuarter($this->firm, $result->quarter_number);
+        }
 
         return view('livewire.student.firm-dashboard', [
+            'status' => $status,
+            'active' => $active,
+            'teamStatus' => $active ? $status->firmStatus($this->firm, $active) : null,
             'results' => $results,
-            'selected' => $selected,
-            'trendRows' => $results->map(fn (FirmEngineResult $result): array => [
-                'quarter' => $result->quarter_number,
-                'revenue' => $result->income_statement['net_revenue'] ?? null,
-                'cash' => $result->fields['bs_cash'] ?? null,
-                'equity' => $result->balance_sheet['equity'] ?? null,
-                'operating_margin' => $result->fields['n5_cov_margin'] ?? null,
-            ]),
-            'nonMonetaryNoteKeys' => self::NON_MONETARY_NOTE_KEYS,
-        ]);
+            'columns' => $columns,
+            'decisionColumns' => $decisionColumns,
+            'disclosureColumns' => $disclosureColumns,
+            'parameters' => $decisions->parameters($this->firm),
+            'members' => $this->firm->memberships()->with('student.user')->get()->map(fn ($m) => $m->student?->user?->name)->filter()->values(),
+        ])->layout($this->facultyView ? 'layouts.app' : 'layouts.student', ['title' => $this->firm->name]);
     }
 
     private function authorizeAccess(Firm $firm): void
@@ -81,5 +84,7 @@ class FirmDashboard extends Component
                     ->exists());
 
         abort_unless($studentAccess || $facultyAccess, 403);
+
+        $this->facultyView = $facultyAccess && ! $studentAccess;
     }
 }

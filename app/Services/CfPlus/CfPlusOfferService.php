@@ -52,12 +52,12 @@ final class CfPlusOfferService
     {
         $this->gate->assertEnabled($course);
         if (CfPlusAuctionResult::query()->where('course_id', $course->id)->exists()) {
-            throw new DomainException('CF Plus offers are read-only after auction settlement.');
+            throw new DomainException('Offers are final once the evaluation stage has been settled.');
         }
         $start = $this->gate->evaluationStartQuarter($course);
         $open = $course->quarters()->where('quarter_number', '>=', $start)->where('state', CourseQuarter::OPEN)->exists();
         if (! $open) {
-            throw new DomainException('The CF Plus evaluation and offer window is not open.');
+            throw new DomainException('Offers can only be placed while an evaluation-stage quarter is open.');
         }
     }
 }

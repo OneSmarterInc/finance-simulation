@@ -17,107 +17,79 @@
 
         <flux:sidebar.nav>
 
-            {{-- Student-level navigation --}}
             <flux:sidebar.group :heading="__('Workspace')" class="grid">
-
                 <flux:sidebar.item icon="home" :href="route('student.courses')"
                     :current="request()->routeIs('student.courses')" wire:navigate>
-                    {{ __('My Courses') }}
+                    {{ __('My courses') }}
                 </flux:sidebar.item>
-
+                <flux:sidebar.item icon="book-open-text" :href="route('guide')"
+                    :current="request()->routeIs('guide')" wire:navigate>
+                    {{ __('Guide') }}
+                </flux:sidebar.item>
             </flux:sidebar.group>
 
-            {{-- Course workspace --}}
-            @if (request()->route('firm'))
-                <flux:sidebar.group :heading="__('Course Workspace')" class="grid">
+            {{-- The firm's pages. Faculty viewing a firm get the faculty layout instead. --}}
+            @php
+                $currentFirm = request()->route('firm');
+                $currentFirm = $currentFirm instanceof \App\Models\Firm ? $currentFirm->loadMissing('course') : null;
+                $firmPaid = $currentFirm && auth()->user()?->student
+                    ? \App\Services\Students\StudentAccess::isPaid(auth()->user()->student, $currentFirm->course)
+                    : false;
+            @endphp
 
-                    <flux:sidebar.item icon="layout-grid"
-                        :href="route('firms.dashboard', ['firm' => request()->route('firm')])"
+            @if ($currentFirm && $firmPaid)
+                @php
+                    $firmStatus = \App\Services\Courses\CourseStatus::for($currentFirm->course);
+                    $activeQuarter = $firmStatus->active();
+                    $electionQuarter = $activeQuarter ?? $firmStatus->quarters->where('quarter_number', '>=', 4)->last();
+                @endphp
+
+                <flux:sidebar.group :heading="$currentFirm->name" class="grid">
+                    <flux:sidebar.item icon="layout-grid" :href="route('firms.dashboard', $currentFirm)"
                         :current="request()->routeIs('firms.dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
 
-                    @php
-
-                        $currentFirm = request()->route('firm');
-
-                        $activeQuarter = $currentFirm?->course
-                            ?->quarters()
-
-                            ->whereIn('state', ['open', 'processing'])
-
-                            ->orderBy('quarter_number')
-
-                            ->first();
-
-                    @endphp
-
                     @if ($activeQuarter)
                         <flux:sidebar.item icon="pencil-square"
-                            :href="route('student.decisions.workspace', [
-                            
-                                'firm' => $currentFirm,
-                            
-                                'quarter' => $activeQuarter,
-                            
-                            ])"
-                            :current="request()->routeIs('student.decisions.workspace')" wire:navigate>
-
+                            :href="route('student.decisions.workspace', ['firm' => $currentFirm, 'quarter' => $activeQuarter])"
+                            :current="request()->routeIs('student.decisions.workspace')"
+                            :badge="'Q'.$activeQuarter->quarter_number" wire:navigate>
                             {{ __('Decisions') }}
-
                         </flux:sidebar.item>
                     @else
                         <flux:sidebar.item icon="pencil-square" class="pointer-events-none opacity-50">
-
                             {{ __('Decisions') }}
-
                         </flux:sidebar.item>
                     @endif
 
-                     @php
-    $accountingElectionQuarter = $activeQuarter
-        ?? $currentFirm?->course
-            ?->quarters()
-            ->where('quarter_number', '>=', 4)
-            ->orderByDesc('quarter_number')
-            ->first();
-@endphp
+                    @if ($currentFirm->course->accounting_election_enabled && $electionQuarter)
+                        <flux:sidebar.item icon="document-text"
+                            :href="route('student.accounting-election', ['firm' => $currentFirm, 'quarter' => $electionQuarter])"
+                            :current="request()->routeIs('student.accounting-election')" wire:navigate>
+                            {{ __('Accounting elections') }}
+                        </flux:sidebar.item>
+                    @endif
 
-@if ($accountingElectionQuarter)
-    @if ($currentFirm?->course?->accounting_election_enabled)
-        <flux:sidebar.item
-            icon="document-text"
-            :href="route('student.accounting-election', [
-                'firm' => $currentFirm,
-                'quarter' => $accountingElectionQuarter,
-            ])"
-            :current="request()->routeIs('student.accounting-election')"
-            wire:navigate
-        >
-            {{ __('Accounting Elections') }}
-        </flux:sidebar.item>
-    @else
-        <flux:sidebar.item
-            icon="document-text"
-            class="pointer-events-none opacity-50"
-        >
-            {{ __('Accounting Elections') }}
-        </flux:sidebar.item>
-    @endif
-@endif
-
-                    <flux:sidebar.item icon="clock"
-                        :href="route('firms.history', ['firm' => request()->route('firm')])"
+                    <flux:sidebar.item icon="clock" :href="route('firms.history', $currentFirm)"
                         :current="request()->routeIs('firms.history')" wire:navigate>
                         {{ __('History') }}
                     </flux:sidebar.item>
 
-                    <flux:sidebar.item icon="presentation-chart-bar"
-                        :href="route('student.cf-plus.evaluation', ['firm' => request()->route('firm')])"
-                        :current="request()->routeIs('student.cf-plus.evaluation')" wire:navigate>
-                        {{ __('CF Plus') }}
-                    </flux:sidebar.item>
-
+                    @if ($currentFirm->course->cf_plus_enabled)
+                        @if ($firmStatus->evaluationOpen())
+                            <flux:sidebar.item icon="presentation-chart-bar" :href="route('student.cf-plus.evaluation', $currentFirm)"
+                                :current="request()->routeIs('student.cf-plus.evaluation')" wire:navigate>
+                                {{ __('Evaluation stage') }}
+                            </flux:sidebar.item>
+                        @else
+                            <flux:sidebar.item icon="presentation-chart-bar" :href="route('student.cf-plus.evaluation', $currentFirm)"
+                                :current="request()->routeIs('student.cf-plus.evaluation')"
+                                :badge="'Q'.$firmStatus->evaluationStart()" class="opacity-60" wire:navigate>
+                                {{ __('Evaluation stage') }}
+                            </flux:sidebar.item>
+                        @endif
+                    @endif
                 </flux:sidebar.group>
             @endif
 

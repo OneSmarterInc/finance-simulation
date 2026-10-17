@@ -16,6 +16,10 @@ class FirmAccountingElectionRequest extends Model
         'course_quarter_id',
         'student_id',
         'proposed_elections',
+        'justification',
+        'faculty_note',
+        'previous_elections',
+        'effective_quarter_number',
         'status',
         'reviewed_by_faculty_id',
         'reviewed_at',
@@ -25,6 +29,8 @@ class FirmAccountingElectionRequest extends Model
     {
         return [
             'proposed_elections' => 'array',
+            'previous_elections' => 'array',
+            'effective_quarter_number' => 'integer',
             'reviewed_at' => 'datetime',
         ];
     }

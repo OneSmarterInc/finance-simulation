@@ -1,6 +1,6 @@
 <div class="flexee-page">
     <x-page-header
-        :eyebrow="$firm->course->name.' · CF Plus'"
+        :eyebrow="$firm->course->name.' · Evaluation stage'"
         title="Rival evaluation and sealed offers"
         description="Evaluate disclosed statements and the consultant report. Every offer is for a fixed 51% controlling interest."
     />
@@ -18,14 +18,17 @@
         <flux:callout
             variant="warning"
             icon="clock"
-            heading="CF Plus evaluation is not open"
+            heading="The evaluation stage hasn't opened yet"
         >
             <flux:text>
-                {{ $availabilityMessage }}
+                {{ \App\Services\Courses\CourseStatus::for($firm->course)->evaluationOpensText() }}
             </flux:text>
 
             <flux:text class="mt-2">
-                Please return when the evaluation window has been opened for this course.
+                In the evaluation stage, every firm's published statements and notes become visible to the other teams.
+                For each rival your team receives a consultant's valuation, decides what a controlling stake is worth,
+                and places a sealed offer it can afford to fund. When your instructor settles the stage, each firm's
+                true worth is shown beside the price paid.
             </flux:text>
         </flux:callout>
     @else
@@ -207,7 +210,7 @@
 
                                     <dd>
                                         <flux:badge>
-                                            {{ str($row['reveal']['outcome'])->title() }}
+                                            {{ ['unsold' => 'Not sold', 'overpaid' => 'Paid more than true worth', 'underpaid' => 'Paid less than true worth', 'exact' => 'Paid exactly its true worth'][$row['reveal']['outcome']] ?? $row['reveal']['outcome'] }}
                                         </flux:badge>
                                     </dd>
                                 </div>

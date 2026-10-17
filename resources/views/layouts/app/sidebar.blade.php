@@ -11,9 +11,14 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
+                @include('partials.faculty-course-nav')
+
                 <flux:sidebar.group :heading="__('Workspace')" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="book-open-text" :href="route('guide')" :current="request()->routeIs('guide')" wire:navigate>
+                        {{ __('Guide') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>

@@ -78,7 +78,7 @@ class AdminCourseConfigurationService
             ->contains(fn($key) => empty($data[$key]))
         ) {
             throw ValidationException::withMessages([
-                'cf_plus_enabled' => 'All CF Plus phase counts are required.',
+                'cf_plus_enabled' => 'Enter the number of quarters for each part of the evaluation stage.',
             ]);
         }
 
@@ -123,6 +123,19 @@ class AdminCourseConfigurationService
             'quarters.*.decision_deadline_at' => ['required', 'date'],
         ])->validate();
 
+        // A deadline given as a date means the end of that day in the display
+        // time zone, stored as UTC.
+        $quarters = array_map(function (array $quarter): array {
+            if (filled($quarter['decision_deadline_at'] ?? null)) {
+                try {
+                    $quarter['decision_deadline_at'] = \App\Support\Dates::deadlineFromInput((string) $quarter['decision_deadline_at'])->toDateTimeString();
+                } catch (\Throwable) {
+                    // left as given; the validator reports it
+                }
+            }
+
+            return $quarter;
+        }, $quarters);
         $ordered = collect($quarters)->sortBy('quarter_number')->values();
 
         foreach ($ordered as $index => $quarter) {
@@ -133,8 +146,8 @@ class AdminCourseConfigurationService
             if (
                 (int) $quarter['quarter_number'] !== $index + 1
                 || $start->gt($end)
-                || $deadline->lt($start)
-                || $deadline->gt($end)
+                || $deadline->setTimezone(\App\Support\Dates::zone())->startOfDay()->lt($start)
+                || $deadline->setTimezone(\App\Support\Dates::zone())->startOfDay()->gt($end)
             ) {
                 throw ValidationException::withMessages([
                     'quarters' => 'Quarter sequence and dates must be coherent.',
@@ -161,7 +174,7 @@ class AdminCourseConfigurationService
 
         if ($course->cf_plus_enabled && $ordered->count() < $minimum) {
             throw ValidationException::withMessages([
-                'quarters' => "CF Plus requires at least {$minimum} quarters.",
+                'quarters' => "With the evaluation stage added, this course needs at least {$minimum} quarters.",
             ]);
         }
 

@@ -1,135 +1,89 @@
+@php use App\Support\Dates; @endphp
 <div class="flexee-page">
+    <x-page-header :eyebrow="$course->name" title="Students"
+        description="Everyone registered for this course, with their firm. Students who aren't in a firm yet are listed first." />
 
-    <x-page-header eyebrow="FLEXEE WORKSPACE" :title="$course->name . ' — Students / Participants'"
-        description="Students registered for this simulation course." />
+    @if ($statusMessage)
+        <flux:callout variant="success" icon="check-circle" :heading="$statusMessage" role="status" />
+    @endif
+    @if ($errors->any())
+        <flux:callout variant="danger" icon="exclamation-triangle" :heading="$errors->first()" role="alert" />
+    @endif
 
-    <div class="mb-5">
-        <flux:button :href="route('dashboard')" icon="arrow-left" variant="ghost">
-            Back to Courses
-        </flux:button>
-    </div>
+    @if ($registrationUrl)
+        <flux:card class="space-y-2">
+            <flux:heading size="lg" level="2">Course link for students</flux:heading>
+            <flux:text size="sm">Send this link to your class. Students register with it and then appear below.</flux:text>
+            <div class="flex flex-wrap items-center gap-2" x-data>
+                <flux:input readonly :value="$registrationUrl" class="max-w-xl" />
+                <flux:button size="sm" icon="clipboard" x-on:click="navigator.clipboard.writeText(@js($registrationUrl))">Copy</flux:button>
+            </div>
+        </flux:card>
+    @endif
 
     <flux:card>
+        <flux:text>{{ $enrollments->count() }} {{ str('student')->plural($enrollments->count()) }} registered.</flux:text>
 
-        <div class="flex items-center justify-between gap-4">
-            <div>
-                <flux:heading size="lg">
-                    Students / Participants
-                </flux:heading>
-
-                <flux:text class="mt-1">
-                    {{ $participants->count() }}
-                    {{ str('participant')->plural($participants->count()) }}
-                    registered for this simulation.
-                </flux:text>
-            </div>
-
-            <flux:badge color="zinc">
-                {{ $participants->count() }}
-            </flux:badge>
-        </div>
-
-        @if ($participants->isEmpty())
-
-            <div class="mt-6 rounded-lg border border-dashed border-zinc-300 p-8 text-center dark:border-white/10">
-                <flux:heading size="sm">
-                    No participants yet
-                </flux:heading>
-
-                <flux:text class="mt-1">
-                    Students who register for this simulation will appear here.
-                </flux:text>
-            </div>
+        @if ($enrollments->isEmpty())
+            <flux:text class="mt-4">No students have registered yet.</flux:text>
         @else
-            <div class="mt-6 overflow-x-auto">
-                <table class="w-full text-left text-sm">
+            <div class="mt-4 overflow-x-auto">
+                <table class="w-full min-w-[720px] text-left text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-200 dark:border-white/10">
-
-                            <th class="px-3 py-3">
-                                <button type="button" wire:click="sort('name')"
-                                    class="inline-flex items-center gap-1 font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
-                                    Participant
-
-                                    @if ($sortBy === 'name')
-                                        <span>{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                                    @endif
-                                </button>
-                            </th>
-
-                            <th class="px-3 py-3 font-medium text-zinc-500">
-                                Email
-                            </th>
-
-                            <th class="px-3 py-3">
-                                <button type="button" wire:click="sort('firm')"
-                                    class="inline-flex items-center gap-1 font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
-                                    Firm
-
-                                    @if ($sortBy === 'firm')
-                                        <span>{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                                    @endif
-                                </button>
-                            </th>
-
-                            <th class="px-3 py-3">
-
-                                <button type="button" wire:click="sort('registered')"
-                                    class="inline-flex items-center gap-1 font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
-
-                                    Registered
-
-                                    @if ($sortBy === 'registered')
-                                        <span>{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                                    @endif
-
-                                </button>
-
-                            </th>
+                        <tr class="border-b border-zinc-200 text-zinc-500 dark:border-white/10">
+                            <th class="px-3 py-2 font-medium">Student</th>
+                            <th class="px-3 py-2 font-medium">Email</th>
+                            <th class="px-3 py-2 font-medium">Firm</th>
+                            @if ($paymentRequired)
+                                <th class="px-3 py-2 font-medium">Access</th>
+                            @endif
+                            <th class="px-3 py-2 font-medium">Registered</th>
                         </tr>
                     </thead>
-
                     <tbody class="divide-y divide-zinc-200 dark:divide-white/10">
-
-                        @foreach ($participants as $enrollment)
+                        @foreach ($enrollments as $enrollment)
                             @php
                                 $student = $enrollment->student;
-                                $membership = $student?->firmMemberships->first();
+                                $firm = $student?->firmMemberships->first()?->firm;
                             @endphp
-
-                            <tr>
-                                <td class="px-3 py-4 font-medium text-zinc-900 dark:text-white">
-                                    {{ $student?->user?->name ?? '—' }}
-                                </td>
-
-                                <td class="px-3 py-4 text-zinc-600 dark:text-zinc-300">
-                                    {{ $student?->user?->email ?? '—' }}
-                                </td>
-
-                                <td class="px-3 py-4">
-                                    @if ($membership?->firm)
-                                        <flux:badge color="emerald">
-                                            {{ $membership->firm->name }}
-                                        </flux:badge>
+                            <tr wire:key="enrollment-{{ $enrollment->id }}">
+                                <td class="px-3 py-3 font-medium">{{ $student?->user?->name ?? '–' }}</td>
+                                <td class="px-3 py-3 text-zinc-600 dark:text-zinc-300">{{ $student?->user?->email ?? '–' }}</td>
+                                <td class="px-3 py-3">
+                                    @if ($firm)
+                                        {{ $firm->name }}
+                                    @elseif ($isOwner && $firms->isNotEmpty())
+                                        <form wire:submit="place('{{ $student->id }}')" class="flex items-center gap-2">
+                                            <flux:select size="sm" wire:model="placement.{{ $student->id }}" placeholder="Choose a firm" class="min-w-40">
+                                            <flux:select.option value="">Choose…</flux:select.option>
+                                                @foreach ($firms as $option)
+                                                    <flux:select.option :value="$option->id">{{ $option->name }}</flux:select.option>
+                                                @endforeach
+                                            </flux:select>
+                                            <flux:button size="sm" type="submit">Place</flux:button>
+                                        </form>
                                     @else
-                                        <flux:badge color="zinc">
-                                            Not assigned
-                                        </flux:badge>
+                                        <flux:badge color="amber" size="sm">Not in a firm</flux:badge>
                                     @endif
                                 </td>
-
-                                <td class="px-3 py-4 text-zinc-500">
-                                    {{ $enrollment->created_at?->format('d M Y') ?? '—' }}
-                                </td>
+                                @if ($paymentRequired)
+                                    <td class="px-3 py-3">
+                                        @if ($enrollment->paid_at)
+                                            <flux:badge color="emerald" size="sm">Confirmed</flux:badge>
+                                        @else
+                                            <flux:badge color="zinc" size="sm">Waiting for payment</flux:badge>
+                                        @endif
+                                    </td>
+                                @endif
+                                <td class="px-3 py-3 text-zinc-500">{{ Dates::day($enrollment->created_at) }}</td>
                             </tr>
                         @endforeach
-
                     </tbody>
                 </table>
             </div>
-
+            @if ($paymentRequired)
+                <flux:text size="sm" class="mt-3">Students pay outside Flexee. One Smarter confirms each payment, and a student's firm pages open once it's confirmed.</flux:text>
+            @endif
         @endif
-
     </flux:card>
-
 </div>

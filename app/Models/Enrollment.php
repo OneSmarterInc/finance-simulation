@@ -11,7 +11,18 @@ class Enrollment extends Model
 {
     use HasUuids, SoftDeletes;
 
-    protected $fillable = ['course_id', 'student_id', 'institution_id'];
+    protected $fillable = ['course_id', 'student_id', 'institution_id', 'paid_at', 'paid_marked_by_user_id'];
+
+    protected function casts(): array
+    {
+        return ['paid_at' => 'datetime'];
+    }
+
+    /** N3: students sign in before payment, but the firm pages open once they are marked paid. */
+    public function isPaid(): bool
+    {
+        return $this->paid_at !== null;
+    }
 
     /** @return BelongsTo<Course, $this> */
     public function course(): BelongsTo

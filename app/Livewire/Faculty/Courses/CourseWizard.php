@@ -359,7 +359,7 @@ class CourseWizard extends Component
                 'quarter_number' => $q->quarter_number,
                 'starts_on' => CarbonImmutable::parse($q->starts_on)->toDateString(),
                 'ends_on' => CarbonImmutable::parse($q->ends_on)->toDateString(),
-                'decision_deadline_at' => CarbonImmutable::parse($q->decision_deadline_at)->toDateString(),
+                'decision_deadline_at' => \App\Support\Dates::localDate($q->decision_deadline_at),
             ])
             ->all();
 

@@ -20,7 +20,7 @@ final class CfPlusAcquisitionFundingService
     {
         $this->gate->assertEnabled($course);
         if ($bidder->course_id !== $course->id || $target->course_id !== $course->id || $bidder->is($target)) {
-            throw new DomainException('Acquisition funding is available only for rival firms in the same CF Plus course.');
+            throw new DomainException('Acquisition funding is available only for rival firms in the same course.');
         }
         $snapshot = $this->snapshots->forCourse($course);
         $rows = CfPlusAuctionEconomics::query()->where('snapshot_id', $snapshot->id)->whereIn('firm_id', [$bidder->id, $target->id])->get()->keyBy('firm_id');

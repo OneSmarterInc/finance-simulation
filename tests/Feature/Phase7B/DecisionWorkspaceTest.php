@@ -67,7 +67,7 @@ class DecisionWorkspaceTest extends TestCase
     {
         $faculty = Faculty::query()->firstOrFail();
         $course = Course::query()->create(['institution_id' => $faculty->institution_id, 'faculty_id' => $faculty->id, 'scenario_id' => Scenario::query()->where('code', 'cf_manufacturing')->value('id'), 'name' => 'Workspace', 'starts_on' => '2026-09-01', 'ends_on' => '2027-09-01', 'status' => 'deployed']);
-        $quarter = CourseQuarter::query()->create(['course_id' => $course->id, 'quarter_number' => 4, 'starts_on' => '2026-09-01', 'ends_on' => '2026-11-01', 'decision_deadline_at' => '2026-10-31', 'state' => CourseQuarter::OPEN]);
+        $quarter = CourseQuarter::query()->create(['course_id' => $course->id, 'quarter_number' => 4, 'starts_on' => '2026-09-01', 'ends_on' => '2026-11-01', 'decision_deadline_at' => now()->addMonth(), 'state' => CourseQuarter::OPEN]);
         foreach (['forecasting', 'sourcing', 'production'] as $code) {
             CourseDecisionEnablement::query()->create(['course_quarter_id' => $quarter->id, 'scenario_decision_category_id' => $course->scenario->decisionCategories()->where('code', $code)->value('id'), 'enabled' => true]);
         }

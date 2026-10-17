@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\TestController;
 use App\Livewire\Faculty\Courses\AccountingElectionRequests;
 use App\Livewire\Faculty\Dashboard as FacultyDashboard;
 use App\Livewire\Faculty\Courses\CfPlusAuction;
@@ -16,24 +15,9 @@ use App\Livewire\Student\FirmDashboard;
 use App\Livewire\Student\Courses;
 use App\Livewire\Student\CourseRegistration;
 use App\Livewire\Faculty\Courses\Students;
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    $databaseAvailable = true;
-
-    try {
-        DB::select('select 1');
-    } catch (Throwable) {
-        $databaseAvailable = false;
-    }
-
-    return view('welcome', [
-        'databaseAvailable' => $databaseAvailable,
-        'laravelVersion' => Application::VERSION,
-    ]);
-})->name('home');
+Route::view('/', 'welcome')->name('home');
 
  Route::get('register/course/{token}', CourseRegistration::class)
     ->name('student.course-registration');
@@ -89,18 +73,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
     Route::get('firms/{firm}/quarters/{quarter}/decisions', DecisionWorkspace::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
         ->name('student.decisions.workspace');
 
     Route::get('firms/{firm}/quarters/{quarter}/accounting-election', AccountingElection::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
         ->name('student.accounting-election');
 
     Route::get('firms/{firm}/history', InheritedHistory::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
         ->name('firms.history');
 
     Route::get('firms/{firm}/dashboard', FirmDashboard::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
         ->name('firms.dashboard');
 
     Route::get('firms/{firm}/cf-plus', CfPlusEvaluation::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
         ->name('student.cf-plus.evaluation');
 
     Route::get('faculty/courses/{course}/cf-plus-auction', CfPlusAuction::class)
@@ -108,9 +97,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('student/courses', Courses::class)
         ->name('student.courses');
+
+    Route::get('guide', \App\Livewire\Guide::class)
+        ->name('guide');
 });
 
-Route::get('/testMail', [TestController::class, 'testMail'])->name('testMail');
 
 
 require __DIR__ . '/settings.php';

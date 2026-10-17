@@ -92,3 +92,19 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+[x-cloak] {
+    display: none !important;
+}
+
+.flexee-prose h1 {
+    @apply mb-3 text-xl font-semibold text-zinc-900 dark:text-white;
+}
+
+.flexee-prose h2 {
+    @apply mt-5 mb-2 text-base font-semibold text-zinc-900 dark:text-white;
+}
+
+.flexee-prose p {
+    @apply mb-3;
+}

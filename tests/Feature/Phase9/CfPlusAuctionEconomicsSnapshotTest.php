@@ -303,7 +303,7 @@ class CfPlusAuctionEconomicsSnapshotTest extends TestCase
             ->set('name', 'Late Firm')
             ->call('createFirm')
             ->assertHasErrors('phase9')
-            ->assertSee('locked after the auction snapshot opens');
+            ->assertSee('locked once the evaluation stage opens');
 
         Livewire::test(FacultyFirmManager::class, ['course' => $course])
             ->set('studentId', $membership->student_id)

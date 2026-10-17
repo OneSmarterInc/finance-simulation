@@ -1,419 +1,115 @@
+@php
+    use App\Support\Dates;
+    use App\Support\Presentation\AccountingMethodGuide as Guide;
+    use App\Support\Presentation\DecisionPresenter as Names;
+@endphp
 <div class="flexee-page">
+    <x-page-header :eyebrow="$course->name" title="Accounting elections"
+        description="Teams ask to change how their firm reports. Each request comes with the team's reason; nothing changes until you approve it." />
 
-    <x-page-header
-        :eyebrow="$course->name"
-        title="Accounting Election Requests"
-        description="Review student-proposed accounting method changes for this course."
-    >
-        <x-slot:actions>
-            <flux:button
-                :href="route('dashboard')"
-                icon="arrow-left"
-            >
-                Back to dashboard
-            </flux:button>
-        </x-slot:actions>
-    </x-page-header>
-
-
-    {{-- Success message --}}
     @if (session('success'))
-        <flux:callout
-            variant="success"
-            icon="check-circle"
-            :heading="session('success')"
-            role="status"
-        />
+        <flux:callout variant="success" icon="check-circle" :heading="session('success')" role="status" />
+    @endif
+    @if ($errors->any())
+        <flux:callout variant="danger" icon="exclamation-triangle" :heading="$errors->first()" role="alert" />
     @endif
 
-
-    {{-- ============================================================
-         CONDITION 1
-         Accounting Election Control Disabled
-         ============================================================ --}}
     @if (! $course->accounting_election_enabled)
-
-        <flux:card class="border-zinc-200 dark:border-white/10">
-
-            <div class="flex items-start gap-4">
-
-                <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 dark:bg-white/10">
-                    <flux:icon
-                        name="information-circle"
-                        class="size-5 text-zinc-500"
-                    />
-                </div>
-
-                <div class="min-w-0">
-
-                    <flux:heading size="lg">
-                        Accounting Election Control Disabled
-                    </flux:heading>
-
-                    <flux:text class="mt-1">
-                        Student accounting-election control is currently disabled
-                        for this course.
-                    </flux:text>
-
-                    <flux:text class="mt-2 text-sm text-zinc-500">
-                        Students will use the simulation's configured default
-                        accounting settings. No accounting-election requests
-                        or faculty approvals are required.
-                    </flux:text>
-
-                </div>
-
-            </div>
-
-        </flux:card>
-
-
-    {{-- ============================================================
-         CONDITION 2
-         Accounting Election Enabled + No Requests
-         ============================================================ --}}
-    @elseif ($requests->isEmpty())
-
-        <flux:card class="border-zinc-200 dark:border-white/10">
-
-            <div class="flex flex-col items-center px-6 py-10 text-center">
-
-                <div class="flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-white/10">
-
-                    <flux:icon
-                        name="document-text"
-                        class="size-6 text-zinc-500"
-                    />
-
-                </div>
-
-                <flux:heading size="lg" class="mt-4">
-                    No Accounting Election Requests
-                </flux:heading>
-
-                <flux:text class="mt-2 max-w-xl">
-                    No students have submitted an accounting-method change
-                    request for this course yet.
-                </flux:text>
-
-                <flux:text class="mt-1 max-w-xl text-sm text-zinc-500">
-                    Student requests will appear here when they choose to
-                    change the default accounting settings.
-                </flux:text>
-
-            </div>
-
-        </flux:card>
-
-
-    {{-- ============================================================
-         CONDITION 3
-         Accounting Election Enabled + Requests
-         ============================================================ --}}
+        <flux:callout icon="information-circle" heading="Student accounting-election control is off for this course"
+            text="Every firm reports with the default methods, so there are no requests to review." />
     @else
+        <flux:heading size="lg" level="2">Waiting for you ({{ $pending->count() }})</flux:heading>
 
-        @php
-            $pendingCount = $requests->where('status', 'pending')->count();
-            $approvedCount = $requests->where('status', 'approved')->count();
-            $rejectedCount = $requests->where('status', 'rejected')->count();
-        @endphp
-
-
-        {{-- Request summary --}}
-        <div class="grid gap-3 sm:grid-cols-3">
-
-            <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-400/20 dark:bg-amber-400/5">
-
-                <div class="flex items-center justify-between gap-3">
-
+        @forelse ($pending as $row)
+            @php($request = $row['request'])
+            <flux:card class="space-y-4" wire:key="request-{{ $request->id }}">
+                <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <flux:text class="text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                            Pending
+                        <flux:heading size="lg">{{ $request->firm->name }}</flux:heading>
+                        <flux:text size="sm">
+                            Filed for the team by {{ $request->student?->user?->name }}, {{ Dates::dateTime($request->created_at) }}, during Quarter {{ $request->courseQuarter?->quarter_number }}.
                         </flux:text>
-
-                        <div class="mt-1 text-2xl font-semibold text-amber-900 dark:text-amber-300">
-                            {{ $pendingCount }}
-                        </div>
                     </div>
-
-                    <flux:icon
-                        name="clock"
-                        class="size-5 text-amber-600 dark:text-amber-400"
-                    />
-
+                    <flux:badge color="amber">Waiting</flux:badge>
                 </div>
 
-            </div>
-
-
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-400/20 dark:bg-emerald-400/5">
-
-                <div class="flex items-center justify-between gap-3">
-
-                    <div>
-                        <flux:text class="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-                            Approved
-                        </flux:text>
-
-                        <div class="mt-1 text-2xl font-semibold text-emerald-900 dark:text-emerald-300">
-                            {{ $approvedCount }}
-                        </div>
-                    </div>
-
-                    <flux:icon
-                        name="check-circle"
-                        class="size-5 text-emerald-600 dark:text-emerald-400"
-                    />
-
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-zinc-300 text-left text-xs text-zinc-500 dark:border-zinc-600">
+                                <th class="py-2 pr-4">Method</th><th class="py-2 pr-4">Now</th><th class="py-2 pr-4">Requested</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-200 dark:divide-white/10">
+                            @foreach ($request->proposed_elections as $key => $value)
+                                @php($changed = ($row['current'][$key] ?? null) !== $value)
+                                <tr @class(['bg-amber-50 dark:bg-amber-400/10' => $changed])>
+                                    <th scope="row" class="py-2 pr-4 text-left font-medium align-top">{{ Names::fieldLabel($key) }}</th>
+                                    <td class="py-2 pr-4 align-top">{{ Names::valueLabel($key, $row['current'][$key] ?? null) }}</td>
+                                    <td class="py-2 pr-4 align-top">
+                                        <span @class(['font-semibold' => $changed])>{{ Names::valueLabel($key, $value) }}</span>
+                                        @if ($changed)
+                                            <span class="block text-xs text-zinc-600 dark:text-zinc-400">{{ Guide::effect($key, $value) }}</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
 
-            </div>
-
-
-            <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-
-                <div class="flex items-center justify-between gap-3">
-
-                    <div>
-                        <flux:text class="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                            Rejected
-                        </flux:text>
-
-                        <div class="mt-1 text-2xl font-semibold text-zinc-800 dark:text-zinc-200">
-                            {{ $rejectedCount }}
-                        </div>
-                    </div>
-
-                    <flux:icon
-                        name="x-circle"
-                        class="size-5 text-zinc-500"
-                    />
-
+                <div class="rounded-md bg-zinc-50 p-3 text-sm dark:bg-white/5">
+                    <p class="font-medium">The team's reason</p>
+                    <p class="mt-1">{{ $request->justification ?: 'No reason was given with this request.' }}</p>
                 </div>
 
-            </div>
-
-        </div>
-
-
-        {{-- Requests --}}
-        <div class="space-y-4">
-
-            @foreach ($requests as $request)
-
-                @php
-                    $proposed = $request->proposed_elections ?? [];
-                @endphp
-
-
-                <flux:card class="overflow-hidden p-0">
-
-                    {{-- Request header --}}
-                    <div class="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
-
-                        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-                            <div class="min-w-0">
-
-                                <div class="flex flex-wrap items-center gap-2">
-
-                                    <flux:heading size="lg">
-                                        {{ $request->student?->user?->name ?? 'Student' }}
-                                    </flux:heading>
-
-                                    @if ($request->status === 'pending')
-                                        <flux:badge color="amber">
-                                            Pending Review
-                                        </flux:badge>
-                                    @elseif ($request->status === 'approved')
-                                        <flux:badge color="emerald">
-                                            Approved
-                                        </flux:badge>
-                                    @else
-                                        <flux:badge color="zinc">
-                                            Rejected
-                                        </flux:badge>
-                                    @endif
-
-                                </div>
-
-                                <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-zinc-500">
-
-                                    <span>
-                                        <span class="font-medium text-zinc-700 dark:text-zinc-300">
-                                            Firm:
-                                        </span>
-                                        {{ $request->firm?->name ?? '—' }}
-                                    </span>
-
-                                    <span>
-                                        <span class="font-medium text-zinc-700 dark:text-zinc-300">
-                                            Quarter:
-                                        </span>
-                                        {{ $request->courseQuarter?->quarter_number ?? '—' }}
-                                    </span>
-
-                                    <span>
-                                        <span class="font-medium text-zinc-700 dark:text-zinc-300">
-                                            Submitted:
-                                        </span>
-                                        {{ $request->created_at?->format('d M Y, h:i A') ?? '—' }}
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-                    {{-- Proposed settings --}}
-                    <div class="px-5 py-5">
-
-                        <div class="mb-3 flex items-center justify-between gap-4">
-
-                            <flux:heading size="sm">
-                                Proposed Accounting Settings
-                            </flux:heading>
-
-                            <flux:text class="text-xs text-zinc-500">
-                                Inventory is fixed
-                            </flux:text>
-
-                        </div>
-
-
-                        <div class="overflow-hidden rounded-lg border border-zinc-200 dark:border-white/10">
-
-                            <dl class="divide-y divide-zinc-200 dark:divide-white/10">
-
-                                <div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-2 sm:gap-4">
-                                    <dt class="text-sm text-zinc-500">
-                                        Depreciation Method
-                                    </dt>
-
-                                    <dd class="text-sm font-medium text-zinc-900 dark:text-white">
-                                        {{ str($proposed['depreciation_method'] ?? '—')->replace('_', ' ')->title() }}
-                                    </dd>
-                                </div>
-
-
-                                <div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-2 sm:gap-4">
-                                    <dt class="text-sm text-zinc-500">
-                                        Shipping Terms
-                                    </dt>
-
-                                    <dd class="text-sm font-medium text-zinc-900 dark:text-white">
-                                        {{ str($proposed['shipping_terms'] ?? '—')->replace('_', ' ')->title() }}
-                                    </dd>
-                                </div>
-
-
-                                <div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-2 sm:gap-4">
-                                    <dt class="text-sm text-zinc-500">
-                                        Bad Debt Method
-                                    </dt>
-
-                                    <dd class="text-sm font-medium text-zinc-900 dark:text-white">
-                                        {{ str($proposed['bad_debt_method'] ?? '—')->replace('_', ' ')->title() }}
-                                    </dd>
-                                </div>
-
-
-                                <div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-2 sm:gap-4">
-                                    <dt class="text-sm text-zinc-500">
-                                        Warranty Method
-                                    </dt>
-
-                                    <dd class="text-sm font-medium text-zinc-900 dark:text-white">
-                                        {{ str($proposed['warranty_method'] ?? '—')->replace('_', ' ')->title() }}
-                                    </dd>
-                                </div>
-
-
-                                <div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-2 sm:gap-4">
-                                    <dt class="text-sm text-zinc-500">
-                                        Excise Tax Treatment
-                                    </dt>
-
-                                    <dd class="text-sm font-medium text-zinc-900 dark:text-white">
-                                        {{ str($proposed['excise_tax_treatment'] ?? '—')->replace('_', ' ')->title() }}
-                                    </dd>
-                                </div>
-
-
-                                <div class="grid grid-cols-1 gap-1 bg-zinc-50 px-4 py-3 sm:grid-cols-2 sm:gap-4 dark:bg-white/5">
-                                    <dt class="text-sm font-medium text-zinc-500">
-                                        Inventory Method
-                                    </dt>
-
-                                    <dd class="text-sm font-semibold text-zinc-900 dark:text-white">
-                                        FIFO
-                                        <span class="ml-1 text-xs font-normal text-zinc-500">
-                                            (Fixed)
-                                        </span>
-                                    </dd>
-                                </div>
-
-                            </dl>
-
-                        </div>
-
-                    </div>
-
-
-                    {{-- Actions --}}
-                    @if ($request->status === 'pending')
-
-                        <div class="flex flex-col-reverse gap-2 border-t border-zinc-200 bg-zinc-50 px-5 py-4 dark:border-white/10 dark:bg-white/5 sm:flex-row sm:justify-end">
-
-                            <flux:button
-                                type="button"
-                                wire:click="reject('{{ $request->id }}')"
-                                wire:confirm="Reject this accounting-election change request?"
-                            >
-                                Reject
-                            </flux:button>
-
-                            <flux:button
-                                type="button"
-                                wire:click="approve('{{ $request->id }}')"
-                                wire:confirm="Approve this accounting-election change request?"
-                                variant="primary"
-                            >
-                                Approve
-                            </flux:button>
-
-                        </div>
-
+                <p class="text-sm">
+                    @if ($row['target'] && $row['target']->quarter_number === $request->courseQuarter?->quarter_number)
+                        If you approve now, the change applies to Quarter {{ $row['target']->quarter_number }}'s results (it closes {{ Dates::dateTime($row['target']->decision_deadline_at) }}) and every quarter after.
+                    @elseif ($row['target'])
+                        Quarter {{ $request->courseQuarter?->quarter_number }} has closed, so if you approve now the change applies from Quarter {{ $row['target']->quarter_number }}.
                     @else
-
-                        <div class="flex items-center justify-between gap-4 border-t border-zinc-200 bg-zinc-50 px-5 py-3 dark:border-white/10 dark:bg-white/5">
-
-                            <flux:text class="text-xs text-zinc-500">
-                                Reviewed
-                                {{ $request->reviewed_at?->format('d M Y, h:i A') ?? '—' }}
-                                @if ($request->reviewedByFaculty?->user?->name)
-                                    by {{ $request->reviewedByFaculty->user->name }}
-                                @endif
-                            </flux:text>
-
-                            <flux:text class="text-xs font-medium">
-                                {{ str($request->status)->title() }}
-                            </flux:text>
-
-                        </div>
-
+                        No quarter is left for this change to apply to.
                     @endif
+                    That quarter's notes will disclose the change and the team's reason.
+                </p>
 
-                </flux:card>
+                <div class="flex flex-col gap-3 border-t border-zinc-200 pt-4 sm:flex-row sm:items-end dark:border-white/10">
+                    <flux:button variant="primary" icon="check" wire:click="approve('{{ $request->id }}')"
+                        wire:confirm="{{ $request->firm->name }}'s methods change from Quarter {{ $row['target']?->quarter_number }} onward. Approve?">
+                        Approve
+                    </flux:button>
+                    <div class="flex-1">
+                        <flux:input wire:model="notes.{{ $request->id }}" size="sm" label="Note to the team if you decline"
+                            placeholder="For example: the reason doesn't explain why straight-line misstates this plant." />
+                    </div>
+                    <flux:button icon="x-mark" wire:click="reject('{{ $request->id }}')"
+                        wire:confirm="Decline {{ $request->firm->name }}'s request? The team sees your note and can file again next quarter.">
+                        Decline
+                    </flux:button>
+                </div>
+            </flux:card>
+        @empty
+            <flux:text>No requests are waiting.</flux:text>
+        @endforelse
 
-            @endforeach
-
-        </div>
-
+        @if ($decided->isNotEmpty())
+            <flux:heading size="lg" level="2" class="pt-4">Decided</flux:heading>
+            <flux:card class="space-y-2">
+                @foreach ($decided as $row)
+                    @php($request = $row['request'])
+                    <p class="text-sm">
+                        <span class="font-medium">{{ $request->firm->name }}</span> ·
+                        Quarter {{ $request->courseQuarter?->quarter_number }} ·
+                        {{ $request->status === 'approved' ? 'Approved'.($request->effective_quarter_number ? ', from Quarter '.$request->effective_quarter_number : '') : 'Declined' }}
+                        {{ $request->reviewed_at ? '· '.Dates::day($request->reviewed_at) : '' }} ·
+                        @foreach ($row['changes'] as $change)
+                            {{ $change['label'] }} to {{ $change['to'] }}@if (! $loop->last), @endif
+                        @endforeach
+                        @if ($request->faculty_note) · “{{ $request->faculty_note }}” @endif
+                    </p>
+                @endforeach
+            </flux:card>
+        @endif
     @endif
-
 </div>
