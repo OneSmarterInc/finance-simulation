@@ -343,6 +343,81 @@ class FirmDecisionService
         return $resolved;
     }
 
+    /**
+     * The previous quarter's complete decisions and dividend: the stored
+     * resolved payload for a student quarter, or the regenerated warm-up
+     * decisions before Quarter 4. Used to prefill the decision form (item 73)
+     * and to carry decisions forward when a firm does not submit (N4).
+     *
+     * @return array{payload: array<string, array<string, mixed>>, dividend: float}|null
+     */
+    public function previousDecisions(Firm $firm, CourseQuarter $quarter): ?array
+    {
+        $previousNumber = $quarter->quarter_number - 1;
+        if ($previousNumber < 1) {
+            return null;
+        }
+
+        if ($previousNumber <= 3) {
+            $entry = app(FirmDecisionHistory::class)->forQuarter($firm, $previousNumber);
+            if ($entry['payload'] === null) {
+                return null;
+            }
+            $payload = $entry['payload'];
+            unset($payload['dividend']);
+
+            return ['payload' => $payload, 'dividend' => 0.0];
+        }
+
+        $previous = FirmQuarterDecision::query()
+            ->where('firm_id', $firm->id)
+            ->whereHas('quarter', fn ($q) => $q->where('course_id', $firm->course_id)->where('quarter_number', $previousNumber))
+            ->first();
+        $payload = $previous?->resolved_payload ?? $previous?->submitted_payload;
+
+        return $payload === null ? null : ['payload' => $payload, 'dividend' => (float) $previous->dividend];
+    }
+
+    /**
+     * A complete payload for this quarter's open decision areas, built from
+     * the previous quarter's decisions (N4). Fields with no previous value
+     * take their default. The dividend is capped at what is permitted now.
+     *
+     * @return array{0: array<string, array<string, mixed>>, 1: float}
+     */
+    public function carryForwardPayload(Firm $firm, CourseQuarter $quarter): array
+    {
+        $previous = $this->previousDecisions($firm, $quarter);
+        $payload = [];
+        foreach ($this->enabledCategories($quarter) as $code => $category) {
+            foreach ($this->decisionFields($quarter, $category) as $field) {
+                $payload[$code][$field['key']] = $previous['payload'][$code][$field['key']]
+                    ?? $this->fieldDefault($firm, $field);
+            }
+        }
+
+        $dividend = (float) ($previous['dividend'] ?? 0.0);
+        if ($dividend > 0) {
+            try {
+                $dividend = min($dividend, (float) $this->dividendLimit($firm, $quarter, $payload, 0)->maximum);
+            } catch (\Throwable) {
+                $dividend = 0.0;
+            }
+        }
+
+        return [$payload, round(max($dividend, 0.0), 2)];
+    }
+
+    /** @param array<string, mixed> $field */
+    public function fieldDefault(Firm $firm, array $field): mixed
+    {
+        if (isset($field['default_from_parameter'])) {
+            return $this->parameters($firm)[$field['default_from_parameter']] ?? null;
+        }
+
+        return $field['default'] ?? null;
+    }
+
     /** @return array<string, mixed> */
     public function parameters(Firm $firm): array
     {

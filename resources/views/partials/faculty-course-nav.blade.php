@@ -62,7 +62,7 @@
 
         <flux:sidebar.item icon="calendar-days" :href="route('faculty.courses.quarters', $navCourse)"
             :current="request()->routeIs('faculty.courses.quarters')"
-            :badge="$navCurrent ? 'Q'.$navCurrent->quarter_number.' '.strtolower($navStatus->stateLabel($navCurrent)) : null"
+            :badge="$navCurrent ? 'Q'.$navCurrent->quarter_number : null"
             wire:navigate>
             {{ __('Quarters') }}
         </flux:sidebar.item>

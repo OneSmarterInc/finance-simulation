@@ -100,6 +100,9 @@ final class CourseStatus
             return 'Opens automatically on '.Dates::day($quarter->starts_on).'.';
         }
         $previous = $this->quarters->firstWhere('quarter_number', $quarter->quarter_number - 1);
+        if ($previous?->state === CourseQuarter::CLOSED) {
+            return 'Quarter '.$previous->quarter_number.' has closed, so this quarter opens at the next scheduled check (within a minute).';
+        }
 
         return $previous
             ? 'Opens automatically when Quarter '.$previous->quarter_number.' closes after its deadline, '.Dates::dateTime($previous->decision_deadline_at).'.'
