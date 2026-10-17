@@ -67,6 +67,8 @@ class FirmManager extends Component
 
 	public function importDemoStudents(FirmAssignmentService $service): void
 	{
+		abort_unless(config('flexee.demo_tools'), 404);
+
 		$service->importDemoStudents(
 			$this->faculty(),
 			$this->course,
@@ -150,7 +152,8 @@ class FirmManager extends Component
 				$totalFirmCapacity - $assignedStudentsCount
 		);
 
-		$showDemoImport = $firms->isNotEmpty()
+		$showDemoImport = config('flexee.demo_tools')
+		&& $firms->isNotEmpty()
 		&& $importableDemoCount > 0
 		&& $availableFirmSlots > 0;
 

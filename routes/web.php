@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\TestController;
 use App\Livewire\Faculty\Courses\AccountingElectionRequests;
 use App\Livewire\Faculty\Dashboard as FacultyDashboard;
 use App\Livewire\Faculty\Courses\CfPlusAuction;
@@ -16,24 +15,9 @@ use App\Livewire\Student\FirmDashboard;
 use App\Livewire\Student\Courses;
 use App\Livewire\Student\CourseRegistration;
 use App\Livewire\Faculty\Courses\Students;
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    $databaseAvailable = true;
-
-    try {
-        DB::select('select 1');
-    } catch (Throwable) {
-        $databaseAvailable = false;
-    }
-
-    return view('welcome', [
-        'databaseAvailable' => $databaseAvailable,
-        'laravelVersion' => Application::VERSION,
-    ]);
-})->name('home');
+Route::view('/', 'welcome')->name('home');
 
  Route::get('register/course/{token}', CourseRegistration::class)
     ->name('student.course-registration');
@@ -110,7 +94,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('student.courses');
 });
 
-Route::get('/testMail', [TestController::class, 'testMail'])->name('testMail');
 
 
 require __DIR__ . '/settings.php';

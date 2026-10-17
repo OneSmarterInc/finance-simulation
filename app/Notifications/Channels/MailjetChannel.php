@@ -3,12 +3,26 @@
 namespace App\Notifications\Channels;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class MailjetChannel
 {
     public function send(object $notifiable, object $notification): void
     {
+        $key = config('services.mailjet.key');
+        $secret = config('services.mailjet.secret');
+
+        // Without credentials the request can only fail. Log it instead of
+        // turning a registration or a password reset into a server error.
+        if (blank($key) || blank($secret)) {
+            Log::warning('Mailjet is not configured; email not sent.', [
+                'notification' => $notification::class,
+            ]);
+
+            return;
+        }
+
         $message = $notification->toMailjet($notifiable);
 
         $payload = [
@@ -25,10 +39,7 @@ class MailjetChannel
             ],
         ];
 
-        $response = Http::withBasicAuth(
-            config('services.mailjet.key'),
-            config('services.mailjet.secret')
-        )
+        $response = Http::withBasicAuth($key, $secret)
             ->acceptJson()
             ->post(
                 'https://api.mailjet.com/v3.1/send',
