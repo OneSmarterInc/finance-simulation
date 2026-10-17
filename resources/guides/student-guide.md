@@ -12,4 +12,4 @@ Your dashboard shows where the firm stands now, and History shows every quarter 
 
 ## Accounting methods
 
-If your instructor allows it, your team can ask to change how the firm reports, for example its depreciation or inventory method. One request per team per quarter, with a written reason. Your instructor approves or declines it, and an approved change takes effect from the next quarter, with a note in that quarter's statements disclosing the change and your reason.
+If your instructor allows it, your team can ask to change how the firm reports, for example its depreciation or inventory method. One request per team per quarter, with a written reason. Your instructor approves or declines it. A change approved before the quarter closes applies to that quarter's results, otherwise from the next quarter, and that quarter's notes disclose the change and your reason.

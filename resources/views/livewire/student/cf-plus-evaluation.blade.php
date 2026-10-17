@@ -210,7 +210,7 @@
 
                                     <dd>
                                         <flux:badge>
-                                            {{ str($row['reveal']['outcome'])->title() }}
+                                            {{ ['unsold' => 'Not sold', 'overpaid' => 'Paid more than true worth', 'underpaid' => 'Paid less than true worth', 'exact' => 'Paid exactly its true worth'][$row['reveal']['outcome']] ?? $row['reveal']['outcome'] }}
                                         </flux:badge>
                                     </dd>
                                 </div>

@@ -20,7 +20,7 @@ Quarter results show one report at a time: a summary of the trend, the decisions
 
 ## Accounting-method requests
 
-When a team asks to change a method, the request shows the firm's current methods beside the proposed ones, the team's reason and the quarter the change would take effect. Approving it changes the firm's methods from the next quarter, and the statements for that quarter carry a note disclosing the change and the team's reason, as a change in accounting principle requires. If you decline, write a short note; the team sees it.
+When a team asks to change a method, the request shows the firm's current methods beside the proposed ones, the team's reason and the quarter the change would take effect. If you approve while the quarter it was filed in is still open, the change applies to that quarter's results; otherwise it applies from the next quarter. The statements for that quarter carry a note disclosing the change and the team's reason, as a change in accounting principle requires. If you decline, write a short note; the team sees it.
 
 ## The evaluation stage
 
