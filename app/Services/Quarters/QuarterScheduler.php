@@ -3,6 +3,7 @@
 namespace App\Services\Quarters;
 
 use App\Jobs\Quarters\CloseCourseQuarter;
+use App\Jobs\Quarters\CloseFirmQuarter;
 use App\Models\Course;
 use App\Models\CourseQuarter;
 use App\Models\FirmQuarterClose;
@@ -48,6 +49,12 @@ class QuarterScheduler
 
         $open = $quarters->firstWhere('state', CourseQuarter::OPEN);
         if ($open) {
+            // A quarter that opened late, at or near its deadline, is never closed
+            // automatically: that would play the course forward with nobody deciding.
+            // Faculty set a new deadline instead (QuarterManagementService::extendDeadline).
+            if (self::needsNewDeadline($open)) {
+                return null;
+            }
             if ($open->decision_deadline_at && $open->decision_deadline_at->lte(now())) {
                 $this->quarters->lockAndQueue($open, carryForward: true);
 
@@ -63,14 +70,31 @@ class QuarterScheduler
             if ($processing->fresh()->state === CourseQuarter::CLOSED) {
                 return $this->openNext($course, $processing->quarter_number + 1) ?? "Quarter {$processing->quarter_number} closed.";
             }
+            // A worker that died mid-close leaves the attempt 'processing' forever.
+            // Mark it failed so faculty can retry it (no automatic retry of failures).
+            $stuck = $processing->closeAttempts()
+                ->where('status', FirmQuarterClose::PROCESSING)
+                ->where('started_at', '<', now()->subMinutes(15))
+                ->update([
+                    'status' => FirmQuarterClose::FAILED,
+                    'safe_error' => json_encode(['category' => 'system', 'message' => 'The calculation was interrupted. It is safe to retry.']),
+                    'completed_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            // Pending closes that no worker has picked up: re-send only those, and
+            // touch them so they are not re-sent again every minute.
             $stale = $processing->closeAttempts()
                 ->where('status', FirmQuarterClose::PENDING)
                 ->where('updated_at', '<', now()->subMinutes(10))
-                ->exists();
-            if ($stale) {
-                CloseCourseQuarter::dispatch($processing->id);
+                ->get();
+            foreach ($stale as $attempt) {
+                $attempt->touch();
+                CloseFirmQuarter::dispatch($attempt->id);
+            }
 
-                return "Quarter {$processing->quarter_number}: re-queued pending closes.";
+            if ($stuck || $stale->isNotEmpty()) {
+                return "Quarter {$processing->quarter_number}: {$stuck} interrupted, {$stale->count()} re-queued.";
             }
 
             return null;
@@ -93,6 +117,19 @@ class QuarterScheduler
         }
 
         return null;
+    }
+
+    /** The deadline is not comfortably after the moment the quarter opened. */
+    public static function needsNewDeadline(CourseQuarter $quarter): bool
+    {
+        if ($quarter->state !== CourseQuarter::OPEN || ! $quarter->decision_deadline_at || ! $quarter->opened_at) {
+            return false;
+        }
+        if ($quarter->deadline_extended_at && $quarter->deadline_extended_at->gte($quarter->opened_at)) {
+            return false;
+        }
+
+        return $quarter->decision_deadline_at->lt($quarter->opened_at->addHour());
     }
 
     private function openNext(Course $course, int $number): ?string

@@ -121,10 +121,11 @@ class FirmAccountingElectionRequestService
     {
         $firm = $request->firm()->firstOrFail();
         $this->assertMember($student, $firm);
-        if ($request->status !== self::PENDING) {
+        $updated = FirmAccountingElectionRequest::query()->whereKey($request->id)->where('status', self::PENDING)
+            ->update(['status' => self::WITHDRAWN, 'updated_at' => now()]);
+        if ($updated === 0) {
             throw ValidationException::withMessages(['election' => 'Only a request that is still waiting can be withdrawn.']);
         }
-        $request->forceFill(['status' => self::WITHDRAWN])->save();
     }
 
     /**
@@ -186,8 +187,9 @@ class FirmAccountingElectionRequestService
                 'effective_quarter_number' => $target->quarter_number,
             ])->save();
 
-            // Any older pending request for the firm is superseded by this approval.
-            $pending->reject(fn ($p) => $p->id === $locked->id)->each(fn ($p) => $p->forceFill([
+            // Older pending requests for the firm are superseded by this approval;
+            // a newer request (filed in a later quarter) stays for faculty to decide.
+            $pending->reject(fn ($p) => $p->id === $locked->id || $p->created_at->gt($locked->created_at))->each(fn ($p) => $p->forceFill([
                 'status' => self::REJECTED,
                 'reviewed_by_faculty_id' => $faculty->id,
                 'reviewed_at' => now(),
@@ -203,16 +205,16 @@ class FirmAccountingElectionRequestService
         $course = $request->course()->firstOrFail();
         $this->authorize($faculty, $course);
 
-        if ($request->status !== self::PENDING) {
-            throw ValidationException::withMessages(['request' => 'This request has already been decided.']);
-        }
-
-        $request->forceFill([
+        $updated = FirmAccountingElectionRequest::query()->whereKey($request->id)->where('status', self::PENDING)->update([
             'status' => self::REJECTED,
             'reviewed_by_faculty_id' => $faculty->id,
             'reviewed_at' => now(),
             'faculty_note' => filled($note) ? trim($note) : null,
-        ])->save();
+            'updated_at' => now(),
+        ]);
+        if ($updated === 0) {
+            throw ValidationException::withMessages(['request' => 'This request has already been decided.']);
+        }
 
         return $request->refresh();
     }

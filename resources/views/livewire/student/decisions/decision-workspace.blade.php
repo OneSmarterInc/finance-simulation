@@ -133,8 +133,13 @@
 
     @unless ($readOnly)
         <div class="flex flex-wrap items-center gap-3">
-            <flux:button wire:click="saveDraft" wire:loading.attr="disabled" icon="document-check">Save draft</flux:button>
-            <flux:button wire:click="submit" wire:loading.attr="disabled" icon="paper-airplane" variant="primary">Submit for the team</flux:button>
+            @if (($teamStatus['state'] ?? null) === 'submitted')
+                <flux:button wire:click="submit" wire:loading.attr="disabled" icon="paper-airplane" variant="primary">Submit changes for the team</flux:button>
+                <flux:text size="sm">Your team has submitted. Submitting again replaces it.</flux:text>
+            @else
+                <flux:button wire:click="saveDraft" wire:loading.attr="disabled" icon="document-check">Save draft</flux:button>
+                <flux:button wire:click="submit" wire:loading.attr="disabled" icon="paper-airplane" variant="primary">Submit for the team</flux:button>
+            @endif
             <div wire:loading role="status" class="flex items-center gap-2 text-sm text-zinc-500">
                 <flux:icon.loading class="size-4" /> Saving...
             </div>

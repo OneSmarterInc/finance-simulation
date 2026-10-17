@@ -17,7 +17,7 @@ final class Dates
 
     public static function dateTime(?DateTimeInterface $date): string
     {
-        return $date ? $date->format('j M Y, g:i a') : '';
+        return $date ? $date->format('j M Y, g:i a T') : '';
     }
 
     /** "in 3 days", "in 5 hours", or "passed" when the moment is behind us. */

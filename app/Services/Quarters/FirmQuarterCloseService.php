@@ -42,7 +42,15 @@ class FirmQuarterCloseService
 
             return;
         }
-        $attempt->forceFill(['status' => FirmQuarterClose::PROCESSING, 'started_at' => now(), 'safe_error' => null])->save();
+        // Claim the attempt atomically so two workers never run the same close.
+        $claimed = FirmQuarterClose::query()
+            ->whereKey($attempt->id)
+            ->whereIn('status', [FirmQuarterClose::PENDING, FirmQuarterClose::FAILED])
+            ->update(['status' => FirmQuarterClose::PROCESSING, 'started_at' => now(), 'safe_error' => null, 'updated_at' => now()]);
+        if ($claimed === 0) {
+            return;
+        }
+        $attempt->refresh();
         try {
             $submitted = $decision->submitted_payload ?? [];
             $resolved = $this->decisions->resolveCompleteDecisions($firm, $quarter, $submitted);
@@ -147,6 +155,12 @@ class FirmQuarterCloseService
                 ])->save();
             });
         } catch (Throwable $e) {
+            // Another run already stored this quarter's result: that is success, not failure.
+            if (FirmEngineResult::query()->where('firm_id', $attempt->firm_id)->where('quarter_number', $quarter->quarter_number)->exists()) {
+                $attempt->forceFill(['status' => FirmQuarterClose::SUCCEEDED, 'completed_at' => now(), 'safe_error' => null])->save();
+
+                return;
+            }
 
             \Illuminate\Support\Facades\Log::warning('firm_close_failed', [
 

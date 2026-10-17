@@ -65,7 +65,7 @@ class QuarterSchedulerTest extends TestCase
         $draftStudent = $silent->memberships()->firstOrFail()->student;
         app(FirmDecisionService::class)->saveDraft($draftStudent, $silent, $q4, ['forecasting' => ['forecast_p1_r1' => 1]], 0);
 
-        $q4->forceFill(['decision_deadline_at' => now()->subMinute()])->save();
+        $q4->forceFill(['opened_at' => now()->subDays(7), 'decision_deadline_at' => now()->subMinute()])->save();
         $scheduler = app(QuarterScheduler::class);
         $scheduler->tick();
 
@@ -85,6 +85,24 @@ class QuarterSchedulerTest extends TestCase
 
         $scheduler->tick();
         $this->assertSame(CourseQuarter::OPEN, $q5->fresh()->state);
+    }
+
+    public function test_a_quarter_that_opens_after_its_deadline_waits_for_a_new_deadline_instead_of_closing(): void
+    {
+        [$course, , , $q4] = $this->phase7bCourse('Late open');
+        $q4->forceFill(['starts_on' => now()->subMonths(3)->toDateString(), 'decision_deadline_at' => now()->subMonth()])->save();
+        $scheduler = app(QuarterScheduler::class);
+
+        $scheduler->tick();
+        $scheduler->tick();
+
+        $this->assertSame(CourseQuarter::OPEN, $q4->fresh()->state);
+        $this->assertTrue(QuarterScheduler::needsNewDeadline($q4->fresh()));
+        $this->assertNotEmpty(collect(\App\Services\Courses\CourseStatus::for($course->fresh())->needsYou())
+            ->filter(fn ($item) => str_contains($item['text'], 'opened after its deadline')));
+
+        app(QuarterManagementService::class)->extendDeadline($course->faculty, $q4->fresh(), now()->addWeek()->toDateTimeString());
+        $this->assertFalse(QuarterScheduler::needsNewDeadline($q4->fresh()));
     }
 
     public function test_faculty_can_extend_the_deadline_but_not_shorten_it_or_pass_the_next_deadline(): void

@@ -18,6 +18,7 @@ use App\Services\Engines\CorporateFinance\DividendDecisionValidator;
 use App\Services\Engines\CorporateFinance\ManufacturingCFEngine;
 use App\Support\Scenario\CfManufacturingScenarioDefinition;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class FirmDecisionService
@@ -122,27 +123,31 @@ class FirmDecisionService
     ): FirmQuarterDecision {
         $this->authorize($student, $firm);
 
-        $decision = $this->editable($firm, $quarter);
-
-        /*
-         * When student accounting-election control is on, methods are handled
-         * by the Accounting elections page and notes_elections is not an open
-         * decision area, so a draft must not require it (walkthrough item 10).
-         */
         $validated = $this->validatePayload($quarter, $payload, false);
-
         $this->numericDividend($dividend);
 
-        $decision->forceFill([
-            'draft_payload' => $validated,
-            'dividend' => round((float) $dividend, 2),
-            'state' => FirmQuarterDecision::DRAFT,
-            'submitted_payload' => null,
-            'submitted_at' => null,
-            'submitted_by_student_id' => null,
-        ])->save();
+        return DB::transaction(function () use ($firm, $quarter, $validated, $dividend): FirmQuarterDecision {
+            $decision = $this->editable($firm, $quarter);
 
-        return $decision->refresh();
+            // A draft never replaces the team's submission (walkthrough review):
+            // otherwise one teammate's draft would cancel what another submitted.
+            if ($decision->state === FirmQuarterDecision::SUBMITTED) {
+                throw ValidationException::withMessages([
+                    'draft' => 'Your team has already submitted this quarter. To change it, submit again.',
+                ]);
+            }
+
+            $decision->forceFill([
+                'draft_payload' => $validated,
+                'dividend' => round((float) $dividend, 2),
+                'state' => FirmQuarterDecision::DRAFT,
+                'submitted_payload' => null,
+                'submitted_at' => null,
+                'submitted_by_student_id' => null,
+            ])->save();
+
+            return $decision->refresh();
+        });
     }
 
     /** @param array<string, mixed> $payload */
@@ -155,7 +160,6 @@ class FirmDecisionService
     ): FirmQuarterDecision {
         $this->authorize($student, $firm);
 
-        $decision = $this->editable($firm, $quarter);
         $validated = $this->validatePayload($quarter, $payload, true);
 
         $limit = $this->dividendLimit(
@@ -165,16 +169,19 @@ class FirmDecisionService
             $dividend
         );
 
-        $decision->forceFill([
-            'draft_payload' => $validated,
-            'submitted_payload' => $validated,
-            'dividend' => $limit->requested,
-            'state' => FirmQuarterDecision::SUBMITTED,
-            'submitted_at' => now(),
-            'submitted_by_student_id' => $student->id,
-        ])->save();
+        return DB::transaction(function () use ($firm, $quarter, $validated, $limit, $student): FirmQuarterDecision {
+            $decision = $this->editable($firm, $quarter);
+            $decision->forceFill([
+                'draft_payload' => $validated,
+                'submitted_payload' => $validated,
+                'dividend' => $limit->requested,
+                'state' => FirmQuarterDecision::SUBMITTED,
+                'submitted_at' => now(),
+                'submitted_by_student_id' => $student->id,
+            ])->save();
 
-        return $decision->refresh();
+            return $decision->refresh();
+        });
     }
 
     public function dividendLimit(
@@ -447,6 +454,10 @@ class FirmDecisionService
         Firm $firm,
         CourseQuarter $quarter
     ): FirmQuarterDecision {
+        // Re-read the quarter under a lock: the deadline close locks the same row
+        // before locking decisions, so a submit can never slip past it.
+        $quarter = CourseQuarter::query()->lockForUpdate()->findOrFail($quarter->id);
+
         if (
             $quarter->state !== CourseQuarter::OPEN
             || $quarter->quarter_number < 4
@@ -457,7 +468,19 @@ class FirmDecisionService
             ]);
         }
 
-        $decision = $this->decision($firm, $quarter);
+        if ($quarter->decision_deadline_at && $quarter->decision_deadline_at->lte(now())
+            && ! \App\Services\Quarters\QuarterScheduler::needsNewDeadline($quarter)) {
+            throw ValidationException::withMessages([
+                'quarter' => 'The deadline for this quarter has passed.',
+            ]);
+        }
+
+        $this->decision($firm, $quarter);
+        $decision = FirmQuarterDecision::query()
+            ->where('firm_id', $firm->id)
+            ->where('course_quarter_id', $quarter->id)
+            ->lockForUpdate()
+            ->firstOrFail();
 
         if ($decision->state === FirmQuarterDecision::LOCKED) {
             throw ValidationException::withMessages([

@@ -20,4 +20,4 @@ Artisan::command('flexee:quarters', function (QuarterScheduler $scheduler) {
     }
 })->purpose('Close quarters at their deadline and open the next quarter');
 
-Schedule::command('flexee:quarters')->everyMinute()->withoutOverlapping()->onOneServer();
+Schedule::command('flexee:quarters')->everyMinute()->withoutOverlapping(10)->onOneServer();

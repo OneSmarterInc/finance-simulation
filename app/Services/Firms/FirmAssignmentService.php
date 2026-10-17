@@ -151,7 +151,7 @@ class FirmAssignmentService
                         $actor,
                         $course,
                         $student
-                    );
+                    )->forceFill(['paid_at' => now()])->save(); // demo accounts need no payment
 
                     $this->assign(
                         $actor,

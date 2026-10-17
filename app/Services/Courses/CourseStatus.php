@@ -235,6 +235,25 @@ final class CourseStatus
         $items = [];
         $active = $this->active();
 
+        // Scheduler problems faculty must see (walkthrough review): the scheduler
+        // only logs, so the reasons are worked out here from the course state.
+        $next = $this->next();
+        if (! $active && $next && $next->quarter_number === 4 && $next->starts_on && $next->starts_on->startOfDay()->lte(now())) {
+            $notReady = $this->firms->filter(fn (Firm $f) => $f->warmup_status !== Firm::WARMUP_INITIALIZED);
+            $items[] = [
+                'text' => $this->firms->isEmpty()
+                    ? 'Quarter 4 was due to open on '.Dates::day($next->starts_on).' but the course has no firms'
+                    : 'Quarter 4 was due to open on '.Dates::day($next->starts_on).' but warm-up isn\'t ready for '.$notReady->pluck('name')->join(', '),
+                'route' => route('faculty.courses.firms', $this->course),
+            ];
+        }
+        if ($active && \App\Services\Quarters\QuarterScheduler::needsNewDeadline($active)) {
+            $items[] = [
+                'text' => 'Quarter '.$active->quarter_number.' opened after its deadline. Set a new deadline so students have time to decide',
+                'route' => route('faculty.courses.quarters', $this->course),
+            ];
+        }
+
         if ($this->course->accounting_election_enabled && ($pending = $this->pendingRequests()) > 0) {
             $items[] = [
                 'text' => $pending.' accounting-method '.str('request')->plural($pending).' waiting for you',

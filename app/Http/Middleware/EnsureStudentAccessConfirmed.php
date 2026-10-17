@@ -18,6 +18,9 @@ class EnsureStudentAccessConfirmed
 
         if ($user?->student && ! $user->faculty && $firm instanceof Firm
             && ! StudentAccess::isPaid($user->student, $firm->course)) {
+            // Livewire actions on a page opened before access was withdrawn.
+            abort_unless($request->isMethod('GET'), 403);
+
             return response()->view('access-pending', ['firm' => $firm], 200);
         }
 

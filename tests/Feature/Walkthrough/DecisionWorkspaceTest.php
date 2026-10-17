@@ -44,6 +44,25 @@ class DecisionWorkspaceTest extends TestCase
             ->assertDontSee('Forecast confidence');
     }
 
+    public function test_a_draft_never_replaces_the_teams_submission(): void
+    {
+        [$course, $firm, $student, $q4] = $this->phase7bCourse('Draft after submit');
+        app(QuarterManagementService::class)->open($course->faculty, $q4);
+        $service = app(\App\Services\Decisions\FirmDecisionService::class);
+        $service->submit($student, $firm, $q4, $this->completePayload(), 0);
+
+        try {
+            $service->saveDraft($student, $firm, $q4, $this->completePayload(5), 0);
+            $this->fail('A draft replaced the submission.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertArrayHasKey('draft', $e->errors());
+        }
+        $this->assertSame(FirmQuarterDecision::SUBMITTED, FirmQuarterDecision::query()->where('firm_id', $firm->id)->value('state'));
+
+        Livewire::actingAs($student->user)->test(DecisionWorkspace::class, ['firm' => $firm, 'quarter' => $q4])
+            ->assertSee('Submit changes for the team')->assertDontSee('Save draft');
+    }
+
     public function test_names_replace_codes(): void
     {
         [$course, $firm, $student, $q4] = $this->phase7bCourse('Names');

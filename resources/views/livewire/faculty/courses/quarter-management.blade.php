@@ -62,6 +62,9 @@
                         @if ($quarter->quarter_number <= 3)
                             <flux:text size="sm">Warm-up quarter, run by the simulation before teams take over.</flux:text>
                         @elseif ($quarter->state === CourseQuarter::OPEN)
+                            @if (\App\Services\Quarters\QuarterScheduler::needsNewDeadline($quarter))
+                                <p class="text-red-700 dark:text-red-300">This quarter opened after its deadline, so it won't close on its own. Set a new deadline.</p>
+                            @endif
                             <p>
                                 Decisions due <strong>{{ Dates::dateTime($quarter->decision_deadline_at) }}</strong>
                                 ({{ Dates::remaining($quarter->decision_deadline_at) }}).
