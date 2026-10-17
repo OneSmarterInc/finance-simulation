@@ -1,0 +1,7 @@
+{
+  "about": "The reference course the golden fixtures are played in. Its seed and warm-up firm are those of demo course P8 (firm P8-A), so the version 2 warm-up can be compared with a warm-up the version 1 engine actually stored. second_firm_id is P8-B, another firm in the same course, used only to show that from Quarter 4 every firm's market moves with the same draws.",
+  "seed": "21bf6b3cb6e50ffbcad026584caeed7e5886e6bc625fb6c2cfae5c6173826385",
+  "warmup_firm_id": "01a14b9f-d979-72c4-9211-1b2daadee308",
+  "second_firm_id": "01a14b9f-d97e-711e-ba07-3ee06c6c77a5",
+  "stored_v1_firm_code": "P8-A"
+}
