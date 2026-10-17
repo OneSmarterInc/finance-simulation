@@ -62,12 +62,20 @@ class CourseConfigurationService
             'quarters.*.starts_on' => ['required', 'date'], 'quarters.*.ends_on' => ['required', 'date'],
             'quarters.*.decision_deadline_at' => ['required', 'date'],
         ])->validate();
+        // A deadline given as a date means the end of that day, not its first minute.
+        $quarters = array_map(function (array $quarter): array {
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($quarter['decision_deadline_at'] ?? ''))) {
+                $quarter['decision_deadline_at'] .= ' 23:59:00';
+            }
+
+            return $quarter;
+        }, $quarters);
         $ordered = collect($quarters)->sortBy('quarter_number')->values();
         foreach ($ordered as $index => $quarter) {
             $start = CarbonImmutable::parse($quarter['starts_on']);
             $end = CarbonImmutable::parse($quarter['ends_on']);
             $deadline = CarbonImmutable::parse($quarter['decision_deadline_at']);
-            if ((int) $quarter['quarter_number'] !== $index + 1 || $start->gt($end) || $deadline->lt($start) || $deadline->gt($end)) {
+            if ((int) $quarter['quarter_number'] !== $index + 1 || $start->gt($end) || $deadline->lt($start) || $deadline->startOfDay()->gt($end)) {
                 throw ValidationException::withMessages(['quarters' => 'Quarter sequence and dates must be coherent.']);
             }
             if ($start->lt($course->starts_on) || $end->gt($course->ends_on) || ($index && $start->lte(CarbonImmutable::parse($ordered[$index - 1]['ends_on'])))) {

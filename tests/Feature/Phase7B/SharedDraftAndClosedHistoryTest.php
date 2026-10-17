@@ -141,17 +141,22 @@ class SharedDraftAndClosedHistoryTest extends TestCase
         $quarters->open($course->faculty, $q4);
         $component = Livewire::actingAs($student->user)->test(DecisionWorkspace::class, ['firm' => $firm, 'quarter' => $q4])
             ->assertSee($firm->name)->assertSee('Quarter 4')->assertSee('Forecasting')->assertSee('Sourcing')->assertSee('Production')
-            ->assertSee('Cash Dividend')->assertSee('Maximum dividend currently available:')->assertSee('Save draft')->assertSee('Submit final');
-        $component->set('decisions', $this->completePayload());
+            ->assertSee('Dividend')->assertSee('Most you can pay now:')->assertSee('Save draft')->assertSee('Submit for the team')
+            // Prefilled from the Quarter 3 warm-up decisions (walkthrough item 73), shares shown as percentages (item 75).
+            ->assertSee('Last quarter:')->assertSet('decisions.sourcing.primary_alloc', 100.0);
+        $display = $this->completePayload();
+        $display['sourcing']['primary_alloc'] = 100;
+        $component->set('decisions', $display);
         $component->set('dividend', '999999999999')->call('submit')->assertHasErrors('dividend')->assertSee('maximum permitted dividend');
-        $component->set('dividend', '0')->call('submit')->assertHasNoErrors()->assertSee('Firm decision submitted');
+        $component->set('dividend', '0')->call('submit')->assertHasNoErrors()->assertSee('Submitted for your team');
+        $this->assertEquals(1.0, $firm->quarterDecisions()->firstOrFail()->submitted_payload['sourcing']['primary_alloc']);
         Queue::fake();
         $quarters->queueClose($course->faculty, $q4);
         $attempt = FirmQuarterClose::query()->firstOrFail();
         app(FirmQuarterCloseService::class)->close($attempt);
         $quarters->finalize($q4);
         Livewire::actingAs($student->user)->test(DecisionWorkspace::class, ['firm' => $firm, 'quarter' => $q4->fresh()])
-            ->assertSee('LOCKED')->assertSee('locked and read-only')->assertSee('Persisted statements')->assertSee('Cash Dividend')
-            ->assertDontSee('Save draft')->assertDontSee('Submit final');
+            ->assertSee('decisions are locked')->assertSee('results are ready')->assertSee('Dividend')
+            ->assertDontSee('Save draft')->assertDontSee('Submit for the team');
     }
 }

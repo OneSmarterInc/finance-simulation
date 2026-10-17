@@ -180,7 +180,7 @@
                             <th class="p-2">Quarter</th>
                             <th class="p-2">Start</th>
                             <th class="p-2">End</th>
-                            <th class="p-2">Decision deadline</th>
+                            <th class="p-2">Decision deadline (end of day)</th>
                         </tr>
                     </thead>
 
@@ -240,7 +240,7 @@
         <form wire:submit="saveEnablements" class="space-y-5">
 
             <flux:callout variant="success" icon="information-circle" heading="Student control begins at Quarter 4"
-                text="Q1-Q3 are reserved for system-generated warm-up history. Quarter 4 requires Forecasting, Procurement (sourcing), and Production. Operating categories stay open after activation. Certification is independent." />
+                text="Quarters 1 to 3 are the warm-up, run by the simulation. Quarter 4 must open forecasting, sourcing and production, and an area stays open once you open it. Open the other areas gradually so each quarter gives students something new to explain." />
 
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[760px] text-sm">
@@ -260,11 +260,15 @@
                         @foreach ($categories as $category)
                             <tr class="border-b border-zinc-200 dark:border-zinc-800">
                                 <th class="p-3 text-left font-medium">
-                                    {{ $category->code === 'sourcing' ? 'Procurement' : $category->display_name }}
+                                    {{ \App\Support\Presentation\DecisionPresenter::categoryLabel($category->code) }}
 
                                     @if ($category->code === 'certification')
                                         <span class="block text-xs font-normal text-zinc-500">
-                                            Independent exception
+                                            Nothing for students to enter yet; recorded automatically
+                                        </span>
+                                    @elseif ($category->code === 'notes_elections')
+                                        <span class="block text-xs font-normal text-zinc-500">
+                                            On the decision form only when student accounting-election control is off
                                         </span>
                                     @endif
                                 </th>

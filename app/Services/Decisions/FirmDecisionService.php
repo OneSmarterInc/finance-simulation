@@ -124,19 +124,11 @@ class FirmDecisionService
 
         $decision = $this->editable($firm, $quarter);
 
-        if (
-            $quarter->quarter_number === 4
-            && $quarter->course->accounting_election_enabled
-        ) {
-            app(LegacyFirmAccountingElectionService::class)->validate(
-                $payload['notes_elections']
-                    ?? throw ValidationException::withMessages([
-                        'notes_elections' =>
-                        'Quarter 4 requires the firm accounting elections before the decision can be saved.',
-                    ])
-            );
-        }
-
+        /*
+         * When student accounting-election control is on, methods are handled
+         * by the Accounting elections page and notes_elections is not an open
+         * decision area, so a draft must not require it (walkthrough item 10).
+         */
         $validated = $this->validatePayload($quarter, $payload, false);
 
         $this->numericDividend($dividend);

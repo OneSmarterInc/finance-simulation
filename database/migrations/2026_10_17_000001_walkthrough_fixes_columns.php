@@ -46,6 +46,22 @@ return new class extends Migration
         Schema::table('course_quarters', function (Blueprint $table): void {
             $table->timestamp('deadline_extended_at')->nullable();
         });
+
+        // Deadlines were entered as dates and stored at 00:00, the first minute
+        // of the day. With automatic close that would close a quarter a day
+        // early, so quarters not yet closed move to 23:59 on the same date.
+        DB::table('course_quarters')
+            ->whereIn('state', ['locked', 'open'])
+            ->whereNotNull('decision_deadline_at')
+            ->orderBy('id')
+            ->get(['id', 'decision_deadline_at'])
+            ->each(function ($row): void {
+                $deadline = \Carbon\CarbonImmutable::parse($row->decision_deadline_at);
+                if ($deadline->format('H:i:s') === '00:00:00') {
+                    DB::table('course_quarters')->where('id', $row->id)
+                        ->update(['decision_deadline_at' => $deadline->setTime(23, 59)]);
+                }
+            });
     }
 
     public function down(): void
