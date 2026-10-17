@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <title>
-    {{ filled($title ?? null) ? $title.' - FLEXEE' : 'FLEXEE' }}
+    {{ filled($title ?? null) ? $title.' · '.\App\Support\Product::NAME : \App\Support\Product::NAME }}
 </title>
 
 <link rel="icon" href="/favicon.ico" sizes="any">

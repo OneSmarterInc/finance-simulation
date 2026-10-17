@@ -1,6 +1,6 @@
 <div class="flexee-page">
     <x-page-header
-        :eyebrow="$firm->course->name.' · CF Plus'"
+        :eyebrow="$firm->course->name.' · Evaluation stage'"
         title="Rival evaluation and sealed offers"
         description="Evaluate disclosed statements and the consultant report. Every offer is for a fixed 51% controlling interest."
     />
@@ -18,7 +18,7 @@
         <flux:callout
             variant="warning"
             icon="clock"
-            heading="CF Plus evaluation is not open"
+            heading="The evaluation stage hasn't opened yet"
         >
             <flux:text>
                 {{ $availabilityMessage }}

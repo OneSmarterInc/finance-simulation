@@ -1,7 +1,7 @@
 <div class="flexee-page">
 
     <x-page-header
-        eyebrow="FLEXEE ADMINISTRATION"
+        eyebrow="Administration"
         title="Institutions"
         description="View institutions and their simulation activity."
     >

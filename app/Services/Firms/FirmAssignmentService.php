@@ -175,7 +175,7 @@ class FirmAssignmentService
         $this->assertFirmScope($course, $firm);
         $snapshot = CfPlusAuctionEconomicsSnapshot::query()->where('course_id', $course->id)->first();
         if ($snapshot && ! in_array($firm->id, $snapshot->firm_ids, true)) {
-            throw ValidationException::withMessages(['phase9' => 'Students may only join firms in the frozen CF Plus auction universe.']);
+            throw ValidationException::withMessages(['phase9' => 'Firm membership is fixed once the evaluation stage opens.']);
         }
         $this->assertSameInstitution($course, $student);
         if (Enrollment::query()->whereBelongsTo($course)->whereBelongsTo($student)->doesntExist()) {
@@ -185,7 +185,7 @@ class FirmAssignmentService
         $membership = DB::transaction(function () use ($actor, $course, $firm, $student): FirmMembership {
             $existing = FirmMembership::withTrashed()->where('course_id', $course->id)->where('student_id', $student->id)->lockForUpdate()->first();
             if ($existing && ! $existing->trashed() && $existing->firm_id !== $firm->id && CfPlusAuctionEconomicsSnapshot::query()->where('course_id', $course->id)->exists()) {
-                throw ValidationException::withMessages(['phase9' => 'Students cannot move between firms after the CF Plus auction snapshot opens.']);
+                throw ValidationException::withMessages(['phase9' => 'Students cannot move between firms once the evaluation stage opens.']);
             }
             if ($existing && $existing->firm_id !== $firm->id && $existing->firm->engineResults()->exists()) {
                 throw ValidationException::withMessages(['student' => 'A student cannot be reassigned after inherited history exists.']);
@@ -221,7 +221,7 @@ class FirmAssignmentService
             ->firstOrFail();
 
         if (CfPlusAuctionEconomicsSnapshot::query()->where('course_id', $course->id)->exists()) {
-            throw ValidationException::withMessages(['phase9' => 'Firm membership cannot be removed after the CF Plus auction snapshot opens.']);
+            throw ValidationException::withMessages(['phase9' => 'Firm membership cannot be changed once the evaluation stage opens.']);
         }
 
         $membership->delete();
@@ -230,7 +230,7 @@ class FirmAssignmentService
     private function assertAuctionUniverseMutable(Course $course): void
     {
         if (CfPlusAuctionEconomicsSnapshot::query()->where('course_id', $course->id)->exists()) {
-            throw ValidationException::withMessages(['phase9' => 'CF Plus firms and student assignments are locked after the auction snapshot opens.']);
+            throw ValidationException::withMessages(['phase9' => 'Firms and student assignments are locked once the evaluation stage opens.']);
         }
     }
 

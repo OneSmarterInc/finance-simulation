@@ -94,14 +94,14 @@
             :current="request()->routeIs('student.accounting-election')"
             wire:navigate
         >
-            {{ __('Accounting Elections') }}
+            {{ __('Accounting elections') }}
         </flux:sidebar.item>
     @else
         <flux:sidebar.item
             icon="document-text"
             class="pointer-events-none opacity-50"
         >
-            {{ __('Accounting Elections') }}
+            {{ __('Accounting elections') }}
         </flux:sidebar.item>
     @endif
 @endif
@@ -115,7 +115,7 @@
                     <flux:sidebar.item icon="presentation-chart-bar"
                         :href="route('student.cf-plus.evaluation', ['firm' => request()->route('firm')])"
                         :current="request()->routeIs('student.cf-plus.evaluation')" wire:navigate>
-                        {{ __('CF Plus') }}
+                        {{ __('Evaluation stage') }}
                     </flux:sidebar.item>
 
                 </flux:sidebar.group>

@@ -23,7 +23,7 @@ class VerifyStudentEmail extends Notification implements ShouldQueue
     public function toMailjet(object $notifiable): array
     {
         return [
-            'subject' => 'Verify your FLEXEE student account',
+            'subject' => 'Verify your Flexee Financial Accounting account',
 
             'to' => [
                 [

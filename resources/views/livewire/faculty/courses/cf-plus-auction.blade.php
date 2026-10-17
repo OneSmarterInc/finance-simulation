@@ -1,7 +1,7 @@
 <div class="flexee-page">
     <x-page-header
         :eyebrow="$course->name"
-        title="CF Plus sealed auction"
+        title="Evaluation stage"
         description="Before settlement, sealed values remain private. After settlement, outcomes and funding evidence are available."
     >
         <x-slot:actions>
@@ -56,7 +56,7 @@
                 <flux:callout
                     icon="inbox"
                     heading="No auction targets are available"
-                    text="Create and assign firms before opening the CF Plus auction universe."
+                    text="Create firms and assign students before the evaluation stage opens."
                 />
             @else
                 <div class="overflow-x-auto rounded-md border border-zinc-200 dark:border-white/10">

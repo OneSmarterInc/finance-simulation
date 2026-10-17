@@ -1,6 +1,6 @@
 <div class="space-y-6">
     <x-page-header
-        eyebrow="FLEXEE ADMINISTRATION"
+        eyebrow="Administration"
         title="Faculty"
         description="Manage faculty members assigned to institutions."
     >

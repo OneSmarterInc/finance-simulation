@@ -11,7 +11,7 @@ class UiPolishFoundationTest extends TestCase
         $shell = file_get_contents(resource_path('views/layouts/app/sidebar.blade.php'));
         $brand = file_get_contents(resource_path('views/components/app-logo.blade.php'));
 
-        $this->assertStringContainsString('name="FLEXEE"', $brand);
+        $this->assertStringContainsString(':name="\App\Support\Product::NAME"', $brand);
         $this->assertStringNotContainsString('Laravel Starter Kit', $brand);
         $this->assertStringNotContainsString('livewire-starter-kit', $shell);
         $this->assertStringNotContainsString('laravel.com/docs', $shell);

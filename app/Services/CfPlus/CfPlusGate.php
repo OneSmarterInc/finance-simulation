@@ -11,7 +11,7 @@ class CfPlusGate
     public function assertEnabled(Course $course): void
     {
         if (! $course->cf_plus_enabled) {
-            throw new DomainException('CF Plus evaluation is unavailable for a plain CF course.');
+            throw new DomainException('This course has no evaluation stage.');
         }
     }
 
@@ -27,7 +27,7 @@ class CfPlusGate
         $start = $this->evaluationStartQuarter($course);
         $available = $course->quarters()->where('quarter_number', '>=', $start)->where('state', '!=', CourseQuarter::LOCKED)->exists();
         if (! $available) {
-            throw new DomainException('The CF Plus evaluation window has not opened.');
+            throw new DomainException('The evaluation stage has not opened yet.');
         }
     }
 }

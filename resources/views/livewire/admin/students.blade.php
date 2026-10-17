@@ -1,6 +1,6 @@
 <div class="space-y-6">
     <x-page-header
-        eyebrow="FLEXEE ADMINISTRATION"
+        eyebrow="Administration"
         title="Students"
         description="View students assigned to institutions and their simulation activity."
     >

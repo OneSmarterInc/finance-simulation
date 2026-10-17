@@ -1,6 +1,6 @@
 <div class="flexee-page">
 
-    <x-page-header eyebrow="FLEXEE WORKSPACE" :title="$course->name . ' — Students / Participants'"
+    <x-page-header :eyebrow="$course->name" title="Students"
         description="Students registered for this simulation course." />
 
     <div class="mb-5">
@@ -14,7 +14,7 @@
         <div class="flex items-center justify-between gap-4">
             <div>
                 <flux:heading size="lg">
-                    Students / Participants
+                    Students
                 </flux:heading>
 
                 <flux:text class="mt-1">

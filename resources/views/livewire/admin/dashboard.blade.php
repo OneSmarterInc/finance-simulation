@@ -1,7 +1,7 @@
 <div class="flexee-page">
 
     <x-page-header
-        eyebrow="FLEXEE ADMINISTRATION"
+        eyebrow="Administration"
         :title="'Welcome, ' . auth()->user()->name"
         description="Manage institutions, faculty, students, and simulation courses."
     />
@@ -53,7 +53,7 @@
         </flux:heading>
 
         <flux:text>
-            Configure and manage the FLEXEE simulation environment before
+            Configure and manage the Flexee Financial Accounting environment before
             handing the course workflow to Faculty.
         </flux:text>
 

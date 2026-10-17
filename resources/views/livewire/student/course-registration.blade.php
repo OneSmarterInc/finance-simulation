@@ -6,7 +6,7 @@
 
             <div>
                 <div class="text-lg font-semibold tracking-tight text-zinc-950">
-                    FLEXEE
+                    {{ \App\Support\Product::NAME }}
                 </div>
 
                 <div class="text-[11px] text-zinc-500">
@@ -316,7 +316,7 @@
 
 
             <p class="mt-6 text-center text-xs text-zinc-400">
-                © {{ date('Y') }} FLEXEE Finance Simulation
+                © {{ date('Y') }} {{ \App\Support\Product::NAME }}
             </p>
 
         </div>

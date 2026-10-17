@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Verify your FLEXEE account</title>
+    <title>Verify your Flexee Financial Accounting account</title>
 </head>
 
 <body style="margin:0; padding:0; background:#f4f4f5; font-family:Arial, Helvetica, sans-serif;">
@@ -68,7 +68,7 @@
                                 line-height:24px;
                             "
                         >
-                            Thank you for registering for FLEXEE Finance Simulation.
+                            Thank you for registering for Flexee Financial Accounting.
                             Please verify your email address to activate your student account.
                         </p>
 
@@ -117,7 +117,7 @@
                             font-size:12px;
                         "
                     >
-                        © {{ date('Y') }} FLEXEE Finance Simulation
+                        © {{ date('Y') }} Flexee Financial Accounting
                     </td>
                 </tr>
 

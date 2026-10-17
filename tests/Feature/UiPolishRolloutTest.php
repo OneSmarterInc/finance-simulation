@@ -78,7 +78,8 @@ class UiPolishRolloutTest extends TestCase
     {
         $source = file_get_contents(resource_path('views/dashboard.blade.php'));
 
-        $this->assertStringContainsString('FLEXEE workspace', $source);
+        $this->assertStringContainsString('Product::NAME', $source);
+        $this->assertStringNotContainsString('FLEXEE', $source);
         $this->assertStringContainsString("route('faculty.courses.create')", $source);
         $this->assertStringContainsString("route('profile.edit')", $source);
         $this->assertStringNotContainsString('x-placeholder-pattern', $source);

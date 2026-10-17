@@ -121,13 +121,13 @@ class CfPlusAcquisitionLifecycleTest extends TestCase
 
         $other = $this->course(true, 'Other course');
         $outsider = $this->firm($other, 'Outsider');
-        $this->expectDomain(fn () => $service->submit($course, $firms['alpha'], $outsider, 1), 'same CF Plus course');
+        $this->expectDomain(fn () => $service->submit($course, $firms['alpha'], $outsider, 1), 'rival firms in the same course');
         $plain = $this->course(false, 'Plain CF');
         $plainBidder = $this->firm($plain, 'Plain A');
         $plainTarget = $this->firm($plain, 'Plain B');
-        $this->expectDomain(fn () => $service->submit($plain, $plainBidder, $plainTarget, 1), 'plain CF course');
+        $this->expectDomain(fn () => $service->submit($plain, $plainBidder, $plainTarget, 1), 'has no evaluation stage');
         $course->quarters()->where('state', CourseQuarter::OPEN)->update(['state' => CourseQuarter::CLOSED]);
-        $this->expectDomain(fn () => $service->submit($course, $firms['alpha'], $firms['bravo'], 1), 'window is not open');
+        $this->expectDomain(fn () => $service->submit($course, $firms['alpha'], $firms['bravo'], 1), 'evaluation-stage quarter is open');
         $locked = $this->course(true, 'Locked evaluation');
         $locked->quarters()->update(['state' => CourseQuarter::LOCKED]);
         $this->expectDomain(fn () => app(CfPlusGate::class)->assertEvaluationAvailable($locked), 'has not opened');
@@ -171,7 +171,7 @@ class CfPlusAcquisitionLifecycleTest extends TestCase
         $this->assertNotNull($overridden->overridden_at);
         $this->assertDatabaseCount('cf_plus_auction_results', 4);
         $this->expectDomain(fn () => $service->overrideTie($faculty, $delta, $firms['delta'], 'Invalid'), 'tied for the exact top offer');
-        $this->expectDomain(fn () => $offers->submit($course, $firms['alpha'], $firms['bravo'], 1), 'read-only after auction settlement');
+        $this->expectDomain(fn () => $offers->submit($course, $firms['alpha'], $firms['bravo'], 1), 'final once the evaluation stage has been settled');
         Carbon::setTestNow();
     }
 

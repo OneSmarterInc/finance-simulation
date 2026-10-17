@@ -1,5 +1,5 @@
 <div class="flexee-page">
-    <x-page-header eyebrow="Faculty · Courses" title="CF Manufacturing course"
+    <x-page-header :eyebrow="$course?->name ?? 'New course'" :title="($cf_plus_enabled ? \App\Support\Product::PLUS_NAME : \App\Support\Product::NAME).' · '.\App\Support\Product::INDUSTRY"
         description="{{ $deployed ? 'Review the deployed course configuration.' : 'Configure the signed six-step course setup and deployment workflow.' }}">
         <x-slot:actions>
             @if ($deployed)
@@ -95,17 +95,23 @@
                     </div>
                 </div>
 
-                {{-- CF Plus --}}
+                {{-- Evaluation stage (makes the course Flexee Financial Accounting+) --}}
                 <div class="border-y border-zinc-200 py-5 dark:border-zinc-700">
                     <flux:checkbox wire:model.live="cf_plus_enabled"
-                        label="Enable CF Plus adversarial and post-bid phases" />
+                        label="Add the evaluation stage (Flexee Financial Accounting+)" />
+
+                    <flux:text size="sm" class="mt-2">
+                        Adds quarters at the end of the course where teams study each other's published statements,
+                        receive a consultant's valuation and place sealed offers for rival firms. The reveal then shows
+                        what each firm was really worth. Leave this off for Flexee Financial Accounting.
+                    </flux:text>
 
                     @if ($cf_plus_enabled)
                         <div class="mt-4 grid gap-4 sm:grid-cols-3">
                             @foreach ([
-        'build_quarters' => 'Build quarters',
-        'adversarial_quarters' => 'Adversarial quarters',
-        'post_bid_quarters' => 'Post-bid quarters',
+        'build_quarters' => 'Operating quarters first (from Quarter 4)',
+        'adversarial_quarters' => 'Evaluation quarters',
+        'post_bid_quarters' => 'Quarters after the evaluation',
     ] as $field => $label)
                                 <flux:input wire:model="{{ $field }}" type="number" min="1"
                                     :label="$label" />
@@ -122,16 +128,15 @@
                     </div>
 
                     <flux:text size="sm" class="mt-2">
-                        When enabled, students can choose in Quarter 4 to either
-                        continue with the simulation's default accounting settings
-                        or propose different accounting methods for faculty review.
-                        When disabled, the existing default accounting workflow is used.
+                        When on, each team can keep the default accounting methods or ask to change
+                        them, with a written reason, once per quarter. You approve or decline each request.
+                        When off, every firm reports with the defaults below.
                     </flux:text>
 
                     @if ($accounting_election_enabled)
                         <flux:callout class="mt-4" variant="info" icon="information-circle"
                             heading="Student accounting-election workflow enabled"
-                            text="Students will be able to use the default accounting settings or propose accounting-method changes in Quarter 4. Faculty approval is required only when a student proposes a change." />
+                            text="Teams can keep the default accounting methods or ask to change them. Each request comes to you with the team's reason, and nothing changes until you approve it." />
                     @else
                         <flux:callout class="mt-4" variant="warning" icon="information-circle"
                             heading="Default accounting workflow"
@@ -164,8 +169,8 @@
             </div>
 
             @if ($cf_plus_enabled)
-                <flux:callout variant="warning" icon="information-circle" heading="CF Plus schedule requirement"
-                    text="CF Plus needs 3 warm-up + {{ $build_quarters }} build + {{ $adversarial_quarters }} adversarial + {{ $post_bid_quarters }} post-bid quarters." />
+                <flux:callout variant="warning" icon="information-circle" heading="Schedule for the evaluation stage"
+                    text="This course needs 3 warm-up + {{ $build_quarters }} operating + {{ $adversarial_quarters }} evaluation + {{ $post_bid_quarters }} later quarters." />
             @endif
 
             <div class="overflow-x-auto">
@@ -313,9 +318,8 @@
                 </flux:heading>
 
                 <flux:text class="mt-2">
-                    CF Manufacturing has no additional faculty-configurable industry
-                    settings in Phase 6. Protected prices, demand, accounting, tax,
-                    financing, and engine parameters remain scenario-controlled.
+                    Manufacturing has no further settings for you to choose. Prices, demand, tax,
+                    financing and the other industry parameters are set by the simulation.
                 </flux:text>
             </div>
 
@@ -429,12 +433,12 @@
 
                         <div>
                             <dt class="text-xs text-zinc-500">
-                                CF Plus
+                                Evaluation stage
                             </dt>
 
                             <dd>
                                 <flux:badge :color="$cf_plus_enabled ? 'emerald' : 'zinc'">
-                                    {{ $cf_plus_enabled ? 'Enabled' : 'Disabled' }}
+                                    {{ $cf_plus_enabled ? 'Added' : 'Not added' }}
                                 </flux:badge>
                             </dd>
                         </div>
@@ -641,7 +645,7 @@
                  ==================================================== --}}
             @if ($deployed || $course->status === 'deployed')
                 <flux:callout variant="success" icon="check-circle" heading="Course deployed"
-                    text="This course is now active. Course configuration is locked. Use Firms, Quarters, and CF Plus from the faculty dashboard to manage the running simulation." />
+                    text="This course is running and its setup is locked. Use the course pages in the left menu to manage firms, students, quarters and results." />
 
                 <div class="flex justify-start">
                     <flux:button :href="route('dashboard')" icon="arrow-left">

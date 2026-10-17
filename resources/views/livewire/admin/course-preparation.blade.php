@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    <x-page-header eyebrow="FLEXEE ADMINISTRATION" title="Course Preparation" :description="$course ? 'Configure course: ' . $course->name : 'Create a new simulation course.'">
+    <x-page-header eyebrow="Administration" title="Course Preparation" :description="$course ? 'Configure course: ' . $course->name : 'Create a new simulation course.'">
         <x-slot:actions>
             <flux:button :href="route('admin.courses')" variant="ghost" icon="arrow-left" wire:navigate>
                 Simulation Courses
