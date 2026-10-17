@@ -32,22 +32,23 @@ class FirmDashboardTest extends TestCase
         $this->appendResult($firm, 4, 500.00);
         $this->appendResult($firm, 5, 0.00);
 
+        // The dashboard shows where the firm stands: the latest quarter beside the one before.
         Livewire::actingAs($student->user)->test(FirmDashboard::class, ['firm' => $firm])
-            ->assertSee('Quarter-over-quarter trend')
-            ->assertSee('Q1')->assertSee('Q2')->assertSee('Q3')->assertSee('Q4')->assertSee('Q5')
-            ->call('selectQuarter', 1)
-            ->assertSee('System-generated inherited read-only history')
-            ->assertSee('Income Statement')->assertSee('Balance Sheet')->assertSee('Cash Flow Statement')
-            ->assertSee('Notes and Supplementary Reports')
-            ->call('selectQuarter', 4)
-            ->assertSee('Closed student quarter')
+            ->assertSee('Where your firm stands')
+            ->assertSee('Q4')->assertSee('Q5')->assertDontSee('Q1 · warm-up')
+            ->assertSee('Summary')->assertSee('Decisions')->assertSee('Income statement')->assertSee('Balance sheet')
+            ->assertSee('Cash flow')->assertSee('Notes')
             ->assertSee('$123,456.78')->assertSee('$45,678.90')->assertSee('$77,777.88')
-            ->assertSee('$12,345.67')->assertSee('$65,432.21')->assertSee('$1,234.56')
-            ->assertSee('$64,197.65')->assertSee('$16,049.41')->assertSee('$48,148.24')
-            ->assertSee('Revenue report')->assertSee('Inventory report')->assertSee('Ppe report')
-            ->assertSee('Debt report')->assertSee('Commitments report')
-            ->assertSee('Stored operating margin')->assertSee('0.1234')
-            ->assertSee('Dividend paid (stored financing movement)')->assertSee('-$500.00');
+            ->assertSee('$12,345.67')->assertSee('$65,432.21')
+            ->assertSee('$64,197.65')->assertSee('$48,148.24')
+            ->assertSee('Revenue by region and product')->assertSee('Inventory')->assertSee('Property, plant and equipment')
+            ->assertSee('Borrowing and financial ratios')->assertSee('Commitments, reserves and accruals')
+            ->assertSee('Operating margin')->assertSee('12.3%')
+            ->assertSee('Dividends paid')->assertSee('($500.00)');
+
+        // History keeps every quarter, warm-up marked as inherited.
+        Livewire::actingAs($student->user)->test(\App\Livewire\InheritedHistory::class, ['firm' => $firm])
+            ->assertSee('Q1 · warm-up')->assertSee('Q2 · warm-up')->assertSee('Q3 · warm-up')->assertSee('Q4')->assertSee('Q5');
     }
 
     public function test_dashboard_is_read_only_and_navigation_does_not_mutate_phase7_records(): void
@@ -58,8 +59,9 @@ class FirmDashboardTest extends TestCase
         $counts = [FirmEngineResult::count(), $firm->quarterDecisions()->count(), $firm->quarterCloses()->count()];
 
         Livewire::actingAs($student->user)->test(FirmDashboard::class, ['firm' => $firm])
-            ->call('selectQuarter', 1)->call('selectQuarter', 4)
-            ->assertDontSee('Save')->assertDontSee('Submit')->assertDontSee('Regenerate')->assertDontSee('Delete');
+            ->assertDontSee('Save draft')->assertDontSee('Submit decision')->assertDontSee('Regenerate')->assertDontSee('Delete');
+        Livewire::actingAs($student->user)->test(\App\Livewire\InheritedHistory::class, ['firm' => $firm])
+            ->assertDontSee('Save draft')->assertDontSee('Submit decision')->assertDontSee('Regenerate')->assertDontSee('Delete');
 
         $this->assertSame($hashes, $firm->engineResults()->orderBy('quarter_number')->pluck('payload_hash', 'id')->all());
         $this->assertSame($counts, [FirmEngineResult::count(), $firm->quarterDecisions()->count(), $firm->quarterCloses()->count()]);
@@ -70,9 +72,10 @@ class FirmDashboardTest extends TestCase
         [, $firm, $student] = $this->phase7bCourse('Optional reports');
         $result = $this->appendResult($firm, 4, 0.00, []);
 
-        Livewire::actingAs($student->user)->test(FirmDashboard::class, ['firm' => $firm, 'selectedQuarter' => 4])
-            ->assertSee('No supplementary reports were stored for this quarter.')
-            ->assertSee(FinancialValueFormatter::currency($result->income_statement['net_income']));
+        $firm->engineResults()->where('quarter_number', 3)->firstOrFail();
+        Livewire::actingAs($student->user)->test(FirmDashboard::class, ['firm' => $firm])
+            ->assertSee(\App\Support\Presentation\StatementPresenter::accounting((float) $result->income_statement['net_income']));
+        $this->actingAs($student->user)->get(route('firms.dashboard', $firm))->assertOk();
     }
 
     public function test_guest_members_and_owner_access_have_identical_financial_content(): void

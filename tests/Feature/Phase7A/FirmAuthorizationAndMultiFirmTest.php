@@ -97,7 +97,7 @@ class FirmAuthorizationAndMultiFirmTest extends TestCase
 
         $this->actingAs($owner->user)->get(route('faculty.courses.firms', $course))->assertOk()->assertSee('Firm One')->assertSee('Firm Two')->assertSee('Firm Three');
         $this->actingAs($students[0]->user)->get(route('firms.history', $firms[0]))
-            ->assertOk()->assertSee('Quarter 1')->assertSee('Income statement')->assertSee('Cash flow');
+            ->assertOk()->assertSee('Q1 · warm-up')->assertSee('Income statement')->assertSee('Cash flow');
         $this->actingAs($students[2]->user)->get(route('firms.history', $firms[0]))->assertForbidden();
         $this->actingAs($students[0]->user)->get(route('firms.history', $firms[1]))->assertForbidden();
     }

@@ -73,18 +73,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
     Route::get('firms/{firm}/quarters/{quarter}/decisions', DecisionWorkspace::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
         ->name('student.decisions.workspace');
 
     Route::get('firms/{firm}/quarters/{quarter}/accounting-election', AccountingElection::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
         ->name('student.accounting-election');
 
     Route::get('firms/{firm}/history', InheritedHistory::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
         ->name('firms.history');
 
     Route::get('firms/{firm}/dashboard', FirmDashboard::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
         ->name('firms.dashboard');
 
     Route::get('firms/{firm}/cf-plus', CfPlusEvaluation::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
         ->name('student.cf-plus.evaluation');
 
     Route::get('faculty/courses/{course}/cf-plus-auction', CfPlusAuction::class)
@@ -92,6 +97,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('student/courses', Courses::class)
         ->name('student.courses');
+
+    Route::get('guide', \App\Livewire\Guide::class)
+        ->name('guide');
 });
 
 

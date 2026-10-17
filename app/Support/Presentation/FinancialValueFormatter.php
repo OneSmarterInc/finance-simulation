@@ -47,8 +47,57 @@ final class FinancialValueFormatter
         return number_format((float) $value, $precision);
     }
 
+    /** @var array<string, string> Stored statement totals and wrappers. */
+    private const STATEMENT_LABELS = [
+        'net_revenue' => 'Net revenue',
+        'cost_of_goods_sold' => 'Cost of goods sold',
+        'gross_profit' => 'Gross profit',
+        'operating_expenses' => 'Total operating expenses',
+        'operating_income' => 'Operating income',
+        'bad_debt_expense' => 'Bad debt expense',
+        'interest_expense' => 'Interest expense',
+        'income_before_income_taxes' => 'Income before income taxes',
+        'income_tax_expense' => 'Income tax expense',
+        'net_income' => 'Net income',
+        'assets' => 'Total assets',
+        'liabilities' => 'Total liabilities',
+        'equity' => 'Total equity',
+        'line_items' => 'Line items',
+        'operating_cash_flow' => 'Net cash from operating activities',
+        'investing_cash_flow' => 'Net cash from investing activities',
+        'financing_cash_flow' => 'Net cash from financing activities',
+        'ending_cash' => 'Cash at end of quarter',
+        'revenue' => 'Revenue by region and product',
+        'inventory' => 'Inventory',
+        'ppe' => 'Property, plant and equipment',
+        'debt' => 'Borrowing and financial ratios',
+        'commitments' => 'Commitments, reserves and accruals',
+    ];
+
+    /**
+     * Plain accounting label for any stored key (walkthrough item 37).
+     * Falls back to a readable phrase, never a raw database key.
+     */
     public static function label(string $key): string
     {
-        return self::LABELS[$key] ?? Str::of($key)->replace('_', ' ')->title()->toString();
+        static $fieldLabels = null;
+        $fieldLabels ??= StatementPresenter::fieldLabels();
+
+        return self::STATEMENT_LABELS[$key]
+            ?? $fieldLabels[$key]
+            ?? self::LABELS[$key]
+            ?? Str::of($key)->replace('_', ' ')->ucfirst()->toString();
+    }
+
+    /** Display format for a stored field: currency, percent, ratio, flag or shipping. */
+    public static function formatFor(string $key): string
+    {
+        return match ($key) {
+            'n4_util_rate', 'n5_rate', 'n5_draw_rate', 'n5_cov_margin' => 'percent',
+            'n5_cov_curr', 'n5_cov_de', 'n5_cov_interest', 'n5_cov_cash' => 'ratio',
+            'n5_shortfall_indicator' => 'flag',
+            'n6_po_fob' => 'shipping',
+            default => 'currency',
+        };
     }
 }

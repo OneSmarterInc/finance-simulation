@@ -147,6 +147,7 @@ class FirmDecisionService
             'state' => FirmQuarterDecision::DRAFT,
             'submitted_payload' => null,
             'submitted_at' => null,
+            'submitted_by_student_id' => null,
         ])->save();
 
         return $decision->refresh();
@@ -178,6 +179,7 @@ class FirmDecisionService
             'dividend' => $limit->requested,
             'state' => FirmQuarterDecision::SUBMITTED,
             'submitted_at' => now(),
+            'submitted_by_student_id' => $student->id,
         ])->save();
 
         return $decision->refresh();

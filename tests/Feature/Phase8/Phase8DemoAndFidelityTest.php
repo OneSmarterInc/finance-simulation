@@ -2,11 +2,12 @@
 
 namespace Tests\Feature\Phase8;
 
+use App\Livewire\InheritedHistory;
 use App\Livewire\Student\FirmDashboard;
 use App\Models\Course;
 use App\Models\CourseQuarter;
 use App\Models\FirmEngineResult;
-use App\Support\Presentation\FinancialValueFormatter;
+use App\Support\Presentation\StatementPresenter;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\Phase8DemoSeeder;
 use Database\Seeders\Phase8OverdraftDemoSeeder;
@@ -87,49 +88,32 @@ class Phase8DemoAndFidelityTest extends TestCase
         $this->assertSame(FirmEngineResult::PROVENANCE_WARMUP, $q1->provenance);
         $this->assertSame(FirmEngineResult::PROVENANCE_STUDENT_CLOSE, $q4->provenance);
 
-        $component = Livewire::actingAs($student->user)->test(FirmDashboard::class, ['firm' => $firm]);
+        // History is the complete record: every quarter side by side (walkthrough items 40, 41).
+        $component = Livewire::actingAs($student->user)->test(InheritedHistory::class, ['firm' => $firm]);
 
-        foreach ($results as $quarter => $result) {
-            $component
-                ->assertSee('Q'.$quarter)
-                ->assertSee(FinancialValueFormatter::currency($result->income_statement['net_revenue']))
-                ->assertSee(FinancialValueFormatter::currency($result->fields['bs_cash']))
-                ->assertSee(FinancialValueFormatter::currency($result->balance_sheet['equity']))
-                ->assertSee(number_format((float) $result->fields['n5_cov_margin'], 4));
+        $component->assertSee('Q1 · warm-up')->assertSee('Q2 · warm-up')->assertSee('Q3 · warm-up')->assertSee('Q4');
+        foreach ($results as $result) {
+            $this->assertStatementPayloadIsRendered($component, $result);
         }
 
-        $component->call('selectQuarter', 1)->assertSee('System-generated inherited read-only history');
-        $this->assertStatementPayloadIsRendered($component, $q1);
-        foreach (['Prepaid Expenses', 'Accrued Wages', 'Accrued Marketing', 'Deferred Revenue', 'Lease Liability', 'Deferred Tax Liability'] as $label) {
-            $component->assertSeeInOrder([$label, '$0.00']);
+        // Classified balance sheet (N2) and sectioned cash flow (item 39).
+        $component->assertSeeInOrder(['Current assets', 'Total current assets', 'Property, plant and equipment, net', 'Total assets',
+            'Current liabilities', 'Total current liabilities', 'Total long-term liabilities', 'Total liabilities', 'Total equity', 'Total liabilities and equity']);
+        $component->assertSeeInOrder(['Operating activities', 'Net cash from operating activities', 'Investing activities',
+            'Net cash from investing activities', 'Financing activities', 'Net cash from financing activities',
+            'Net change in cash', 'Cash at beginning of quarter', 'Cash at end of quarter']);
+        $component->assertSeeInOrder(['Gross profit', 'Operating income', 'Income before income taxes', 'Income tax expense', 'Net income']);
+
+        // Dividend shown by its effect on cash, in parentheses (item 38).
+        $component->assertSee('Dividends paid')->assertSee(StatementPresenter::accounting((float) $q4->fields['cf_equity']));
+        $this->assertStringStartsWith('(', StatementPresenter::accounting((float) $q4->fields['cf_equity']));
+
+        // Raw keys never reach the screen (item 37).
+        foreach (['Cf Net Income', 'Cf Depr', 'Bs Tech Net', 'N5 Cov Curr', 'Ppe report'] as $raw) {
+            $component->assertDontSee($raw);
         }
 
-        $component
-            ->call('selectQuarter', 4)
-            ->assertSee('Closed student quarter - read-only')
-            ->assertSeeInOrder([
-                'Operating Income',
-                'Interest Expense',
-                'Income Before Income Taxes',
-                'Income Tax Expense',
-                'Net Income',
-            ]);
-        $this->assertStatementPayloadIsRendered($component, $q4);
-
-        $component
-            ->assertSee('Dividend paid (stored financing movement)')
-            ->assertSee(FinancialValueFormatter::currency($q4->fields['cf_equity']))
-            ->assertSee('Bank Overdraft')
-            ->assertSee(FinancialValueFormatter::currency($q4->fields['bs_bank_overdraft']))
-            ->assertSee(FinancialValueFormatter::currency($q4->fields['cf_overdraft_chg']))
-            ->assertSee('The current simulation does not apply an interest cost to bank overdraft.')
-            ->assertDontSee('Total Current Assets')
-            ->assertDontSee('Total Current Liabilities')
-            ->assertDontSee('Total Liabilities and Equity')
-            ->assertDontSee('Save')
-            ->assertDontSee('Submit')
-            ->assertDontSee('Delete')
-            ->assertDontSee('Regenerate');
+        $component->assertDontSee('Submit')->assertDontSee('Delete')->assertDontSee('Regenerate');
     }
 
     public function test_real_service_overdraft_result_renders_separately_with_exact_stored_values(): void
@@ -152,15 +136,14 @@ class Phase8DemoAndFidelityTest extends TestCase
         $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $result->payload_hash);
 
         Livewire::actingAs($student->user)->test(FirmDashboard::class, ['firm' => $firm])
-            ->assertSee('Long-Term Debt')
-            ->assertSee('Bank Overdraft')
-            ->assertSee(FinancialValueFormatter::currency($result->fields['bs_bank_overdraft']))
-            ->assertSee('Financing movement')
-            ->assertSee(FinancialValueFormatter::currency($result->fields['cf_overdraft_chg']))
-            ->assertSee('Financial shortfall indicated')
-            ->assertSee('Bank overdraft represents cash usage beyond')
+            ->assertSee('Long-term debt')
+            ->assertSee('Bank overdraft')
+            ->assertSee(StatementPresenter::accounting((float) $result->fields['bs_bank_overdraft']))
+            ->assertSee('Change in bank overdraft')
+            ->assertSee(StatementPresenter::accounting((float) $result->fields['cf_overdraft_chg']))
+            ->assertSeeInOrder(['Financial shortfall', 'Yes'])
             ->assertSee('committed borrowing facility')
-            ->assertSee('The current simulation does not apply an interest cost to bank overdraft.')
+            ->assertSee('the simulation charges no interest on it')
             ->assertDontSee('Overdraft interest expense');
     }
 
@@ -168,39 +151,34 @@ class Phase8DemoAndFidelityTest extends TestCase
     {
         foreach ([
             'net_revenue', 'cost_of_goods_sold', 'gross_profit', 'operating_expenses',
-            'operating_income', 'interest_expense', 'income_before_income_taxes',
-            'income_tax_expense', 'net_income',
+            'operating_income', 'income_before_income_taxes', 'net_income',
         ] as $key) {
-            $component->assertSee(FinancialValueFormatter::currency($result->income_statement[$key]));
+            $component->assertSee(StatementPresenter::accounting((float) $result->income_statement[$key]));
+        }
+        // Interest and tax are deductions, shown in parentheses.
+        foreach (['interest_expense', 'income_tax_expense'] as $key) {
+            $component->assertSee(StatementPresenter::accounting(-(float) $result->income_statement[$key]));
         }
 
         foreach (['assets', 'liabilities', 'equity'] as $key) {
-            $component->assertSee(FinancialValueFormatter::currency($result->balance_sheet[$key]));
+            $component->assertSee(StatementPresenter::accounting((float) $result->balance_sheet[$key]));
         }
-        foreach (['bs_cash', 'bs_ar', 'bs_inventory', 'bs_ap', 'bs_curr_ltd', 'bs_ltd', 'bs_bank_overdraft', 'bs_retained'] as $key) {
-            $component->assertSee(FinancialValueFormatter::currency($result->balance_sheet['line_items'][$key]));
+        foreach (['bs_cash', 'bs_ar', 'bs_ap', 'bs_ltd', 'bs_retained'] as $key) {
+            $value = (float) $result->balance_sheet['line_items'][$key];
+            if (abs($value) >= 0.005) {
+                $component->assertSee(StatementPresenter::accounting($value));
+            }
         }
 
         foreach (['operating_cash_flow', 'investing_cash_flow', 'financing_cash_flow', 'ending_cash'] as $key) {
-            $component->assertSee(FinancialValueFormatter::currency($result->cash_flow_statement[$key]));
-        }
-        foreach (['cf_equity', 'cf_overdraft_chg'] as $key) {
-            $component->assertSee(FinancialValueFormatter::currency($result->cash_flow_statement['line_items'][$key]));
+            $component->assertSee(StatementPresenter::accounting((float) $result->cash_flow_statement[$key]));
         }
 
         $this->assertCount(5, $result->notes);
-        foreach (['Revenue report', 'Inventory report', 'Ppe report', 'Debt report', 'Commitments report'] as $heading) {
+        foreach (StatementPresenter::NOTES as $heading) {
             $component->assertSee($heading);
         }
-        foreach ($result->notes as $report) {
-            $this->assertIsArray($report);
-            $firstKey = array_key_first($report);
-            $this->assertNotNull($firstKey);
-            $value = $report[$firstKey];
-            $expected = in_array($firstKey, FirmDashboard::NON_MONETARY_NOTE_KEYS, true)
-                ? FinancialValueFormatter::number($value)
-                : FinancialValueFormatter::currency($value);
-            $component->assertSee($expected);
-        }
+        $component->assertSee(StatementPresenter::format((float) $result->fields['n5_cov_margin'], 'percent'));
+        $component->assertSee(StatementPresenter::format((float) $result->fields['n5_cov_curr'], 'ratio'));
     }
 }

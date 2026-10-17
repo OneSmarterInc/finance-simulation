@@ -4,14 +4,24 @@ namespace App\Livewire;
 
 use App\Models\CourseFacultyRole;
 use App\Models\Firm;
+use App\Models\FirmEngineResult;
+use App\Services\Accounting\AccountingChangeDisclosures;
+use App\Services\Decisions\FirmDecisionHistory;
+use App\Services\Decisions\FirmDecisionService;
 use Illuminate\Contracts\View\View;
-use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('layouts.student')]
+/**
+ * The firm's complete record (walkthrough item 41): every closed quarter,
+ * warm-up quarters marked as inherited, quarters side by side (item 40),
+ * notes included (item 35) and the decisions beside the statements they
+ * produced (item 36). Faculty see it inside the faculty layout (item 34).
+ */
 class InheritedHistory extends Component
 {
     public Firm $firm;
+
+    public bool $facultyView = false;
 
     public function mount(Firm $firm): void
     {
@@ -37,17 +47,35 @@ class InheritedHistory extends Component
 
         abort_unless($facultyAccess || $studentAccess, 403);
 
+        $this->facultyView = $facultyAccess && ! $studentAccess;
         $this->firm = $firm->load('course');
     }
 
-    public function render(): View
+    public function render(FirmDecisionHistory $history, FirmDecisionService $decisions, AccountingChangeDisclosures $disclosures): View
     {
+        $results = $this->firm->engineResults()->orderBy('quarter_number')->get();
+
+        $columns = [];
+        $decisionColumns = [];
+        $disclosureColumns = [];
+        foreach ($results as $result) {
+            $label = self::columnLabel($result);
+            $columns[$label] = $result;
+            $decisionColumns[$label] = $history->forQuarter($this->firm, $result->quarter_number);
+            $disclosureColumns[$label] = $disclosures->forQuarter($this->firm, $result->quarter_number);
+        }
+
         return view('livewire.inherited-history', [
-            'results' => $this->firm
-                ->engineResults()
-                ->where('quarter_number', '<=', 3)
-                ->orderBy('quarter_number')
-                ->get(),
-        ]);
+            'results' => $results,
+            'columns' => $columns,
+            'decisionColumns' => $decisionColumns,
+            'disclosureColumns' => $disclosureColumns,
+            'parameters' => $decisions->parameters($this->firm),
+        ])->layout($this->facultyView ? 'layouts.app' : 'layouts.student', ['title' => $this->firm->name.' history']);
+    }
+
+    public static function columnLabel(FirmEngineResult $result): string
+    {
+        return 'Q'.$result->quarter_number.($result->provenance === FirmEngineResult::PROVENANCE_WARMUP ? ' · warm-up' : '');
     }
 }

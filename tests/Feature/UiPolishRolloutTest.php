@@ -20,7 +20,7 @@ class UiPolishRolloutTest extends TestCase
         $this->assertStringContainsString('Quarter 3', $rendered);
         $this->assertStringNotContainsString('Quarter Number', $rendered);
         $this->assertStringNotContainsString('>$3.00<', str_replace(["\r", "\n", ' '], '', $rendered));
-        $this->assertStringContainsString('Net Revenue', $rendered);
+        $this->assertStringContainsString('Net revenue', $rendered);
         $this->assertStringContainsString('$44,000,000.00', $rendered);
     }
 
@@ -33,7 +33,10 @@ class UiPolishRolloutTest extends TestCase
         ] as $view) {
             $source = file_get_contents(resource_path('views/'.$view));
 
-            $this->assertStringContainsString('<x-financial-array', $source, $view);
+            $this->assertTrue(
+                str_contains($source, '<x-financial-array') || str_contains($source, '<x-firm-report') || str_contains($source, '<x-statement'),
+                $view.' must use the shared financial presenter',
+            );
             $this->assertStringNotContainsString('json_encode', $source, $view);
         }
     }
@@ -62,7 +65,6 @@ class UiPolishRolloutTest extends TestCase
             'livewire/faculty/courses/firm-manager.blade.php' => ['createFirm', 'enrollAndAssign'],
             'livewire/faculty/courses/cf-plus-auction.blade.php' => ['settle', 'overrideTie'],
             'livewire/student/decisions/decision-workspace.blade.php' => ['saveDraft', 'submit'],
-            'livewire/student/firm-dashboard.blade.php' => ['selectQuarter'],
         ];
 
         foreach ($expectations as $view => $actions) {
