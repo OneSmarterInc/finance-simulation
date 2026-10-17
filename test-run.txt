@@ -1,0 +1,491 @@
+
+   PASS  Tests\Unit\ExampleTest
+  ✓ that true is true
+
+   PASS  Tests\Unit\Services\CfPlus\ConsultantCalibrationDiagnosticsTest
+  ✓ growth cap must be below exact quarterly discount rate               0.11s  
+  ✓ annual terminal growth is converted before quarterly gordon formula  0.01s  
+  ✓ terminal growth and discount rate must share period and preserve st… 0.01s  
+  ✓ corrected candidate is deterministic and pedagogical direction is s… 0.01s  
+  ✓ matched method after tax reported counterfactual uses identical mec… 0.01s  
+  ✓ terminal share and horizon decomposition are deterministic           0.01s  
+  ✓ each election is isolated against genuine engine output              0.01s  
+  ✓ engine produced pair and bidder own funds remain comparable with na… 0.04s  
+
+   PASS  Tests\Unit\Services\CfPlus\Phase9AmendmentOneDiagnosticTest
+  ✓ approved valuation configuration is exact and same period            0.05s  
+  ✓ financing diagnostic arithmetic is cents safe and excludes overdraf… 0.01s  
+  ✓ ten genuine engine profiles produce deterministic matched diagnosti… 0.02s  
+  ✓ aggressive accounting amplifies consultant more than normalized tru… 0.01s  
+  ✓ historical candidate multiple sweep and bidder sensitivity remain d… 0.01s  
+  ✓ required return sensitivity changes only discount rate and reduces…  0.04s  
+  ✓ accounting lesson survives all required return candidates            0.02s  
+  ✓ distressed presentation proposal preserves raw values and zeroes di… 0.02s  
+  ✓ literal required return oracles pin aggressive and distressed resul… 0.02s  
+  ✓ stake diagnostic covers full and proportional financing with solved… 0.01s  
+  ✓ literal stake oracle distinguishes full target from proportional ca… 0.02s  
+  ✓ horizon matrix changes only rate and horizon and preserves accounti… 0.02s  
+  ✓ distressed stake diagnostic preserves negative raw values and zero…  0.02s  
+  ✓ twelve percent control funding confirmation applies revised accepta… 0.04s  
+  ✓ control confirmation pins key profiles distressed rule and bidder s… 0.02s  
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\CfManufacturingSimRulesServiceTest
+  ✓ forecasting copies fixed demand context without randomization        0.07s  
+  ✓ closed rules derive competent middle operational payloads            0.01s  
+  ✓ complete worked derivation oracle pins every operational field       0.01s  
+  ✓ student controlled forecasting drives closed production and sourcin… 0.01s  
+  ✓ student controlled production is preserved and closed sourcing foll… 0.01s  
+  ✓ student controlled pricing is preserved while marketing is derived   0.01s  
+  ✓ all operational categories controlled are preserved exactly          0.01s  
+  ✓ elections and certification are never returned or derived            0.01s  
+  ✓ derivation is deterministic and does not mutate inputs               0.01s  
+  ✓ incomplete required input fails clearly                              0.01s  
+  ✓ student controlled payload missing required field fails clearly      0.01s  
+  ✓ student controlled payload unexpected field fails clearly            0.01s  
+  ✓ student controlled payload invalid enum fails clearly                0.01s  
+  ✓ student controlled payload nonnumeric number fails clearly           0.01s  
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\DividendDecisionValidatorTest
+  ✓ literal earnings and cash caps and exact boundaries                  0.06s  
+  ✓ one cent above cash cap is rejected with maximum
+  ✓ one cent above earnings cap is rejected
+  ✓ deficit and below buffer cases allow only zero
+  ✓ negative and non numeric dividends are rejected
+  ✓ quarters one through three reject positive dividends
+  ✓ sim rules default zero without changing operational categories
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\ManufacturingCFDividendTest
+  ✓ legal dividend has only the four approved statement deltas           0.01s  
+  ✓ financing equity and cash mutations fail independently by one dolla… 0.01s  
+  ✓ plausibility accepts dividend and rejects retained mutation          0.01s  
+  ✓ pre borrowing cash cap accepts exact limit without financing         0.01s  
+  ✓ one cent over pre borrowing cash cap is rejected not financed        0.01s  
+  ✓ operational shortfall cannot be used to finance dividend             0.01s  
+  ✓ engine defends negative deficit and warmup dividends                 0.01s  
+  ✓ retained earnings chain never restores dividends                     0.01s  
+  ✓ omitted dividend is identical to explicit zero                       0.01s  
+  ✓ seeded deterministic legal dividends preserve identities and never…  0.01s  
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\ManufacturingCFEngineBehaviourTest
+  ✓ worked quarter one oracle pins all result fields and statement stru… 0.05s  
+  ✓ price elasticity and capacity allocation behaviours are explicit     0.01s  
+  ✓ inventory cogs and regional sales edge cases are explicit            0.01s  
+  ✓ election methods change warranty bad debt and excise statement line… 0.01s  
+  ✓ financing working capital tax and credit behaviours are explicit     0.01s  
+  ✓ quarter two carries every opening balance and reacts to mutation     0.01s  
+  ✓ complete fixture chains three quarters and reconciles public statem… 0.01s  
+  ✓ chained cash flow uses public two decimal statement line items       0.01s  
+  ✓ monetary statement lines round only after full precision calculatio… 0.01s  
+  ✓ non monetary ratios retain precision while statement totals use dis… 0.01s  
+  ✓ working capital stocks settle prior balances and reach constant dec… 0.01s  
+  ✓ inventory units roll from production less sales to ending value      0.01s  
+  ✓ randomized complete decision chains reconcile identities             0.36s  
+  ✓ ppe scaling component proportions and removed cwip are explicit      0.01s  
+  ✓ bad debt is operating expense without changing taxable income or ne… 0.01s  
+  ✓ depreciation classification amendment places each component once     0.01s  
+  ✓ amended classifications preserve statement identities                0.01s  
+  ✓ all categories and each field are mandatory                          0.01s  
+  ✓ missing required field fails clearly                                 0.01s  
+  ✓ engine does not require obsolete regional base demand compatibility… 0.01s  
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\ManufacturingCFEngineExecutedLegacyParityTest
+  ✓ executed legacy output and every bucket are frozen                   0.09s  
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\ManufacturingCFEngineReconstructedMixedProvenanceNonAuthoritativeTest
+  ✓ reconstructed mixed provenance non authoritative fixture has no une… 0.01s  
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\ManufacturingCFEngineTest
+  ✓ quarter one opening position comes from phase 2 opening parameters   0.01s  
+  ✓ complete decisions produce statement structures without retired sta… 0.01s  
+  ✓ quarter two opening position comes from quarter one ending balances  0.01s  
+  ✓ accounting identities pass for valid result                          0.01s  
+  ✓ negative balance sheet identity throws from validator                0.01s  
+  ✓ negative cash reconciliation throws from validator                   0.01s  
+  ✓ negative inventory reconciliation throws from validator              0.01s  
+  ✓ technology is not double counted and depreciation is in combined pp… 0.01s  
+  ✓ repeated calls are deterministic and do not query or persist         0.01s  
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\ManufacturingCFIncomeStatementCaptionsTest
+  ✓ profitable quarter with debt exposes literal captions and two route… 0.04s  
+  ✓ profitable quarter without debt exposes literal captions and two ro… 0.01s  
+  ✓ loss quarter preserves zero benefit tax floor and two route reconci… 0.01s  
+  ✓ overdraft quarter exposes actual zero interest result without inven… 0.01s  
+  ✓ amendment result surfaces are frozen with approved rounding movemen… 0.01s  
+  ✓ currency rounding is explicitly half away from zero                  0.01s  
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\ManufacturingCFOverdraftTest
+  ✓ literal overdraft oracle reconciles statements and shortfall fields  0.03s  
+  ✓ no overdraft oracle is explicit                                      0.01s  
+  ✓ incoherent overdraft mutations fail loudly with data set "balance-s… 0.01s  
+  ✓ incoherent overdraft mutations fail loudly with data set "financing… 0.01s  
+  ✓ incoherent overdraft mutations fail loudly with data set "committed… 0.01s  
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\ManufacturingCFSignedMovementsCorrectiveTest
+  ✓ signed accrued liability cases are literal and reconcile with data…  0.03s  
+  ✓ signed accrued liability cases are literal and reconcile with data…  0.01s  
+  ✓ signed accrued liability cases are literal and reconcile with data…  0.01s  
+  ✓ signed accrued liability cases are literal and reconcile with data…  0.01s  
+  ✓ signed accrued liability cases are literal and reconcile with data…  0.01s  
+  ✓ original excise failure is pinned and removed                        0.01s  
+  ✓ minimal service level failure is pinned and removed                  0.01s  
+  ✓ deterministic declining demand regime covers signed paths and plaus… 0.02s  
+
+   PASS  Tests\Unit\Services\Engines\CorporateFinance\PrePhase5CalibrationRegressionTest
+  ✓ active prices and references are calibrated together                 0.04s  
+  ✓ valid loss path reports literal rule evaluations                     0.01s  
+  ✓ inventory can increase by more than thirty percent of revenue        0.01s  
+  ✓ five weak quarters roll losses retained earnings and debt as stocks  0.01s  
+  ✓ loss side debt mutation is isolated                                  0.01s  
+  ✓ loss side retained mutation is isolated                              0.01s  
+  ✓ loss side multiple mutations collect in stable order                 0.01s  
+  ✓ loss side cash mutation fails cash identity                          0.01s  
+  ✓ price range corner with matched reference with data set "low-low"    0.01s  
+  ✓ price range corner with matched reference with data set "low-high"   0.01s  
+  ✓ price range corner with matched reference with data set "high-low"   0.01s  
+  ✓ price range corner with matched reference with data set "high-high"  0.01s  
+
+   PASS  Tests\Unit\Services\Warmup\DeterministicDemandRandomizerTest
+  ✓ known seed has literal uniform box muller growth and demand oracles  0.06s  
+  ✓ box muller rejects log zero                                          0.01s  
+  ✓ distribution matches mean standard deviation sigma bands and has no… 0.10s  
+  ✓ only the approved active standard deviation and mean are exposed     0.01s  
+
+   PASS  Tests\Feature\Auth\AuthenticationTest
+  ✓ login screen can be rendered                                         0.32s  
+  ✓ users can authenticate using the login screen                        0.04s  
+  ✓ users can not authenticate with invalid password                     0.02s  
+  ✓ users with two factor enabled are redirected to two factor challeng… 0.03s  
+  ✓ users can logout                                                     0.02s  
+
+   PASS  Tests\Feature\Auth\EmailVerificationTest
+  ✓ email verification screen can be rendered                            0.02s  
+  ✓ email can be verified                                                0.02s  
+  ✓ email is not verified with invalid hash                              0.02s  
+  ✓ already verified user visiting verification link is redirected with… 0.02s  
+
+   PASS  Tests\Feature\Auth\PasswordConfirmationTest
+  ✓ confirm password screen can be rendered                              0.02s  
+
+   PASS  Tests\Feature\Auth\PasswordResetTest
+  ✓ reset password link screen can be rendered                           0.02s  
+  ✓ reset password link can be requested                                 0.23s  
+  ✓ reset password screen can be rendered                                0.23s  
+  ✓ password can be reset with valid token                               0.25s  
+
+   PASS  Tests\Feature\Auth\RegistrationTest
+  ✓ registration screen can be rendered                                  0.02s  
+  ✓ new users can register                                               0.09s  
+
+   PASS  Tests\Feature\Auth\TwoFactorChallengeTest
+  ✓ two factor challenge redirects to login when not authenticated       0.02s  
+  ✓ two factor challenge can be rendered                                 0.02s  
+
+   PASS  Tests\Feature\Courses\CourseConfigurationServiceTest
+  ✓ course uses uuid relationships and soft deletes                      0.14s  
+  ✓ setup rejects another institution and clears disabled cf plus count… 0.10s  
+  ✓ disabled cf plus clears phase counts                                 0.10s  
+  ✓ schedule rejects reversed dates deadlines overlap and sequence gaps  0.11s  
+  ✓ cf plus exact minimum passes and one short fails                     0.11s  
+  ✓ quarter four minimum rejects each missing combination with data set… 0.11s  
+  ✓ quarter four minimum rejects each missing combination with data set… 0.11s  
+  ✓ quarter four minimum rejects each missing combination with data set… 0.11s  
+  ✓ quarter four minimum rejects each missing combination with data set… 0.11s  
+  ✓ quarter four minimum rejects each missing combination with data set… 0.11s  
+  ✓ complete minimum saves all keys without duplicates                   0.14s  
+  ✓ monotonic operating patterns are enforced with data set #0           0.12s  
+  ✓ monotonic operating patterns are enforced with data set #1           0.12s  
+  ✓ monotonic operating patterns are enforced with data set #2           0.12s  
+  ✓ monotonic operating patterns are enforced with data set #3           0.11s  
+  ✓ monotonic operating patterns are enforced with data set #4           0.11s  
+  ✓ certification is independent and not part of minimum                 0.12s  
+  ✓ faculty roles are scoped unique and keep owner                       0.10s  
+  ✓ duplicate quarter and enablement constraints are database enforced   0.11s  
+  ✓ complete deploy is idempotent emits boundary and does not create ph… 0.15s  
+  ✓ direct enablement save rejects warmup quarters                       0.11s  
+  ✓ deployment rejects a warmup quarter enablement                       0.12s  
+  ✓ incomplete course cannot deploy and remains draft                    0.11s  
+  ✓ cross course access is rejected                                      0.10s  
+
+   PASS  Tests\Feature\Courses\CourseWizardTest
+  ✓ guest is rejected and non faculty is forbidden                       0.11s  
+  ✓ faculty can render setup and create a scoped draft                   0.14s  
+  ✓ component rejects institution parameter tampering                    0.12s  
+  ✓ toggle propagates operating category but not certification           0.12s  
+  ✓ backward navigation preserves valid draft state                      0.14s  
+  ✓ step three starts at quarter four and rejects warmup tampering       0.13s  
+  ✓ invalid setup exposes errors and remains on step one                 0.12s  
+
+   PASS  Tests\Feature\DashboardTest
+  ✓ guests are redirected to the login page                              0.02s  
+  ✓ authenticated users can visit the dashboard                          0.03s  
+
+   PASS  Tests\Feature\ExampleTest
+  ✓ returns a successful response                                        0.02s  
+
+   PASS  Tests\Feature\Foundation\HomepageTest
+  ✓ homepage returns smoke test status                                   0.01s  
+
+   PASS  Tests\Feature\Foundation\ModelIntegrityTest
+  ✓ business entities generate uuid primary keys                         0.02s  
+  ✓ business models use soft deletes                                     0.02s  
+  ✓ admin user uniqueness constraint is enforced                         0.01s  
+  ✓ faculty user uniqueness constraint is enforced                       0.01s  
+  ✓ student user uniqueness constraint is enforced                       0.01s  
+  ✓ required foreign keys are enforced                                   0.01s  
+  ✓ user deletion cascades profile records                               0.01s  
+  ✓ institution deletion is restricted when profiles reference it        0.01s  
+
+   PASS  Tests\Feature\Foundation\ModelRelationshipTest
+  ✓ institution has many faculty and students                            0.02s  
+  ✓ faculty belongs to institution and user                              0.02s  
+  ✓ faculty exposes future courses relationship                          0.01s  
+  ✓ student belongs to institution and user                              0.01s  
+  ✓ student exposes future enrollments relationship                      0.01s  
+  ✓ admin belongs to user                                                0.01s  
+  ✓ user has one profile of each type                                    0.02s  
+
+   PASS  Tests\Feature\Foundation\PostgresConfigurationTest
+  ✓ test suite uses postgresql test database                             0.02s  
+
+   PASS  Tests\Feature\Foundation\SeederTest
+  ✓ development seed data creates expected identities                    0.13s  
+  ✓ seeded credentials can authenticate                                  0.10s  
+
+   PASS  Tests\Feature\Phase7A\FirmAuthorizationAndMultiFirmTest
+  ✓ duplicate membership is idempotent and cross course firm substituti… 0.12s  
+  ✓ three firms nine results and member isolation are enforced           0.18s  
+  ✓ route authorization covers guest roles faculty scope soft deletes a… 0.16s  
+
+   PASS  Tests\Feature\Phase7A\FirmsAndWarmupPersistenceTest
+  ✓ faculty can enroll and assign students within course scope           0.12s  
+  ✓ cross institution student assignment is rejected                     0.10s  
+  ✓ validated q1 through q3 history is atomic self contained and write…  0.12s  
+  ✓ deployment event dispatches ready firms and duplicate delivery is i… 0.11s  
+  ✓ firm history is visible only to its faculty and members              0.13s  
+
+   PASS  Tests\Feature\Phase7A\IncomeStatementPayloadCompletenessTest
+  ✓ inherited and later persisted quarters share the complete income st… 0.13s  
+
+   PASS  Tests\Feature\Phase7A\WarmupAtomicityAndReproducibilityTest
+  ✓ any quarter accounting failure rolls back every state and allows re… 0.13s  
+  ✓ any quarter accounting failure rolls back every state and allows re… 0.13s  
+  ✓ any quarter accounting failure rolls back every state and allows re… 0.12s  
+  ✓ plausibility failure rolls back every state and allows retry         0.12s  
+  ✓ multiple firms are reproducible but receive distinct histories       0.12s  
+  ✓ inherited result rejects direct update and delete                    0.11s  
+
+   PASS  Tests\Feature\Phase7A\WarmupPersistenceHardeningTest
+  ✓ successful initialization persists dense validated q1 q3 history     0.12s  
+  ✓ every duplicate path preserves the complete persisted snapshot       0.13s  
+  ✓ shared result table allows future q4 append without weakening inher… 0.11s  
+
+   PASS  Tests\Feature\Phase7A\WarmupSeedDimensionsTest
+  ✓ draw seed preserves course firm quarter and field dimensions         0.10s  
+  ✓ six field growth vectors vary by quarter and repeat exactly          0.10s  
+  ✓ complete q1 q3 generation is reproducible but quarters differ        0.11s  
+
+   PASS  Tests\Feature\Phase7B\CloseFailureRemediationTest
+  ✓ three firm partial success is visible and retry reuses successful r… 0.24s  
+  ✓ accounting and plausibility failures store no result and expose saf… 0.15s  
+  ✓ accounting and plausibility failures store no result and expose saf… 0.16s  
+  ✓ accounting and plausibility failures store no result and expose saf… 0.15s  
+
+   PASS  Tests\Feature\Phase7B\DatabaseImmutabilityTest
+  ✓ postgresql rejects direct update of inherited result                 0.11s  
+  ✓ postgresql rejects direct delete of inherited result                 0.11s  
+  ✓ postgresql rejects soft delete of inherited result                   0.10s  
+  ✓ q4 and q5 inserts remain allowed                                     0.10s  
+  ✓ trigger predicate is quarter number not provenance                   0.10s  
+  ✓ q4 is not trigger protected even with warmup provenance              0.11s  
+
+   PASS  Tests\Feature\Phase7B\DecisionWorkspaceTest
+  ✓ same firm members share one draft and other firm is isolated         0.12s  
+  ✓ closed category injection and outsider access are rejected           0.11s  
+  ✓ q1 q3 and locked quarters reject direct writes                       0.11s  
+
+   PASS  Tests\Feature\Phase7B\PersistedOpeningPositionTest
+  ✓ q4 engine input uses every persisted q3 opening field without recom… 0.15s  
+  ✓ q4 dividend is preserved in persisted q4 to q5 retained and full op… 0.18s  
+
+   PASS  Tests\Feature\Phase7B\QuarterCloseTest
+  ✓ q4 close queues locks resolves validates and appends without mutati… 0.15s  
+  ✓ q5 opens from persisted q4 and appends an independently validated r… 0.18s  
+  ✓ next quarter cannot open before q4 is closed and duplicate close is… 0.14s  
+
+   PASS  Tests\Feature\Phase7B\SharedDraftAndClosedHistoryTest
+  ✓ shared draft is explicit last write wins without duplicate or parti… 0.14s  
+  ✓ two submitters still produce one logical submission and one close s… 0.14s  
+  ✓ save submit and dividend change are rejected after close snapshot l… 0.14s  
+  ✓ closed q4 result is immutable through normal model and close retry…  0.15s  
+  ✓ student workspace renders real schema dividend maximum errors and c… 0.24s  
+
+   PASS  Tests\Feature\Phase8\FirmDashboardTest
+  ✓ inherited and closed quarters render literal stored statements repo… 0.15s  
+  ✓ dashboard is read only and navigation does not mutate phase7 record… 0.15s  
+  ✓ missing optional supplementary reports render safely                 0.13s  
+  ✓ guest members and owner access have identical financial content      0.16s  
+  ✓ cross firm cross course and uuid substitution are denied             0.15s  
+  ✓ authorized cofaculty is allowed but unrelated faculty are denied     0.14s  
+  ✓ soft deleted membership is denied                                    0.12s  
+
+   PASS  Tests\Feature\Phase8\Phase8DemoAndFidelityTest
+  ✓ standard seed excludes the opt in phase8 demo                        0.11s  
+  ✓ opt in demo uses real services and is complete and idempotent        0.27s  
+  ✓ genuine inherited and closed results render exact persisted values   0.31s  
+  ✓ real service overdraft result renders separately with exact stored…  0.19s  
+
+   PASS  Tests\Feature\Phase9\CfPlusAcquisitionLifecycleTest
+  ✓ amendment two configuration and full target funding are literal and… 0.15s  
+  ✓ offer guardrail uses binding timestamp preserves zero and rejects w… 0.15s  
+  ✓ rival course toggle window and negative offer boundaries are enforc… 0.16s  
+  ✓ sealed auction is first price tie stable multi win no win unsold id… 0.17s  
+  ✓ reveal exposes facts for each bidder without scores and preserves d… 0.16s  
+  ✓ student workspace displays maximum hides rival offers and faculty s… 0.23s  
+  ✓ binding offer edit prevents placeholder priority gaming and uuid is… 0.20s  
+  ✓ explicit zero is persisted revealed and never competes as a winning… 0.15s  
+  ✓ settlement is deeply idempotent and injected failure rolls back eve… 0.16s  
+  ✓ faculty reveal returns all saved bidder caps only after settlement…  0.16s  
+  ✓ invalid tie override cannot mutate settled result                    0.15s  
+  ✓ first price outcomes cover highest bid no offer no win and multiple… 0.15s  
+  ✓ override authorization rejects cross course bidder and unrelated fa… 0.16s  
+  ✓ student component never hydrates another bidder sealed values        0.18s  
+
+   PASS  Tests\Feature\Phase9\CfPlusAuctionEconomicsSnapshotTest
+  ✓ snapshot is created once at evaluation opening                       0.14s  
+  ✓ snapshot trigger is idempotent and preserves rows and timestamps     0.13s  
+  ✓ disclosure and auction source identifiers and hashes align           0.13s  
+  ✓ missing boundary result rolls back evaluation opening                0.13s  
+  ✓ late firm creation is rejected without mutating snapshot             0.13s  
+  ✓ late student enrollment succeeds without mutating snapshot or aucti… 0.13s  
+  ✓ late student assignment to existing firm succeeds without mutating…  0.13s  
+  ✓ moving existing student between snapshotted firms is rejected befor… 0.13s  
+  ✓ direct membership soft delete is rejected without mutating roster o… 0.14s  
+  ✓ supported membership removal is rejected after snapshot              0.13s  
+  ✓ late student can enroll and remain unassigned without breaking cf p… 0.13s  
+  ✓ direct membership move and hard delete are rejected by postgresql    0.13s  
+  ✓ direct new firm creation is rejected by postgresql                   0.13s  
+  ✓ faculty roster displays phase9 rejections for new firm and inter fi… 0.16s  
+  ✓ late member inherits existing firm offer workspace without rival pr… 0.15s  
+  ✓ snapshot rejects bad course timing before final build close          0.12s  
+  ✓ snapshot rejects missing required auction figure                     0.12s  
+  ✓ multi firm snapshot creation is atomic after first economics insert… 0.14s  
+  ✓ bidder cash is frozen from the boundary result                       0.13s  
+  ✓ unused committed credit is frozen from boundary facility context     0.13s  
+  ✓ target normalized cash is frozen at evaluation start                 0.13s  
+  ✓ target five times acquisition financing is frozen                    0.13s  
+  ✓ consultant whole company and control stake values are frozen         0.13s  
+  ✓ raw and displayed true worth are frozen                              0.13s  
+  ✓ maximum fundable offer uses only snapshot components                 0.13s  
+  ✓ saved offer cap and components equal snapshot cap exactly            0.14s  
+  ✓ later operating result does not reprice any auction economics        0.13s  
+  ✓ later legal dividend cash reduction does not reprice cap             0.30s  
+  ✓ offer edit reuses the same frozen cap after later state changes      0.13s  
+  ✓ settlement uses frozen values after later results exist              0.13s  
+  ✓ reveal reports the common evaluation start valuation date            0.13s  
+  ✓ repeated trigger after later state change cannot regenerate snapsho… 0.13s  
+  ✓ auction paths have no live engine result funding or repricing reads  0.10s  
+  ✓ snapshot model guard rejects mutation without changing header        0.13s  
+  ✓ postgresql trigger rejects snapshot header update                    0.13s  
+  ✓ postgresql trigger rejects snapshot header delete                    0.13s  
+  ✓ postgresql trigger rejects firm economics update                     0.13s  
+  ✓ postgresql trigger rejects firm economics delete                     0.13s  
+
+   PASS  Tests\Feature\Phase9\CfPlusEvaluationFoundationTest
+  ✓ cf plus gate and q4 accounting elections are explicit and locked     0.13s  
+  ✓ q4 student election fields hide inventory and validation injects lo… 0.10s  
+  ✓ plain cf is rejected and disclosure freezes only published statemen… 0.10s  
+  ✓ cf plus disclosure is immutable rival only and contains no private…  0.11s  
+  ✓ consultant prototype uses literal three quarter median and is deter… 0.11s  
+  ✓ candidate grid remains reported only without raw operating cash pro… 0.10s  
+  ✓ true worth uses after tax operating income plus depreciation and ex… 0.11s  
+
+   PASS  Tests\Feature\Scenario\CfManufacturingSimRulesIntegrationTest
+  ✓ all categories sim derived run through engine and plausibility vali… 0.01s  
+  ✓ zero activity quarter is financially valid but activity dependent p… 0.01s  
+  ✓ mixed student and sim controlled decisions integrate with engine     0.01s  
+  ✓ symmetric working capital overstatement is reported by plausibility… 0.01s  
+  ✓ single plausibility violation payload is structured                  0.01s  
+  ✓ multiple plausibility violations are collected in deterministic ord… 0.01s  
+  ✓ historical working capital overstatement replay is reported          0.01s  
+  ✓ repeated constant demand working capital reaches steady state        0.01s  
+  ✓ steady state rule is skipped when inputs are not constant            0.01s  
+  ✓ steady state rule skips changing demand context                      0.01s  
+  ✓ steady state rule skips changing decision context                    0.01s  
+  ✓ steady state rule fails under constant inputs with continued drift   0.01s  
+  ✓ reasonable balance decreases pass plausibility validation            0.01s  
+  ✓ large receivables collection does not fail turnover validation       0.01s  
+  ✓ excessive cash movement is reported without blocking                 0.01s  
+  ✓ receivables turnover negative rule is reported without blocking      0.01s  
+  ✓ receivables turnover allows substantial collection of prior ar       0.01s  
+  ✓ payables turnover negative rule is reported without blocking         0.01s  
+  ✓ inventory ratio is reported without blocking                         0.01s  
+  ✓ first quarter zero opening inventory keeps ratio active but skips t… 0.01s  
+  ✓ inventory turnover runs when opening inventory exists                0.01s  
+  ✓ debt coherence negative rule is isolated                             0.01s  
+  ✓ retained earnings negative rule is isolated                          0.01s  
+  ✓ quarter over quarter movement negative rule is isolated              0.01s  
+  ✓ quarter over quarter payables movement negative rule is isolated     0.01s  
+  ✓ margin and inventory calibration fixture is representative for phas… 0.01s  
+
+   PASS  Tests\Feature\Scenario\ScenarioDataLayerTest
+  ✓ cf manufacturing scenario seeds exact phase 2 counts                 0.16s  
+  ✓ opening position uses approved reconciled values                     0.10s  
+  ✓ q0 forecasting baseline is exact and source only                     0.10s  
+  ✓ operational q1 through q3 rows are not seeded                        0.10s  
+  ✓ fixed warmup election and certification rows are exact               0.10s  
+  ✓ base demand parameters remain market level and distinct from q0 for… 0.11s  
+  ✓ calibrated price parameters and parameter backed decision defaults…  0.09s  
+  ✓ notes elections and certification use approved authored schemas      0.10s  
+  ✓ category input field keys are pinned                                 0.10s  
+  ✓ default open quarter values are pinned                               0.10s  
+  ✓ scenario models use uuids soft deletes and relationships             0.10s  
+  ✓ scenario unique constraints are enforced                             0.01s  
+  ✓ quarter decision unique constraint is enforced                       0.01s  
+  ✓ scenario json columns are postgresql jsonb                           0.01s  
+  ✓ excise rates remain separate from notes election                     0.10s  
+
+   PASS  Tests\Feature\Settings\ProfileUpdateTest
+  ✓ profile page is displayed                                            0.03s  
+  ✓ profile information can be updated                                   0.03s  
+  ✓ email verification status is unchanged when email address is unchan… 0.03s  
+  ✓ user can delete their account                                        0.02s  
+  ✓ correct password must be provided to delete account                  0.02s  
+
+   PASS  Tests\Feature\Settings\SecurityTest
+  ✓ security settings page can be rendered                               0.03s  
+  ✓ security settings page requires password confirmation when enabled   0.01s  
+  ✓ security settings page renders without two factor when feature is d… 0.02s  
+  ✓ two factor authentication disabled when confirmation abandoned betw… 0.02s  
+  ✓ password can be updated                                              0.03s  
+  ✓ correct password must be provided to update password                 0.03s  
+
+   PASS  Tests\Feature\UiPolishFoundationTest
+  ✓ flexee brand replaces starter kit identity in the application shell  0.01s  
+  ✓ representative screens use shared presentation primitives without c… 0.01s  
+  ✓ design tokens keep emerald as the semantic accent                    0.01s  
+
+   PASS  Tests\Feature\UiPolishRolloutTest
+  ✓ financial presenter treats quarter number as hidden metadata         0.01s  
+  ✓ financial surfaces share the structured financial presenter          0.01s  
+  ✓ remaining operational screens use the approved page header and flux… 0.01s  
+  ✓ rollout preserves signed livewire action names                       0.01s  
+  ✓ dashboard is a navigation surface without synthetic metrics          0.01s  
+
+   PASS  Tests\Feature\Warmup\CfManufacturingWarmupServiceTest
+  ✓ full stack generates three chained valid quarters and readiness fou… 0.13s  
+  ✓ signed two course rung has zero dividends and no new financing       0.11s  
+  ✓ q0 to q1 to q2 to q3 compounding and seasonality are literal         0.10s  
+  ✓ explicit scenario model and code select the same generation contrac… 0.11s  
+  ✓ reproducibility and variation do not use persistence                 0.12s  
+  ✓ multiple courses and firms have no duplicate histories               0.24s  
+  ✓ missing q0 baseline fails before history is returned                 0.10s  
+  ✓ missing election row fails in the named quarter                      0.10s  
+  ✓ missing certification row fails in the named quarter                 0.11s  
+  ✓ accounting failure is wrapped without partial history                0.10s  
+  ✓ plausibility failure is wrapped without partial history              0.11s  
+  ✓ invalid q2 randomizer output is atomic and reports safe context      0.10s  
+  ✓ job shell invokes exactly one firm without persistence               0.10s  
+
+  Tests:    379 passed (198953 assertions)
+  Duration: 27.08s
+

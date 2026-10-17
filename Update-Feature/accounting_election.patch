@@ -1,0 +1,462 @@
+diff -ruN orig/finance-simulation-V3/app/Livewire/Faculty/Courses/CourseWizard.php fx/finance-simulation-V3/app/Livewire/Faculty/Courses/CourseWizard.php
+--- orig/finance-simulation-V3/app/Livewire/Faculty/Courses/CourseWizard.php	2026-09-04 09:37:29.000000000 +0000
++++ fx/finance-simulation-V3/app/Livewire/Faculty/Courses/CourseWizard.php	2026-09-05 12:14:24.791843457 +0000
+@@ -289,6 +289,7 @@
+ 
+             'categories' => $this->course?->scenario
+                 ->decisionCategories()
++                ->whereNotIn('code', CourseConfigurationService::FACULTY_ENABLEMENT_EXCLUDED)
+                 ->orderBy('sort_order')
+                 ->get() ?? collect(),
+ 
+@@ -305,6 +306,7 @@
+         $codes = $this->requiredCourse()
+             ->scenario
+             ->decisionCategories()
++            ->whereNotIn('code', CourseConfigurationService::FACULTY_ENABLEMENT_EXCLUDED)
+             ->pluck('code');
+ 
+         foreach (
+@@ -342,6 +344,9 @@
+ 
+         foreach ($this->course->quarters()->with('enablements.category')->get() as $quarter) {
+             foreach ($quarter->enablements as $row) {
++                if (in_array($row->category->code, CourseConfigurationService::FACULTY_ENABLEMENT_EXCLUDED, true)) {
++                    continue;
++                }
+                 $this->matrix[$quarter->quarter_number][$row->category->code] = $row->enabled;
+             }
+         }
+diff -ruN orig/finance-simulation-V3/app/Services/Courses/CourseConfigurationService.php fx/finance-simulation-V3/app/Services/Courses/CourseConfigurationService.php
+--- orig/finance-simulation-V3/app/Services/Courses/CourseConfigurationService.php	2026-08-14 08:41:38.000000000 +0000
++++ fx/finance-simulation-V3/app/Services/Courses/CourseConfigurationService.php	2026-09-05 12:15:49.177537474 +0000
+@@ -19,6 +19,8 @@
+ {
+     public const REQUIRED_QUARTER_FOUR = ['forecasting', 'sourcing', 'production'];
+ 
++    public const FACULTY_ENABLEMENT_EXCLUDED = ['notes_elections'];
++
+     /** @param array<string, mixed> $input */
+     public function saveSetup(Faculty $actor, array $input, ?Course $course = null): Course
+     {
+@@ -98,9 +100,13 @@
+         if (collect(array_keys($matrix))->contains(fn (int|string $quarter): bool => (int) $quarter < 4)) {
+             throw ValidationException::withMessages(['matrix' => 'Quarters 1 through 3 are reserved for system-generated warm-up history. Student enablement begins at Quarter 4.']);
+         }
+-        $categories = $course->scenario->decisionCategories()->orderBy('sort_order')->get()->keyBy('code');
++        $categories = $course->scenario->decisionCategories()
++            ->whereNotIn('code', self::FACULTY_ENABLEMENT_EXCLUDED)
++            ->orderBy('sort_order')
++            ->get()
++            ->keyBy('code');
+         $quarters = $course->quarters()->where('quarter_number', '>=', 4)->orderBy('quarter_number')->get();
+-        if ($categories->count() !== 9 || $quarters->isEmpty()) {
++        if ($categories->count() !== 8 || $quarters->isEmpty()) {
+             throw ValidationException::withMessages(['matrix' => 'The scenario categories and student quarters must be configured first.']);
+         }
+         foreach ($quarters as $quarter) {
+@@ -126,6 +132,11 @@
+             }
+         }
+         DB::transaction(function () use ($quarters, $categories, $matrix): void {
++            CourseDecisionEnablement::query()
++                ->whereIn('course_quarter_id', $quarters->pluck('id'))
++                ->whereHas('category', fn ($query) => $query->whereIn('code', self::FACULTY_ENABLEMENT_EXCLUDED))
++                ->delete();
++
+             foreach ($quarters as $quarter) {
+                 foreach ($categories as $code => $category) {
+                     CourseDecisionEnablement::withTrashed()->updateOrCreate(
+@@ -166,13 +177,20 @@
+             if ($course->quarters->where('quarter_number', '<', 4)->flatMap->enablements->isNotEmpty()) {
+                 throw ValidationException::withMessages(['deploy' => 'Quarters 1 through 3 are reserved for warm-up and cannot contain student decision enablements.']);
+             }
+-            $expected = $course->quarters->where('quarter_number', '>=', 4)->count() * 9;
+-            if ($course->quarters->count() < 4 || $course->quarters->flatMap->enablements->count() !== $expected || ! $course->facultyRoles->contains('role', CourseFacultyRole::ROLE_OWNER)) {
++            $expected = $course->quarters->where('quarter_number', '>=', 4)->count() * 8;
++            $actual = $course->quarters->where('quarter_number', '>=', 4)
++                ->flatMap->enablements
++                ->reject(fn ($row) => in_array($row->category->code, self::FACULTY_ENABLEMENT_EXCLUDED, true))
++                ->count();
++            if ($course->quarters->count() < 4 || $actual !== $expected || ! $course->facultyRoles->contains('role', CourseFacultyRole::ROLE_OWNER)) {
+                 throw ValidationException::withMessages(['deploy' => 'Course configuration is incomplete.']);
+             }
+             $matrix = [];
+             foreach ($course->quarters->where('quarter_number', '>=', 4) as $quarter) {
+                 foreach ($quarter->enablements as $row) {
++                    if (in_array($row->category->code, self::FACULTY_ENABLEMENT_EXCLUDED, true)) {
++                        continue;
++                    }
+                     $matrix[$quarter->quarter_number][$row->category->code] = $row->enabled;
+                 }
+             }
+diff -ruN orig/finance-simulation-V3/app/Services/Decisions/FirmDecisionService.php fx/finance-simulation-V3/app/Services/Decisions/FirmDecisionService.php
+--- orig/finance-simulation-V3/app/Services/Decisions/FirmDecisionService.php	2026-09-04 10:49:43.000000000 +0000
++++ fx/finance-simulation-V3/app/Services/Decisions/FirmDecisionService.php	2026-09-05 12:14:24.791547401 +0000
+@@ -50,17 +50,15 @@
+ 
+         $quarter->loadMissing('course.scenario');
+ 
+-        if ($quarter->course->cf_plus_enabled) {
+-            unset($enabled['notes_elections']);
++        unset($enabled['notes_elections']);
+ 
+-            if ($quarter->quarter_number === 4) {
+-                $category = $quarter->course->scenario
+-                    ->decisionCategories()
+-                    ->where('code', 'notes_elections')
+-                    ->firstOrFail();
++        if ($quarter->quarter_number === 4) {
++            $category = $quarter->course->scenario
++                ->decisionCategories()
++                ->where('code', 'notes_elections')
++                ->firstOrFail();
+ 
+-                $enabled['notes_elections'] = $category;
+-            }
++            $enabled['notes_elections'] = $category;
+         }
+ 
+         return $enabled;
+@@ -72,8 +70,7 @@
+         ScenarioDecisionCategory $category
+     ): array {
+         if (
+-            $quarter->course->cf_plus_enabled
+-            && $quarter->quarter_number === 4
++            $quarter->quarter_number === 4
+             && $category->code === 'notes_elections'
+         ) {
+             return app(FirmAccountingElectionService::class)
+@@ -249,45 +246,31 @@
+                 $studentOperational
+             );
+ 
+-        if ($firm->course->cf_plus_enabled) {
+-            if (
+-                $quarter->quarter_number > 4
+-                && array_key_exists('notes_elections', $submitted)
+-            ) {
+-                throw ValidationException::withMessages([
+-                    'notes_elections' =>
+-                        'Accounting elections were locked in Quarter 4 and cannot be submitted again.',
+-                ]);
+-            }
+-
+-            $resolved['notes_elections'] = $quarter->quarter_number === 4
+-                ? app(FirmAccountingElectionService::class)->validate(
+-                    $submitted['notes_elections']
+-                        ?? throw ValidationException::withMessages([
+-                            'notes_elections' =>
+-                                'Quarter 4 requires the firm accounting elections.',
+-                        ])
+-                )
+-                : (
+-                    $firm->accounting_elections
+-                    ?? throw ValidationException::withMessages([
+-                        'notes_elections' =>
+-                            'The firm has no locked Quarter 4 accounting elections.',
+-                    ])
+-                );
+-        } else {
+-            $resolved['notes_elections'] = isset($enabled['notes_elections'])
+-                ? (
+-                    $submitted['notes_elections']
++        if (
++            $quarter->quarter_number > 4
++            && array_key_exists('notes_elections', $submitted)
++        ) {
++            throw ValidationException::withMessages([
++                'notes_elections' =>
++                    'Accounting elections were locked in Quarter 4 and cannot be submitted again.',
++            ]);
++        }
++
++        $resolved['notes_elections'] = $quarter->quarter_number === 4
++            ? app(FirmAccountingElectionService::class)->validate(
++                $submitted['notes_elections']
+                     ?? throw ValidationException::withMessages([
+                         'notes_elections' =>
+-                            'notes_elections is enabled and requires a submitted decision.',
++                            'Quarter 4 requires the firm accounting elections.',
+                     ])
+-                )
+-                : CfManufacturingScenarioDefinition::fixedWarmupPayload(
+-                    'notes_elections'
+-                );
+-        }
++            )
++            : (
++                $firm->accounting_elections
++                ?? throw ValidationException::withMessages([
++                    'notes_elections' =>
++                        'The firm has no locked Quarter 4 accounting elections.',
++                ])
++            );
+ 
+         $resolved['certification'] = isset($enabled['certification'])
+             ? (
+diff -ruN orig/finance-simulation-V3/app/Services/Quarters/FirmQuarterCloseService.php fx/finance-simulation-V3/app/Services/Quarters/FirmQuarterCloseService.php
+--- orig/finance-simulation-V3/app/Services/Quarters/FirmQuarterCloseService.php	2026-08-14 08:41:38.000000000 +0000
++++ fx/finance-simulation-V3/app/Services/Quarters/FirmQuarterCloseService.php	2026-09-05 12:14:24.791703226 +0000
+@@ -57,7 +57,7 @@
+             DB::transaction(function () use ($attempt, $firm, $quarter, $resolved, $result): void {
+                 $payload = $this->payload($attempt, $firm, $quarter, $result);
+                 FirmEngineResult::query()->create($payload + ['payload_hash' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION))]);
+-                if ($firm->course->cf_plus_enabled && $quarter->quarter_number === 4) {
++                if ($quarter->quarter_number === 4) {
+                     app(FirmAccountingElectionService::class)->lock($firm, $resolved['notes_elections']);
+                 }
+                 FirmQuarterDecision::query()->whereKey($attempt->firm_quarter_decision_id)->update(['resolved_payload' => json_encode($resolved, JSON_THROW_ON_ERROR), 'updated_at' => now()]);
+diff -ruN orig/finance-simulation-V3/resources/views/livewire/student/decisions/decision-workspace.blade.php fx/finance-simulation-V3/resources/views/livewire/student/decisions/decision-workspace.blade.php
+--- orig/finance-simulation-V3/resources/views/livewire/student/decisions/decision-workspace.blade.php	2026-09-04 14:45:51.000000000 +0000
++++ fx/finance-simulation-V3/resources/views/livewire/student/decisions/decision-workspace.blade.php	2026-09-05 12:14:52.471385105 +0000
+@@ -51,6 +51,36 @@
+         />
+     @endif
+ 
++    @if($quarter->quarter_number >= 5)
++        <flux:card class="space-y-3">
++            <div class="flex items-center justify-between gap-3">
++                <flux:heading size="lg" level="2">
++                    Accounting Elections
++                </flux:heading>
++                <flux:badge color="zinc" icon="lock-closed">Locked at Q4 close</flux:badge>
++            </div>
++
++            @if($firm->accounting_elections)
++                <div class="grid gap-4 md:grid-cols-2">
++                    @foreach($firm->accounting_elections as $key => $value)
++                        <div>
++                            <flux:text size="sm" class="font-medium">
++                                {{ str($key)->replace('_', ' ')->title() }}
++                            </flux:text>
++                            <flux:text>{{ str($value)->replace('_', ' ')->title() }}</flux:text>
++                        </div>
++                    @endforeach
++                </div>
++            @else
++                <flux:callout
++                    variant="danger"
++                    icon="exclamation-triangle"
++                    heading="Quarter 4 accounting elections are not locked yet."
++                />
++            @endif
++        </flux:card>
++    @endif
++
+     @foreach($categories as $code => $category)
+         <flux:card class="space-y-4">
+             <flux:heading size="lg" level="2">
+--- orig/finance-simulation-V3/storage/logs/laravel.log	1970-01-01 00:00:00.000000000 +0000
++++ fx/finance-simulation-V3/storage/logs/laravel.log	2026-09-05 12:14:59.188897247 +0000
+@@ -0,0 +1,30 @@
++[2026-09-05 12:14:59] local.ERROR: Call to undefined function Illuminate\Support\mb_split() {"exception":"[object] (Error(code: 0): Call to undefined function Illuminate\\Support\\mb_split() at /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Support/Str.php:1722)
++[stacktrace]
++#0 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Support/Str.php(232): Illuminate\\Support\\Str::studly()
++#1 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Events/DiscoverEvents.php(109): Illuminate\\Support\\Str::camel()
++#2 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Events/DiscoverEvents.php(70): Illuminate\\Foundation\\Events\\DiscoverEvents::classFromFile()
++#3 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Events/DiscoverEvents.php(37): Illuminate\\Foundation\\Events\\DiscoverEvents::getListenerEvents()
++#4 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Support/Providers/EventServiceProvider.php(155): Illuminate\\Foundation\\Events\\DiscoverEvents::within()
++#5 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Collections/Traits/EnumeratesValues.php(805): Illuminate\\Foundation\\Support\\Providers\\EventServiceProvider->{closure:Illuminate\\Foundation\\Support\\Providers\\EventServiceProvider::discoverEvents():155}()
++#6 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Support/Providers/EventServiceProvider.php(155): Illuminate\\Support\\LazyCollection->pipe()
++#7 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Support/Providers/EventServiceProvider.php(127): Illuminate\\Foundation\\Support\\Providers\\EventServiceProvider->discoverEvents()
++#8 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Support/Providers/EventServiceProvider.php(113): Illuminate\\Foundation\\Support\\Providers\\EventServiceProvider->discoveredEvents()
++#9 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Support/Providers/EventServiceProvider.php(58): Illuminate\\Foundation\\Support\\Providers\\EventServiceProvider->getEvents()
++#10 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Foundation\\Support\\Providers\\EventServiceProvider->{closure:Illuminate\\Foundation\\Support\\Providers\\EventServiceProvider::register():57}()
++#11 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
++#12 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(84): Illuminate\\Container\\Util::unwrapIfClosure()
++#13 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod()
++#14 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Container/Container.php(799): Illuminate\\Container\\BoundMethod::call()
++#15 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Support/ServiceProvider.php(134): Illuminate\\Container\\Container->call()
++#16 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1148): Illuminate\\Support\\ServiceProvider->callBootingCallbacks()
++#17 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1132): Illuminate\\Foundation\\Application->bootProvider()
++#18 [internal function]: Illuminate\\Foundation\\Application->{closure:Illuminate\\Foundation\\Application::boot():1131}()
++#19 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1131): array_walk()
++#20 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/BootProviders.php(17): Illuminate\\Foundation\\Application->boot()
++#21 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(342): Illuminate\\Foundation\\Bootstrap\\BootProviders->bootstrap()
++#22 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(494): Illuminate\\Foundation\\Application->bootstrapWith()
++#23 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(196): Illuminate\\Foundation\\Console\\Kernel->bootstrap()
++#24 /tmp/fx/finance-simulation-V3/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle()
++#25 /tmp/fx/finance-simulation-V3/artisan(16): Illuminate\\Foundation\\Application->handleCommand()
++#26 {main}
++"} 
+diff -ruN orig/finance-simulation-V3/tests/Feature/Courses/CourseConfigurationServiceTest.php fx/finance-simulation-V3/tests/Feature/Courses/CourseConfigurationServiceTest.php
+--- orig/finance-simulation-V3/tests/Feature/Courses/CourseConfigurationServiceTest.php	2026-08-14 08:41:38.000000000 +0000
++++ fx/finance-simulation-V3/tests/Feature/Courses/CourseConfigurationServiceTest.php	2026-09-05 12:14:52.471793570 +0000
+@@ -225,7 +225,7 @@
+         ]);
+         $this->assertSame($quarterIds, $deployed->quarters()->orderBy('quarter_number')->pluck('id')->all());
+         $this->assertSame(7, $deployed->quarters()->count());
+-        $this->assertSame(36, $enablementCount);
++        $this->assertSame(32, $enablementCount);
+         $this->assertSame($enablementCount, CourseDecisionEnablement::query()->count());
+         $this->assertSame(2, $roleCount);
+         $this->assertSame($roleCount, $deployed->facultyRoles()->count());
+@@ -352,7 +352,7 @@
+ 
+     private function matrix(Course $course): array
+     {
+-        $codes = $this->scenario->decisionCategories()->pluck('code');
++        $codes = $this->scenario->decisionCategories()->whereNotIn('code', CourseConfigurationService::FACULTY_ENABLEMENT_EXCLUDED)->pluck('code');
+         $matrix = [];
+         foreach ($course->quarters()->where('quarter_number', '>=', 4)->pluck('quarter_number') as $quarter) {
+             foreach ($codes as $code) {
+diff -ruN orig/finance-simulation-V3/tests/Feature/Phase7B/PersistedOpeningPositionTest.php fx/finance-simulation-V3/tests/Feature/Phase7B/PersistedOpeningPositionTest.php
+--- orig/finance-simulation-V3/tests/Feature/Phase7B/PersistedOpeningPositionTest.php	2026-08-14 08:41:38.000000000 +0000
++++ fx/finance-simulation-V3/tests/Feature/Phase7B/PersistedOpeningPositionTest.php	2026-09-05 12:15:49.177733139 +0000
+@@ -85,7 +85,7 @@
+         $quarters->open($course->faculty, $q5);
+         $spy = new CapturingEngine;
+         $this->app->instance(ManufacturingEngine::class, $spy);
+-        $decisions->submit($student, $firm, $q5, $this->completePayload(), 0);
++        $decisions->submit($student, $firm, $q5, $this->operationalPayload(), 0);
+         $quarters->queueClose($course->faculty, $q5);
+         app(FirmQuarterCloseService::class)->close(FirmQuarterClose::query()->where('course_quarter_id', $q5->id)->firstOrFail());
+         $quarters->finalize($q5);
+diff -ruN orig/finance-simulation-V3/tests/Feature/Phase7B/QuarterCloseTest.php fx/finance-simulation-V3/tests/Feature/Phase7B/QuarterCloseTest.php
+--- orig/finance-simulation-V3/tests/Feature/Phase7B/QuarterCloseTest.php	2026-08-14 08:41:38.000000000 +0000
++++ fx/finance-simulation-V3/tests/Feature/Phase7B/QuarterCloseTest.php	2026-09-05 12:15:49.177786649 +0000
+@@ -95,7 +95,7 @@
+         $this->assertSame((float) $q4Result->fields['bs_ar'], $opening->accountsReceivable);
+         $this->assertSame((float) $q4Result->fields['bs_inventory'], $opening->inventory);
+         $this->assertSame((float) $q4Result->fields['bs_retained'] + (float) $q4Result->fields['bs_curr_ni'], $opening->retainedEarnings);
+-        $decisions->submit($student, $firm, $q5, $this->payload(), 0);
++        $decisions->submit($student, $firm, $q5, $this->operationalPayload(), 0);
+         $quarters->queueClose($course->faculty, $q5);
+         app(FirmQuarterCloseService::class)->close(FirmQuarterClose::query()->where('course_quarter_id', $q5->id)->firstOrFail());
+         $quarters->finalize($q5);
+@@ -151,8 +151,25 @@
+     /** @return array<string, mixed> */
+     private function payload(): array
+     {
+-        return ['forecasting' => ['forecast_p1_r1' => 30000, 'forecast_p1_r2' => 40000, 'forecast_p1_r3' => 60000, 'forecast_p2_r1' => 27000, 'forecast_p2_r2' => 18000, 'forecast_p2_r3' => 16000, 'forecast_confidence' => 'medium'],
++        return [
++            'forecasting' => ['forecast_p1_r1' => 30000, 'forecast_p1_r2' => 40000, 'forecast_p1_r3' => 60000, 'forecast_p2_r1' => 27000, 'forecast_p2_r2' => 18000, 'forecast_p2_r3' => 16000, 'forecast_confidence' => 'medium'],
+             'sourcing' => ['primary_supplier' => 'SUP001', 'primary_alloc' => 1, 'secondary_supplier' => 'NONE'],
+-            'production' => ['p1_production' => 130000, 'p2_production' => 61000, 'shifts' => 1, 'postponed_flag' => 'NO', 'postponed_pct' => 0]];
++            'production' => ['p1_production' => 130000, 'p2_production' => 61000, 'shifts' => 1, 'postponed_flag' => 'NO', 'postponed_pct' => 0],
++            'notes_elections' => [
++                'depreciation_method' => 'straight_line',
++                'shipping_terms' => 'fob_shipping_point',
++                'bad_debt_method' => 'percentage_of_receivables',
++                'warranty_method' => 'percentage_of_sales',
++                'excise_tax_treatment' => 'cogs_inclusion',
++            ],
++        ];
++    }
++
++    private function operationalPayload(): array
++    {
++        $payload = $this->payload();
++        unset($payload['notes_elections']);
++
++        return $payload;
+     }
+ }
+diff -ruN orig/finance-simulation-V3/tests/Feature/Phase9/CfPlusEvaluationFoundationTest.php fx/finance-simulation-V3/tests/Feature/Phase9/CfPlusEvaluationFoundationTest.php
+--- orig/finance-simulation-V3/tests/Feature/Phase9/CfPlusEvaluationFoundationTest.php	2026-08-14 08:41:38.000000000 +0000
++++ fx/finance-simulation-V3/tests/Feature/Phase9/CfPlusEvaluationFoundationTest.php	2026-09-05 12:14:59.067511454 +0000
+@@ -102,6 +102,74 @@
+         }
+     }
+ 
++    public function test_plain_cf_gets_required_q4_accounting_election_and_reuses_locked_values_after_q4(): void
++    {
++        [$course, $firm] = $this->courseAndFirm(false);
++        $q4 = CourseQuarter::query()->create($this->quarter($course, 4));
++        $q5 = CourseQuarter::query()->create($this->quarter($course, 5));
++        $decisionService = app(FirmDecisionService::class);
++
++        $this->assertArrayHasKey('notes_elections', $decisionService->enabledCategories($q4));
++        $this->assertArrayNotHasKey('notes_elections', $decisionService->enabledCategories($q5));
++
++        $category = $course->scenario->decisionCategories()->where('code', 'notes_elections')->firstOrFail();
++        $this->assertSame(
++            ['depreciation_method', 'shipping_terms', 'bad_debt_method', 'warranty_method', 'excise_tax_treatment'],
++            array_column($decisionService->decisionFields($q4, $category), 'key')
++        );
++
++        foreach (['forecasting', 'sourcing', 'production'] as $code) {
++            CourseDecisionEnablement::query()->create([
++                'course_quarter_id' => $q4->id,
++                'scenario_decision_category_id' => $course->scenario->decisionCategories()->where('code', $code)->value('id'),
++                'enabled' => true,
++            ]);
++            CourseDecisionEnablement::query()->create([
++                'course_quarter_id' => $q5->id,
++                'scenario_decision_category_id' => $course->scenario->decisionCategories()->where('code', $code)->value('id'),
++                'enabled' => true,
++            ]);
++        }
++
++        $elections = [
++            'depreciation_method' => 'double_declining_balance',
++            'shipping_terms' => 'fob_destination',
++            'bad_debt_method' => 'percentage_of_sales',
++            'warranty_method' => 'expense_as_incurred',
++            'excise_tax_treatment' => 'separate_operating_expense',
++        ];
++        $submitted = [...$this->operationalPayload(), 'notes_elections' => $elections];
++
++        $resolvedQ4 = $decisionService->resolveCompleteDecisions($firm, $q4, $submitted);
++        $this->assertSame(['inventory_method' => 'fifo', ...$elections], $resolvedQ4['notes_elections']);
++
++        app(FirmAccountingElectionService::class)->lock($firm, $resolvedQ4['notes_elections']);
++        $this->assertNotNull($firm->fresh()->accounting_elections_locked_at);
++        $this->assertSame($resolvedQ4['notes_elections'], $firm->fresh()->accounting_elections);
++
++        $resolvedQ5 = $decisionService->resolveCompleteDecisions($firm->fresh(), $q5, $this->operationalPayload());
++        $this->assertSame($resolvedQ4['notes_elections'], $resolvedQ5['notes_elections']);
++
++        $this->expectException(ValidationException::class);
++        $decisionService->resolveCompleteDecisions(
++            $firm->fresh(),
++            $q5,
++            [...$this->operationalPayload(), 'notes_elections' => CfManufacturingScenarioDefinition::fixedWarmupPayload('notes_elections')]
++        );
++    }
++
++    public function test_plain_cf_warmup_still_uses_fixed_accounting_election_defaults(): void
++    {
++        [$course, $firm] = $this->courseAndFirm(false);
++        $q4 = CourseQuarter::query()->create($this->quarter($course, 4));
++        $decisionService = app(FirmDecisionService::class);
++
++        $warmup = CfManufacturingScenarioDefinition::fixedWarmupPayload('notes_elections');
++        $this->assertSame('fifo', $warmup['inventory_method']);
++        $this->assertNull($firm->fresh()->accounting_elections);
++        $this->assertArrayHasKey('notes_elections', $decisionService->enabledCategories($q4));
++    }
++
+     public function test_plain_cf_is_rejected_and_disclosure_freezes_only_published_statements_notes_and_elections(): void
+     {
+         [$plain, $plainFirm] = $this->courseAndFirm(false);
+diff -ruN orig/finance-simulation-V3/tests/Support/Phase7B/BuildsPhase7BCourse.php fx/finance-simulation-V3/tests/Support/Phase7B/BuildsPhase7BCourse.php
+--- orig/finance-simulation-V3/tests/Support/Phase7B/BuildsPhase7BCourse.php	2026-08-14 08:41:38.000000000 +0000
++++ fx/finance-simulation-V3/tests/Support/Phase7B/BuildsPhase7BCourse.php	2026-09-05 12:15:49.177674971 +0000
+@@ -48,6 +48,23 @@
+     {
+         return ['forecasting' => ['forecast_p1_r1' => 30000 + $offset, 'forecast_p1_r2' => 40000, 'forecast_p1_r3' => 60000, 'forecast_p2_r1' => 27000, 'forecast_p2_r2' => 18000, 'forecast_p2_r3' => 16000, 'forecast_confidence' => 'medium'],
+             'sourcing' => ['primary_supplier' => 'SUP001', 'primary_alloc' => 1, 'secondary_supplier' => 'NONE'],
+-            'production' => ['p1_production' => 130000 + $offset, 'p2_production' => 61000, 'shifts' => 1, 'postponed_flag' => 'NO', 'postponed_pct' => 0]];
++            'production' => ['p1_production' => 130000 + $offset, 'p2_production' => 61000, 'shifts' => 1, 'postponed_flag' => 'NO', 'postponed_pct' => 0],
++            'notes_elections' => [
++                'depreciation_method' => 'straight_line',
++                'shipping_terms' => 'fob_shipping_point',
++                'bad_debt_method' => 'percentage_of_receivables',
++                'warranty_method' => 'percentage_of_sales',
++                'excise_tax_treatment' => 'cogs_inclusion',
++            ],
++        ];
++    }
++
++    /** @return array<string, mixed> */
++    protected function operationalPayload(int $offset = 0): array
++    {
++        $payload = $this->completePayload($offset);
++        unset($payload['notes_elections']);
++
++        return $payload;
+     }
+ }

@@ -1,0 +1,1347 @@
+{
+  "provenance": {
+    "authority": "executed legacy Laravel engine output",
+    "legacy_engine_source_sha256": "B15413D88E4CFD65FB8242023175E195497E8321D6873312AD29359CF31F9F42",
+    "execution_timestamp": "2026-07-30T07:10:54+00:00",
+    "input_fixture_sha256": "1B9BB58E1FE27974584B3C15749380087C7E5070F6E5594E30A3F92C8BD93856",
+    "legacy_field_count": 125,
+    "source_output_file": "PHASE5-LEGACY-ENGINE-EXECUTION-OUTPUT.txt",
+    "excise_presentation_rationale": "Legacy is_excise presents the full calculated excise as operating expense; rebuilt cogs_inclusion presents the same amount in is_excise_cogs and leaves is_excise at zero.",
+    "approved_legacy_defect_corrections": {
+      "authority": "CF_Rebuild_Phase_3_Corrective_1.docx",
+      "cf_accrued_chg": "Preserve the signed service-level accrual movement; legacy also used closing accrued stocks instead of an ending-minus-opening measurement.",
+      "cf_warranty_chg": "Preserve the signed warranty-reserve movement instead of its absolute magnitude.",
+      "cf_excise_chg": "Preserve the signed excise-payable movement instead of its absolute magnitude."
+    }
+  },
+  "input": {
+    "opening": {
+      "starting_cash": 50000000,
+      "starting_ar": 0,
+      "starting_inventory": 0,
+      "starting_ap": 0,
+      "starting_debt": 25000000,
+      "starting_retained": 0,
+      "starting_accum_depr": 0,
+      "starting_equity": 50000000
+    },
+    "decisions": {
+      "forecasting": {
+        "forecast_p1_r1": 30000,
+        "forecast_p1_r2": 40000,
+        "forecast_p1_r3": 60000,
+        "forecast_p2_r1": 27000,
+        "forecast_p2_r2": 18000,
+        "forecast_p2_r3": 16000,
+        "forecast_confidence": "medium"
+      },
+      "pricing": {
+        "price_p1_r1": 500,
+        "price_p1_r2": 500,
+        "price_p1_r3": 500,
+        "price_p2_r1": 850,
+        "price_p2_r2": 850,
+        "price_p2_r3": 850,
+        "discount_policy": "none"
+      },
+      "production": {
+        "p1_production": 125000,
+        "p2_production": 60000,
+        "shifts": 1,
+        "postponed_flag": "NO",
+        "postponed_pct": 0
+      },
+      "sourcing": {
+        "primary_supplier": "SUP001",
+        "primary_alloc": 1,
+        "secondary_supplier": "NONE"
+      },
+      "marketing": {
+        "marketing_budget_pct": 0.05,
+        "marketing_alloc_champions": 0.5,
+        "marketing_alloc_growth": 0.3,
+        "marketing_alloc_at_risk": 0.15,
+        "marketing_alloc_other": 0.05
+      },
+      "quality": {
+        "inspection_level": "BASIC"
+      },
+      "logistics": {
+        "logistics_mode": "STANDARD"
+      }
+    }
+  },
+  "bucket_membership": {
+    "exact parity": [
+      "bs_def_rev",
+      "bs_dtl",
+      "bs_excise",
+      "bs_inventory",
+      "bs_lease",
+      "bs_mkt",
+      "bs_prepaid",
+      "bs_rou",
+      "bs_sl_accrual",
+      "bs_wages",
+      "bs_warranty_res",
+      "cf_ap_chg",
+      "cf_borrow_proc",
+      "cf_capex_dc",
+      "cf_capex_mfg",
+      "cf_capex_tech",
+      "cf_def_rev_chg",
+      "cf_disposal",
+      "cf_equity",
+      "cf_excise_chg",
+      "cf_lifo",
+      "cf_prepaid_chg",
+      "cf_rou",
+      "cf_warranty_chg",
+      "is_carry",
+      "is_disposal",
+      "is_end_inv",
+      "is_inspection",
+      "is_labor",
+      "is_lifo_adj",
+      "is_marketing",
+      "is_p1_rev",
+      "is_p2_rev",
+      "is_raw_mat",
+      "is_rebates",
+      "is_returns",
+      "is_sl_penalties",
+      "is_warranty",
+      "n2_r1_p1",
+      "n2_r1_p2",
+      "n2_r2_p1",
+      "n2_r2_p2",
+      "n2_r3_p1",
+      "n2_r3_p2",
+      "n2_rebate_added",
+      "n2_rebate_open",
+      "n2_rebate_paid",
+      "n3_fg",
+      "n3_in_transit",
+      "n3_lifo_chg",
+      "n3_lifo_res",
+      "n3_raw_mat",
+      "n3_wip",
+      "n4_disposal_gain",
+      "n4_disposal_nbv",
+      "n4_disposal_proc",
+      "n4_util_rate",
+      "n5_auto_draw",
+      "n5_draw_rate",
+      "n5_limit",
+      "n5_rate",
+      "n6_exc_acc",
+      "n6_exc_close",
+      "n6_exc_open",
+      "n6_exc_paid",
+      "n6_lease",
+      "n6_po_fob",
+      "n6_sl_close",
+      "n6_sl_exp",
+      "n6_sl_open",
+      "n6_sl_paid",
+      "n6_supplier",
+      "n6_war_close",
+      "n6_war_exp",
+      "n6_war_open",
+      "n6_war_paid"
+    ],
+    "approved accounting-classification change": [
+      "is_admin",
+      "is_freight",
+      "is_other",
+      "is_overhead",
+      "n3_overhead",
+      "n5_cov_margin"
+    ],
+    "approved excise presentation": [
+      "is_excise"
+    ],
+    "opening-contract rewrite": [
+      "bs_cash",
+      "bs_common",
+      "bs_curr_ltd",
+      "bs_curr_ni",
+      "bs_ltd",
+      "bs_retained",
+      "cf_beg_cash",
+      "cf_borrow_repay",
+      "cf_cash_interest",
+      "cf_cash_tax",
+      "cf_lease_pmt",
+      "cf_net_income",
+      "is_interest",
+      "n5_balance",
+      "n5_cov_cash",
+      "n5_cov_curr",
+      "n5_cov_de",
+      "n5_cov_interest",
+      "n5_int_recon",
+      "n5_mat_beyond",
+      "n5_mat_y1",
+      "n5_mat_y2"
+    ],
+    "approved downstream tax consequence": [
+      "is_tax"
+    ],
+    "working-capital bug fix": [
+      "bs_ap",
+      "bs_ar",
+      "cf_accrued_chg",
+      "cf_ar_chg",
+      "cf_inv_chg"
+    ],
+    "Technology/PPE correction": [
+      "bs_accum_depr",
+      "bs_ppe_gross",
+      "bs_tech_net",
+      "cf_depr",
+      "n4_cwip",
+      "n4_dc_depr",
+      "n4_dc_gross",
+      "n4_dc_net",
+      "n4_mfg_depr",
+      "n4_mfg_gross",
+      "n4_mfg_net",
+      "n4_tech_depr",
+      "n4_tech_gross",
+      "n4_tech_net"
+    ]
+  },
+  "fields": [
+    {
+      "field": "is_p1_rev",
+      "legacy_value": 62500000,
+      "rebuilt_field": "is_p1_rev",
+      "rebuilt_expected_value": 62500000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_p2_rev",
+      "legacy_value": 51000000,
+      "rebuilt_field": "is_p2_rev",
+      "rebuilt_expected_value": 51000000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_returns",
+      "legacy_value": 306450,
+      "rebuilt_field": "is_returns",
+      "rebuilt_expected_value": 306450,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_rebates",
+      "legacy_value": 2270000,
+      "rebuilt_field": "is_rebates",
+      "rebuilt_expected_value": 2270000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_raw_mat",
+      "legacy_value": 22200000,
+      "rebuilt_field": "is_raw_mat",
+      "rebuilt_expected_value": 22200000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_labor",
+      "legacy_value": 8325000,
+      "rebuilt_field": "is_labor",
+      "rebuilt_expected_value": 8325000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_overhead",
+      "legacy_value": 1125000,
+      "rebuilt_field": "is_overhead",
+      "rebuilt_expected_value": 2375000,
+      "expected_delta": 1250000,
+      "bucket": "approved accounting-classification change",
+      "reason": "Approved pre-Phase-5 bad-debt, depreciation, or excise presentation boundary."
+    },
+    {
+      "field": "is_end_inv",
+      "legacy_value": 0,
+      "rebuilt_field": "is_end_inv",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_lifo_adj",
+      "legacy_value": 0,
+      "rebuilt_field": "is_lifo_adj",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_carry",
+      "legacy_value": 0,
+      "rebuilt_field": "is_carry",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_marketing",
+      "legacy_value": 5675000,
+      "rebuilt_field": "is_marketing",
+      "rebuilt_expected_value": 5675000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_freight",
+      "legacy_value": 1480000,
+      "rebuilt_field": "is_freight",
+      "rebuilt_expected_value": 1948750,
+      "expected_delta": 468750,
+      "bucket": "approved accounting-classification change",
+      "reason": "Approved pre-Phase-5 bad-debt, depreciation, or excise presentation boundary."
+    },
+    {
+      "field": "is_sl_penalties",
+      "legacy_value": 111000,
+      "rebuilt_field": "is_sl_penalties",
+      "rebuilt_expected_value": 111000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_excise",
+      "legacy_value": 3904608,
+      "rebuilt_field": "is_excise",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -3904608,
+      "bucket": "approved excise presentation",
+      "reason": "Legacy reports excise in is_excise; rebuilt cogs_inclusion reports the same economic amount in is_excise_cogs and leaves is_excise at zero."
+    },
+    {
+      "field": "is_inspection",
+      "legacy_value": 370000,
+      "rebuilt_field": "is_inspection",
+      "rebuilt_expected_value": 370000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_admin",
+      "legacy_value": 1437500,
+      "rebuilt_field": "is_admin",
+      "rebuilt_expected_value": 1125000,
+      "expected_delta": -312500,
+      "bucket": "approved accounting-classification change",
+      "reason": "Approved pre-Phase-5 bad-debt, depreciation, or excise presentation boundary."
+    },
+    {
+      "field": "is_warranty",
+      "legacy_value": 1109235.5,
+      "rebuilt_field": "is_warranty",
+      "rebuilt_expected_value": 1109235.5,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_interest",
+      "legacy_value": 500000,
+      "rebuilt_field": "is_interest",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -500000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "is_disposal",
+      "legacy_value": 0,
+      "rebuilt_field": "is_disposal",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "is_other",
+      "legacy_value": 0,
+      "rebuilt_field": "is_other",
+      "rebuilt_expected_value": 443694.2,
+      "expected_delta": 443694.2,
+      "bucket": "approved accounting-classification change",
+      "reason": "Approved pre-Phase-5 bad-debt, depreciation, or excise presentation boundary."
+    },
+    {
+      "field": "is_tax",
+      "legacy_value": 16171551.625,
+      "rebuilt_field": "is_tax",
+      "rebuilt_expected_value": 15834065.58,
+      "expected_delta": -337486.0449999999,
+      "bucket": "approved downstream tax consequence",
+      "reason": "Combined consequence of the opening-debt and interest rewrite, scaled PPE depreciation basis, and authored bad-debt policy; classification alone does not change taxable income."
+    },
+    {
+      "field": "bs_cash",
+      "legacy_value": 91954407.775,
+      "rebuilt_field": "bs_cash",
+      "rebuilt_expected_value": 35566893.82,
+      "expected_delta": -56387513.955000006,
+      "bucket": "opening-contract rewrite",
+      "reason": "Approved no-debt corrected opening contract and downstream profitability/cash effect."
+    },
+    {
+      "field": "bs_ar",
+      "legacy_value": 30184710,
+      "rebuilt_field": "bs_ar",
+      "rebuilt_expected_value": 21741015.8,
+      "expected_delta": -8443694.2,
+      "bucket": "working-capital bug fix",
+      "reason": "Rebuilt uses corrected stock/flow movement and ending balance treatment."
+    },
+    {
+      "field": "bs_inventory",
+      "legacy_value": 0,
+      "rebuilt_field": "bs_inventory",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_prepaid",
+      "legacy_value": 0,
+      "rebuilt_field": "bs_prepaid",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_ppe_gross",
+      "legacy_value": 40000000,
+      "rebuilt_field": "bs_ppe_gross",
+      "rebuilt_expected_value": 100800000,
+      "expected_delta": 60800000,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "bs_accum_depr",
+      "legacy_value": 12937500,
+      "rebuilt_field": "bs_accum_depr",
+      "rebuilt_expected_value": 2343750,
+      "expected_delta": -10593750,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "bs_rou",
+      "legacy_value": 0,
+      "rebuilt_field": "bs_rou",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_tech_net",
+      "legacy_value": 3250000,
+      "rebuilt_field": "bs_tech_net",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -3250000,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "bs_ap",
+      "legacy_value": 12660000,
+      "rebuilt_field": "bs_ap",
+      "rebuilt_expected_value": 6660000,
+      "expected_delta": -6000000,
+      "bucket": "working-capital bug fix",
+      "reason": "Rebuilt uses corrected stock/flow movement and ending balance treatment."
+    },
+    {
+      "field": "bs_wages",
+      "legacy_value": 0,
+      "rebuilt_field": "bs_wages",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_mkt",
+      "legacy_value": 0,
+      "rebuilt_field": "bs_mkt",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_warranty_res",
+      "legacy_value": 665541.3,
+      "rebuilt_field": "bs_warranty_res",
+      "rebuilt_expected_value": 665541.3,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_sl_accrual",
+      "legacy_value": 55500,
+      "rebuilt_field": "bs_sl_accrual",
+      "rebuilt_expected_value": 55500,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_excise",
+      "legacy_value": 780921.5999999996,
+      "rebuilt_field": "bs_excise",
+      "rebuilt_expected_value": 780921.6,
+      "expected_delta": 3.4924596548080444e-10,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_curr_ltd",
+      "legacy_value": 2500000,
+      "rebuilt_field": "bs_curr_ltd",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -2500000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "bs_def_rev",
+      "legacy_value": 0,
+      "rebuilt_field": "bs_def_rev",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_ltd",
+      "legacy_value": 22500000,
+      "rebuilt_field": "bs_ltd",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -22500000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "bs_lease",
+      "legacy_value": 0,
+      "rebuilt_field": "bs_lease",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_dtl",
+      "legacy_value": 0,
+      "rebuilt_field": "bs_dtl",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "bs_common",
+      "legacy_value": 50000000,
+      "rebuilt_field": "bs_common",
+      "rebuilt_expected_value": 100100000,
+      "expected_delta": 50100000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Approved no-debt corrected opening contract and downstream profitability/cash effect."
+    },
+    {
+      "field": "bs_retained",
+      "legacy_value": 35000000,
+      "rebuilt_field": "bs_retained",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -35000000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Approved no-debt corrected opening contract and downstream profitability/cash effect."
+    },
+    {
+      "field": "bs_curr_ni",
+      "legacy_value": 48514654.875,
+      "rebuilt_field": "bs_curr_ni",
+      "rebuilt_expected_value": 47502196.72,
+      "expected_delta": -1012458.1550000012,
+      "bucket": "opening-contract rewrite",
+      "reason": "Approved no-debt corrected opening contract and downstream profitability/cash effect."
+    },
+    {
+      "field": "cf_net_income",
+      "legacy_value": 48514654.875,
+      "rebuilt_field": "cf_net_income",
+      "rebuilt_expected_value": 47502196.72,
+      "expected_delta": -1012458.1550000012,
+      "bucket": "opening-contract rewrite",
+      "reason": "Approved no-debt corrected opening contract and downstream profitability/cash effect."
+    },
+    {
+      "field": "cf_depr",
+      "legacy_value": 937500,
+      "rebuilt_field": "cf_depr",
+      "rebuilt_expected_value": 2343750,
+      "expected_delta": 1406250,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "cf_rou",
+      "legacy_value": 0,
+      "rebuilt_field": "cf_rou",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_lifo",
+      "legacy_value": 0,
+      "rebuilt_field": "cf_lifo",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_ar_chg",
+      "legacy_value": 22184710,
+      "rebuilt_field": "cf_ar_chg",
+      "rebuilt_expected_value": 21741015.8,
+      "expected_delta": -443694.19999999925,
+      "bucket": "working-capital bug fix",
+      "reason": "Rebuilt uses corrected stock/flow movement and ending balance treatment."
+    },
+    {
+      "field": "cf_inv_chg",
+      "legacy_value": 8000000,
+      "rebuilt_field": "cf_inv_chg",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -8000000,
+      "bucket": "working-capital bug fix",
+      "reason": "Rebuilt uses corrected stock/flow movement and ending balance treatment."
+    },
+    {
+      "field": "cf_prepaid_chg",
+      "legacy_value": 0,
+      "rebuilt_field": "cf_prepaid_chg",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_ap_chg",
+      "legacy_value": 6660000,
+      "rebuilt_field": "cf_ap_chg",
+      "rebuilt_expected_value": 6660000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_accrued_chg",
+      "legacy_value": 1501962.8999999997,
+      "rebuilt_field": "cf_accrued_chg",
+      "rebuilt_expected_value": 55500,
+      "expected_delta": -1446462.8999999997,
+      "bucket": "working-capital bug fix",
+      "reason": "Rebuilt uses corrected stock/flow movement and ending balance treatment."
+    },
+    {
+      "field": "cf_warranty_chg",
+      "legacy_value": 665541.3,
+      "rebuilt_field": "cf_warranty_chg",
+      "rebuilt_expected_value": 665541.3,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_def_rev_chg",
+      "legacy_value": 0,
+      "rebuilt_field": "cf_def_rev_chg",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_excise_chg",
+      "legacy_value": 780921.5999999996,
+      "rebuilt_field": "cf_excise_chg",
+      "rebuilt_expected_value": 780921.6,
+      "expected_delta": 3.4924596548080444e-10,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_capex_mfg",
+      "legacy_value": 500000,
+      "rebuilt_field": "cf_capex_mfg",
+      "rebuilt_expected_value": 500000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_capex_tech",
+      "legacy_value": 200000,
+      "rebuilt_field": "cf_capex_tech",
+      "rebuilt_expected_value": 200000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_capex_dc",
+      "legacy_value": 100000,
+      "rebuilt_field": "cf_capex_dc",
+      "rebuilt_expected_value": 100000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_disposal",
+      "legacy_value": 0,
+      "rebuilt_field": "cf_disposal",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_borrow_proc",
+      "legacy_value": 0,
+      "rebuilt_field": "cf_borrow_proc",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_borrow_repay",
+      "legacy_value": 625000,
+      "rebuilt_field": "cf_borrow_repay",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -625000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "cf_lease_pmt",
+      "legacy_value": 50000,
+      "rebuilt_field": "cf_lease_pmt",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -50000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "cf_equity",
+      "legacy_value": 0,
+      "rebuilt_field": "cf_equity",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "cf_beg_cash",
+      "legacy_value": 50000000,
+      "rebuilt_field": "cf_beg_cash",
+      "rebuilt_expected_value": 100000,
+      "expected_delta": -49900000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Approved no-debt corrected opening contract and downstream profitability/cash effect."
+    },
+    {
+      "field": "cf_cash_interest",
+      "legacy_value": 500000,
+      "rebuilt_field": "cf_cash_interest",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -500000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "cf_cash_tax",
+      "legacy_value": 16171551.625,
+      "rebuilt_field": "cf_cash_tax",
+      "rebuilt_expected_value": 15834065.58,
+      "expected_delta": -337486.0449999999,
+      "bucket": "opening-contract rewrite",
+      "reason": "Approved no-debt corrected opening contract and downstream profitability/cash effect."
+    },
+    {
+      "field": "n2_r1_p1",
+      "legacy_value": 14423000,
+      "rebuilt_field": "n2_r1_p1",
+      "rebuilt_expected_value": 14423000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n2_r1_p2",
+      "legacy_value": 22573450,
+      "rebuilt_field": "n2_r1_p2",
+      "rebuilt_expected_value": 22573450,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n2_r2_p1",
+      "legacy_value": 19231000,
+      "rebuilt_field": "n2_r2_p1",
+      "rebuilt_expected_value": 19231000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n2_r2_p2",
+      "legacy_value": 15049250,
+      "rebuilt_field": "n2_r2_p2",
+      "rebuilt_expected_value": 15049250,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n2_r3_p1",
+      "legacy_value": 28846000,
+      "rebuilt_field": "n2_r3_p1",
+      "rebuilt_expected_value": 28846000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n2_r3_p2",
+      "legacy_value": 13377300,
+      "rebuilt_field": "n2_r3_p2",
+      "rebuilt_expected_value": 13377300,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n2_rebate_open",
+      "legacy_value": 0,
+      "rebuilt_field": "n2_rebate_open",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n2_rebate_added",
+      "legacy_value": 2270000,
+      "rebuilt_field": "n2_rebate_added",
+      "rebuilt_expected_value": 2270000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n2_rebate_paid",
+      "legacy_value": 1589000,
+      "rebuilt_field": "n2_rebate_paid",
+      "rebuilt_expected_value": 1589000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n3_raw_mat",
+      "legacy_value": 0,
+      "rebuilt_field": "n3_raw_mat",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n3_wip",
+      "legacy_value": 0,
+      "rebuilt_field": "n3_wip",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n3_fg",
+      "legacy_value": 0,
+      "rebuilt_field": "n3_fg",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n3_in_transit",
+      "legacy_value": 1776000,
+      "rebuilt_field": "n3_in_transit",
+      "rebuilt_expected_value": 1776000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n3_lifo_res",
+      "legacy_value": 0,
+      "rebuilt_field": "n3_lifo_res",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n3_lifo_chg",
+      "legacy_value": 0,
+      "rebuilt_field": "n3_lifo_chg",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n3_overhead",
+      "legacy_value": 1125000,
+      "rebuilt_field": "n3_overhead",
+      "rebuilt_expected_value": 2375000,
+      "expected_delta": 1250000,
+      "bucket": "approved accounting-classification change",
+      "reason": "Approved pre-Phase-5 bad-debt, depreciation, or excise presentation boundary."
+    },
+    {
+      "field": "n4_mfg_gross",
+      "legacy_value": 20000000,
+      "rebuilt_field": "n4_mfg_gross",
+      "rebuilt_expected_value": 50500000,
+      "expected_delta": 30500000,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "n4_mfg_depr",
+      "legacy_value": 6500000,
+      "rebuilt_field": "n4_mfg_depr",
+      "rebuilt_expected_value": 1250000,
+      "expected_delta": -5250000,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "n4_mfg_net",
+      "legacy_value": 13500000,
+      "rebuilt_field": "n4_mfg_net",
+      "rebuilt_expected_value": 49250000,
+      "expected_delta": 35750000,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "n4_tech_gross",
+      "legacy_value": 5000000,
+      "rebuilt_field": "n4_tech_gross",
+      "rebuilt_expected_value": 12700000,
+      "expected_delta": 7700000,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "n4_tech_depr",
+      "legacy_value": 1750000,
+      "rebuilt_field": "n4_tech_depr",
+      "rebuilt_expected_value": 625000,
+      "expected_delta": -1125000,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "n4_tech_net",
+      "legacy_value": 3250000,
+      "rebuilt_field": "n4_tech_net",
+      "rebuilt_expected_value": 12075000,
+      "expected_delta": 8825000,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "n4_dc_gross",
+      "legacy_value": 15000000,
+      "rebuilt_field": "n4_dc_gross",
+      "rebuilt_expected_value": 37600000,
+      "expected_delta": 22600000,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "n4_dc_depr",
+      "legacy_value": 4687500,
+      "rebuilt_field": "n4_dc_depr",
+      "rebuilt_expected_value": 468750,
+      "expected_delta": -4218750,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "n4_dc_net",
+      "legacy_value": 10312500,
+      "rebuilt_field": "n4_dc_net",
+      "rebuilt_expected_value": 37131250,
+      "expected_delta": 26818750,
+      "bucket": "Technology/PPE correction",
+      "reason": "Approved opening plant investment scaling and Technology/PPE de-duplication."
+    },
+    {
+      "field": "n4_cwip",
+      "legacy_value": 0,
+      "rebuilt_field": null,
+      "rebuilt_expected_value": null,
+      "expected_delta": null,
+      "bucket": "Technology/PPE correction",
+      "reason": "Legacy CWIP placeholder was retired under the approved PPE component contract; no balancing replacement field was invented."
+    },
+    {
+      "field": "n4_disposal_nbv",
+      "legacy_value": 0,
+      "rebuilt_field": "n4_disposal_nbv",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n4_disposal_proc",
+      "legacy_value": 0,
+      "rebuilt_field": "n4_disposal_proc",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n4_disposal_gain",
+      "legacy_value": 0,
+      "rebuilt_field": "n4_disposal_gain",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n4_util_rate",
+      "legacy_value": 0.74,
+      "rebuilt_field": "n4_util_rate",
+      "rebuilt_expected_value": 0.74,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n5_balance",
+      "legacy_value": 24375000,
+      "rebuilt_field": "n5_balance",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -24375000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "n5_rate",
+      "legacy_value": 0.08,
+      "rebuilt_field": "n5_rate",
+      "rebuilt_expected_value": 0.08,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n5_limit",
+      "legacy_value": 100000000,
+      "rebuilt_field": "n5_limit",
+      "rebuilt_expected_value": 100000000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n5_auto_draw",
+      "legacy_value": 0,
+      "rebuilt_field": "n5_auto_draw",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n5_draw_rate",
+      "legacy_value": 0.08,
+      "rebuilt_field": "n5_draw_rate",
+      "rebuilt_expected_value": 0.08,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n5_mat_y1",
+      "legacy_value": 2500000,
+      "rebuilt_field": "n5_mat_y1",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -2500000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "n5_mat_y2",
+      "legacy_value": 9000000,
+      "rebuilt_field": "n5_mat_y2",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -9000000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "n5_mat_beyond",
+      "legacy_value": 13500000,
+      "rebuilt_field": "n5_mat_beyond",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -13500000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "n5_cov_curr",
+      "legacy_value": 7.330415900457923,
+      "rebuilt_field": "n5_cov_curr",
+      "rebuilt_expected_value": 7.021339146248755,
+      "expected_delta": -0.30907675420916814,
+      "bucket": "opening-contract rewrite",
+      "reason": "Approved no-debt corrected opening contract and downstream profitability/cash effect."
+    },
+    {
+      "field": "n5_cov_de",
+      "legacy_value": 0.18256422879436365,
+      "rebuilt_field": "n5_cov_de",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -0.18256422879436365,
+      "bucket": "opening-contract rewrite",
+      "reason": "Approved no-debt corrected opening contract and downstream profitability/cash effect."
+    },
+    {
+      "field": "n5_cov_margin",
+      "legacy_value": 0.5876678712500637,
+      "rebuilt_field": "n5_cov_margin",
+      "rebuilt_expected_value": 0.5709902207421237,
+      "expected_delta": -0.01667765050794001,
+      "bucket": "approved accounting-classification change",
+      "reason": "Approved pre-Phase-5 bad-debt, depreciation, or excise presentation boundary."
+    },
+    {
+      "field": "n5_cov_interest",
+      "legacy_value": 130.372413,
+      "rebuilt_field": "n5_cov_interest",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -130.372413,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "n5_cov_cash",
+      "legacy_value": 91.954407775,
+      "rebuilt_field": "n5_cov_cash",
+      "rebuilt_expected_value": 35.56689382,
+      "expected_delta": -56.38751395500001,
+      "bucket": "opening-contract rewrite",
+      "reason": "Approved no-debt corrected opening contract and downstream profitability/cash effect."
+    },
+    {
+      "field": "n5_int_recon",
+      "legacy_value": 500000,
+      "rebuilt_field": "n5_int_recon",
+      "rebuilt_expected_value": 0,
+      "expected_delta": -500000,
+      "bucket": "opening-contract rewrite",
+      "reason": "Legacy starting debt/lease placeholders are not part of the corrected opening contract."
+    },
+    {
+      "field": "n6_supplier",
+      "legacy_value": 22200000,
+      "rebuilt_field": "n6_supplier",
+      "rebuilt_expected_value": 22200000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_po_fob",
+      "legacy_value": 1,
+      "rebuilt_field": "n6_po_fob",
+      "rebuilt_expected_value": 1,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_lease",
+      "legacy_value": 0,
+      "rebuilt_field": "n6_lease",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_war_open",
+      "legacy_value": 0,
+      "rebuilt_field": "n6_war_open",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_war_exp",
+      "legacy_value": 1109235.5,
+      "rebuilt_field": "n6_war_exp",
+      "rebuilt_expected_value": 1109235.5,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_war_paid",
+      "legacy_value": 443694.2,
+      "rebuilt_field": "n6_war_paid",
+      "rebuilt_expected_value": 443694.2,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_war_close",
+      "legacy_value": 665541.3,
+      "rebuilt_field": "n6_war_close",
+      "rebuilt_expected_value": 665541.3,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_sl_open",
+      "legacy_value": 0,
+      "rebuilt_field": "n6_sl_open",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_sl_exp",
+      "legacy_value": 111000,
+      "rebuilt_field": "n6_sl_exp",
+      "rebuilt_expected_value": 111000,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_sl_paid",
+      "legacy_value": 55500,
+      "rebuilt_field": "n6_sl_paid",
+      "rebuilt_expected_value": 55500,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_sl_close",
+      "legacy_value": 55500,
+      "rebuilt_field": "n6_sl_close",
+      "rebuilt_expected_value": 55500,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_exc_open",
+      "legacy_value": 0,
+      "rebuilt_field": "n6_exc_open",
+      "rebuilt_expected_value": 0,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_exc_acc",
+      "legacy_value": 3904608,
+      "rebuilt_field": "n6_exc_acc",
+      "rebuilt_expected_value": 3904608,
+      "expected_delta": 0,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_exc_paid",
+      "legacy_value": 3123686.4000000004,
+      "rebuilt_field": "n6_exc_paid",
+      "rebuilt_expected_value": 3123686.4,
+      "expected_delta": -4.656612873077393e-10,
+      "bucket": "exact parity",
+      "reason": null
+    },
+    {
+      "field": "n6_exc_close",
+      "legacy_value": 780921.5999999996,
+      "rebuilt_field": "n6_exc_close",
+      "rebuilt_expected_value": 780921.6,
+      "expected_delta": 3.4924596548080444e-10,
+      "bucket": "exact parity",
+      "reason": null
+    }
+  ],
+  "rebuilt_only_field": {
+    "field": "is_excise_cogs",
+    "expected_value": 3904608,
+    "reason": "Explicit rebuilt COGS presentation replacing the retired legacy n4_cwip contract slot."
+  }
+}

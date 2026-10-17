@@ -1,0 +1,735 @@
+{
+    "non_authoritative_notice": "Secondary reconstructed mixed-provenance regression guard only. This is not executed legacy parity evidence. The 68 non-comparable fields are documentation-only.",
+    "generation":  {
+                       "legacy_engine_source":  "finance-simulation-V2/app/Services/Engines/CorporateFinance/ManufacturingCFEngine.php",
+                       "legacy_engine_sha256":  "B15413D88E4CFD65FB8242023175E195497E8321D6873312AD29359CF31F9F42",
+                       "method":  "reconstructed_from_legacy_source_inspection_and_rebuilt_engine_output",
+                       "legacy_execution":  "not directly executed in this fixture",
+                       "evidence_boundary":  "reconstructed_comparison_not_executed_legacy_parity",
+                       "field_level_provenance":  "independently_source_derived_expected_values are calculated from inspected legacy formulas; reconstructed_using_rebuilt_output_and_known_deltas values combine rebuilt output with documented Gate A, Gate B, and technology de-duplication deltas.",
+                       "comparison_boundary":  "Layer A exact operational parity for opening-independent calculations; Layer B arithmetic reconciliation for Gate A, PPE scaling, and Technology de-duplication effects"
+                   },
+    "legacy_inputs":  {
+                          "opening_contract":  "true legacy starting_* opening inputs",
+                          "starting_cash":  50000000,
+                          "starting_ar":  0,
+                          "starting_inventory":  0,
+                          "starting_ap":  0,
+                          "starting_debt":  25000000,
+                          "starting_retained":  0,
+                          "starting_accum_depr":  0,
+                          "starting_equity":  50000000,
+                          "gross_ppe_mfg":  20000000,
+                          "gross_ppe_tech":  5000000,
+                          "gross_ppe_dc":  15000000
+                      },
+    "rebuilt_inputs":  {
+                           "opening_contract":  "signed-off Phase 2 opening position",
+                           "opening_cash":  100000,
+                           "opening_plant_investment":  100000000,
+                           "opening_liabilities":  0,
+                           "opening_corporate_capitalization":  100100000,
+                           "gross_ppe_mfg_source_proportion":  20000000,
+                           "gross_ppe_tech_source_proportion":  5000000,
+                           "gross_ppe_dc_source_proportion":  15000000,
+                           "ppe_scale_factor":  2.5
+                       },
+    "independently_source_derived_expected_values":  [
+                                                         {
+                                                             "field_path":  "fields.is_p1_rev",
+                                                             "legacy_value":  62500000,
+                                                             "rebuilt_expected_value":  62500000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_p2_rev",
+                                                             "legacy_value":  51000000,
+                                                             "rebuilt_expected_value":  51000000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_returns",
+                                                             "legacy_value":  306450,
+                                                             "rebuilt_expected_value":  306450,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_rebates",
+                                                             "legacy_value":  2270000,
+                                                             "rebuilt_expected_value":  2270000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_raw_mat",
+                                                             "legacy_value":  22200000,
+                                                             "rebuilt_expected_value":  22200000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_labor",
+                                                             "legacy_value":  8325000,
+                                                             "rebuilt_expected_value":  8325000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_end_inv",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_lifo_adj",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_carry",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_excise_cogs",
+                                                             "legacy_value":  3904608,
+                                                             "rebuilt_expected_value":  3904608,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_marketing",
+                                                             "legacy_value":  5675000,
+                                                             "rebuilt_expected_value":  5675000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_sl_penalties",
+                                                             "legacy_value":  111000,
+                                                             "rebuilt_expected_value":  111000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_excise",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_inspection",
+                                                             "legacy_value":  370000,
+                                                             "rebuilt_expected_value":  370000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.is_warranty",
+                                                             "legacy_value":  1109235.5,
+                                                             "rebuilt_expected_value":  1109235.5,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n2_r1_p1",
+                                                             "legacy_value":  14423000,
+                                                             "rebuilt_expected_value":  14423000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n2_r1_p2",
+                                                             "legacy_value":  22573450,
+                                                             "rebuilt_expected_value":  22573450,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n2_r2_p1",
+                                                             "legacy_value":  19231000,
+                                                             "rebuilt_expected_value":  19231000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n2_r2_p2",
+                                                             "legacy_value":  15049250,
+                                                             "rebuilt_expected_value":  15049250,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n2_r3_p1",
+                                                             "legacy_value":  28846000,
+                                                             "rebuilt_expected_value":  28846000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n2_r3_p2",
+                                                             "legacy_value":  13377300,
+                                                             "rebuilt_expected_value":  13377300,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n2_rebate_open",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n2_rebate_added",
+                                                             "legacy_value":  2270000,
+                                                             "rebuilt_expected_value":  2270000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n2_rebate_paid",
+                                                             "legacy_value":  1589000,
+                                                             "rebuilt_expected_value":  1589000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n3_raw_mat",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n3_wip",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n3_fg",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n3_in_transit",
+                                                             "legacy_value":  1776000,
+                                                             "rebuilt_expected_value":  1776000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n3_lifo_res",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n3_lifo_chg",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_supplier",
+                                                             "legacy_value":  22200000,
+                                                             "rebuilt_expected_value":  22200000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_po_fob",
+                                                             "legacy_value":  1,
+                                                             "rebuilt_expected_value":  1,
+                                                             "comparison_rule":  "strict_numeric_equality"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_lease",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_numeric_equality"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_war_open",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_war_exp",
+                                                             "legacy_value":  1109235.5,
+                                                             "rebuilt_expected_value":  1109235.5,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_war_paid",
+                                                             "legacy_value":  443694.2,
+                                                             "rebuilt_expected_value":  443694.2,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_war_close",
+                                                             "legacy_value":  665541.3,
+                                                             "rebuilt_expected_value":  665541.3,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_sl_open",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_sl_exp",
+                                                             "legacy_value":  111000,
+                                                             "rebuilt_expected_value":  111000,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_sl_paid",
+                                                             "legacy_value":  55500,
+                                                             "rebuilt_expected_value":  55500,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_sl_close",
+                                                             "legacy_value":  55500,
+                                                             "rebuilt_expected_value":  55500,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_exc_open",
+                                                             "legacy_value":  0,
+                                                             "rebuilt_expected_value":  0,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_exc_acc",
+                                                             "legacy_value":  3904608,
+                                                             "rebuilt_expected_value":  3904608,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_exc_paid",
+                                                             "legacy_value":  3123686.4,
+                                                             "rebuilt_expected_value":  3123686.4,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         },
+                                                         {
+                                                             "field_path":  "fields.n6_exc_close",
+                                                             "legacy_value":  780921.6,
+                                                             "rebuilt_expected_value":  780921.6,
+                                                             "comparison_rule":  "strict_monetary_equality_after_rounding"
+                                                         }
+                                                     ],
+    "reconstructed_using_rebuilt_output_and_known_deltas":  [
+                                                                {
+                                                                    "field_path":  "fields.bs_ppe_gross",
+                                                                    "legacy_value":  40000000,
+                                                                    "rebuilt_expected_value":  100800000,
+                                                                    "gate_a_effect":  60000000,
+                                                                    "ppe_scaling_effect":  800000,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  60800000,
+                                                                    "actual_difference":  60800000
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.bs_accum_depr",
+                                                                    "legacy_value":  937500,
+                                                                    "rebuilt_expected_value":  2343750,
+                                                                    "gate_a_effect":  0,
+                                                                    "ppe_scaling_effect":  1406250,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  1406250,
+                                                                    "actual_difference":  1406250
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.bs_tech_net",
+                                                                    "legacy_value":  4750000,
+                                                                    "rebuilt_expected_value":  0,
+                                                                    "gate_a_effect":  0,
+                                                                    "ppe_scaling_effect":  0,
+                                                                    "technology_dedup_effect":  -4750000,
+                                                                    "total_expected_difference":  -4750000,
+                                                                    "actual_difference":  -4750000
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.n4_mfg_gross",
+                                                                    "legacy_value":  20000000,
+                                                                    "rebuilt_expected_value":  50500000,
+                                                                    "gate_a_effect":  30000000,
+                                                                    "ppe_scaling_effect":  500000,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  30500000,
+                                                                    "actual_difference":  30500000
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.n4_mfg_depr",
+                                                                    "legacy_value":  500000,
+                                                                    "rebuilt_expected_value":  1250000,
+                                                                    "gate_a_effect":  0,
+                                                                    "ppe_scaling_effect":  750000,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  750000,
+                                                                    "actual_difference":  750000
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.n4_mfg_net",
+                                                                    "legacy_value":  19500000,
+                                                                    "rebuilt_expected_value":  49250000,
+                                                                    "gate_a_effect":  29250000,
+                                                                    "ppe_scaling_effect":  500000,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  29750000,
+                                                                    "actual_difference":  29750000
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.n4_tech_gross",
+                                                                    "legacy_value":  5000000,
+                                                                    "rebuilt_expected_value":  12700000,
+                                                                    "gate_a_effect":  7500000,
+                                                                    "ppe_scaling_effect":  200000,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  7700000,
+                                                                    "actual_difference":  7700000
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.n4_tech_depr",
+                                                                    "legacy_value":  250000,
+                                                                    "rebuilt_expected_value":  625000,
+                                                                    "gate_a_effect":  0,
+                                                                    "ppe_scaling_effect":  375000,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  375000,
+                                                                    "actual_difference":  375000
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.n4_tech_net",
+                                                                    "legacy_value":  4750000,
+                                                                    "rebuilt_expected_value":  12075000,
+                                                                    "gate_a_effect":  7125000,
+                                                                    "ppe_scaling_effect":  200000,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  7325000,
+                                                                    "actual_difference":  7325000
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.n4_dc_gross",
+                                                                    "legacy_value":  15000000,
+                                                                    "rebuilt_expected_value":  37600000,
+                                                                    "gate_a_effect":  22500000,
+                                                                    "ppe_scaling_effect":  100000,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  22600000,
+                                                                    "actual_difference":  22600000
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.n4_dc_depr",
+                                                                    "legacy_value":  187500,
+                                                                    "rebuilt_expected_value":  468750,
+                                                                    "gate_a_effect":  0,
+                                                                    "ppe_scaling_effect":  281250,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  281250,
+                                                                    "actual_difference":  281250
+                                                                },
+                                                                {
+                                                                    "field_path":  "fields.n4_dc_net",
+                                                                    "legacy_value":  14812500,
+                                                                    "rebuilt_expected_value":  37131250,
+                                                                    "gate_a_effect":  22218750,
+                                                                    "ppe_scaling_effect":  100000,
+                                                                    "technology_dedup_effect":  0,
+                                                                    "total_expected_difference":  22318750,
+                                                                    "actual_difference":  22318750
+                                                                }
+                                                            ],
+    "non_comparable":  [
+                           {
+                               "field_path":  "fields.is_interest",
+                               "reason":  "Gate A removes legacy starting_debt and replaces opening debt with opening_liabilities = 0."
+                           },
+                           {
+                               "field_path":  "fields.is_disposal",
+                               "reason":  "Zero placeholder contract field with no disposal behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.is_other",
+                               "reason":  "Rebuilt Phase 3 applies authored bad-debt election; legacy fixture source sets other expense to 0."
+                           },
+                           {
+                               "field_path":  "fields.is_tax",
+                               "reason":  "Downstream of Gate A debt/interest change, PPE depreciation cascade, and rebuilt bad-debt election."
+                           },
+                           {
+                               "field_path":  "fields.bs_cash",
+                               "reason":  "Downstream of Gate A opening cash and full rebuilt cash-flow reconciliation."
+                           },
+                           {
+                               "field_path":  "fields.bs_ar",
+                               "reason":  "Rebuilt applies bad-debt allowance to receivables; legacy fixture source does not."
+                           },
+                           {
+                               "field_path":  "fields.bs_inventory",
+                               "reason":  "Ending zero in fixture; inventory reconciliation semantics changed to signed movements."
+                           },
+                           {
+                               "field_path":  "fields.bs_prepaid",
+                               "reason":  "Zero placeholder contract field with no prepaid behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.bs_rou",
+                               "reason":  "Zero placeholder contract field with no ROU asset behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.bs_ap",
+                               "reason":  "Opening AP is Gate A controlled."
+                           },
+                           {
+                               "field_path":  "fields.bs_wages",
+                               "reason":  "Zero placeholder contract field with no wages-accrual behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.bs_mkt",
+                               "reason":  "Zero placeholder contract field with no marketing-accrual behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.bs_warranty_res",
+                               "reason":  "Balance-sheet liability presentation downstream of liability rollforward."
+                           },
+                           {
+                               "field_path":  "fields.bs_sl_accrual",
+                               "reason":  "Balance-sheet liability presentation downstream of liability rollforward."
+                           },
+                           {
+                               "field_path":  "fields.bs_excise",
+                               "reason":  "Balance-sheet liability presentation downstream of liability rollforward."
+                           },
+                           {
+                               "field_path":  "fields.bs_curr_ltd",
+                               "reason":  "Gate A removes legacy starting_debt."
+                           },
+                           {
+                               "field_path":  "fields.bs_def_rev",
+                               "reason":  "Zero placeholder contract field with no deferred revenue behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.bs_ltd",
+                               "reason":  "Gate A removes legacy starting_debt."
+                           },
+                           {
+                               "field_path":  "fields.bs_lease",
+                               "reason":  "Zero placeholder contract field with no current lease liability in fixture."
+                           },
+                           {
+                               "field_path":  "fields.bs_dtl",
+                               "reason":  "Zero placeholder contract field with no deferred-tax behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.bs_common",
+                               "reason":  "Gate A replaces starting_equity with opening_corporate_capitalization."
+                           },
+                           {
+                               "field_path":  "fields.bs_retained",
+                               "reason":  "Gate A opening retained earnings plus net-income cascade."
+                           },
+                           {
+                               "field_path":  "fields.bs_curr_ni",
+                               "reason":  "Downstream of depreciation, bad debt, interest, and tax cascade."
+                           },
+                           {
+                               "field_path":  "fields.cf_net_income",
+                               "reason":  "Downstream of depreciation, bad debt, interest, and tax cascade."
+                           },
+                           {
+                               "field_path":  "fields.cf_depr",
+                               "reason":  "PPE scaling changes component depreciation basis."
+                           },
+                           {
+                               "field_path":  "fields.cf_rou",
+                               "reason":  "Zero placeholder contract field with no ROU behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.cf_lifo",
+                               "reason":  "Zero placeholder in FIFO fixture after signed working-capital correction."
+                           },
+                           {
+                               "field_path":  "fields.cf_ar_chg",
+                               "reason":  "Opening AR and rebuilt bad-debt allowance affect signed movement."
+                           },
+                           {
+                               "field_path":  "fields.cf_inv_chg",
+                               "reason":  "Signed working-capital movement contract differs from legacy placeholder semantics."
+                           },
+                           {
+                               "field_path":  "fields.cf_prepaid_chg",
+                               "reason":  "Zero placeholder contract field with no prepaid behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.cf_ap_chg",
+                               "reason":  "Opening AP is Gate A controlled."
+                           },
+                           {
+                               "field_path":  "fields.cf_accrued_chg",
+                               "reason":  "Signed cash-flow detail downstream of liability rollforward."
+                           },
+                           {
+                               "field_path":  "fields.cf_warranty_chg",
+                               "reason":  "Signed cash-flow detail downstream of liability rollforward."
+                           },
+                           {
+                               "field_path":  "fields.cf_def_rev_chg",
+                               "reason":  "Zero placeholder contract field with no deferred revenue behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.cf_excise_chg",
+                               "reason":  "Signed cash-flow detail downstream of liability rollforward."
+                           },
+                           {
+                               "field_path":  "fields.cf_capex_mfg",
+                               "reason":  "Current-period capex is comparable as a cash-flow line but classified here because legacy ending PPE omitted capex."
+                           },
+                           {
+                               "field_path":  "fields.cf_capex_tech",
+                               "reason":  "Current-period capex is comparable as a cash-flow line but classified here because legacy ending PPE omitted capex."
+                           },
+                           {
+                               "field_path":  "fields.cf_capex_dc",
+                               "reason":  "Current-period capex is comparable as a cash-flow line but classified here because legacy ending PPE omitted capex."
+                           },
+                           {
+                               "field_path":  "fields.cf_disposal",
+                               "reason":  "Zero placeholder contract field with no disposal behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.cf_borrow_proc",
+                               "reason":  "Gate A opening cash/debt controls auto-draw."
+                           },
+                           {
+                               "field_path":  "fields.cf_borrow_repay",
+                               "reason":  "Gate A removes legacy starting_debt."
+                           },
+                           {
+                               "field_path":  "fields.cf_lease_pmt",
+                               "reason":  "Zero placeholder contract field with no lease behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.cf_equity",
+                               "reason":  "Zero placeholder contract field with no equity issuance behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.cf_beg_cash",
+                               "reason":  "Gate A replaces legacy starting_cash."
+                           },
+                           {
+                               "field_path":  "fields.cf_cash_interest",
+                               "reason":  "Gate A removes legacy starting_debt."
+                           },
+                           {
+                               "field_path":  "fields.cf_cash_tax",
+                               "reason":  "Downstream of depreciation, bad debt, interest, and tax cascade."
+                           },
+                           {
+                               "field_path":  "fields.n4_disposal_nbv",
+                               "reason":  "Zero placeholder contract field with no disposal behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.n4_disposal_proc",
+                               "reason":  "Zero placeholder contract field with no disposal behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.n4_disposal_gain",
+                               "reason":  "Zero placeholder contract field with no disposal behavior in fixture."
+                           },
+                           {
+                               "field_path":  "fields.n4_util_rate",
+                               "reason":  "Operational ratio rounded to two decimals but not a monetary parity field."
+                           },
+                           {
+                               "field_path":  "fields.n5_balance",
+                               "reason":  "Gate A removes legacy starting_debt and changes financing result."
+                           },
+                           {
+                               "field_path":  "fields.n5_rate",
+                               "reason":  "Credit-tier note depends on rebuilt profitability after Gate B and Gate A."
+                           },
+                           {
+                               "field_path":  "fields.n5_limit",
+                               "reason":  "Credit-tier note depends on rebuilt profitability after Gate B and Gate A."
+                           },
+                           {
+                               "field_path":  "fields.n5_auto_draw",
+                               "reason":  "Gate A opening cash/debt controls auto-draw."
+                           },
+                           {
+                               "field_path":  "fields.n5_draw_rate",
+                               "reason":  "Credit-tier note depends on rebuilt profitability after Gate B and Gate A."
+                           },
+                           {
+                               "field_path":  "fields.n5_mat_y1",
+                               "reason":  "Gate A removes legacy starting_debt."
+                           },
+                           {
+                               "field_path":  "fields.n5_mat_y2",
+                               "reason":  "Gate A removes legacy starting_debt."
+                           },
+                           {
+                               "field_path":  "fields.n5_mat_beyond",
+                               "reason":  "Gate A removes legacy starting_debt."
+                           },
+                           {
+                               "field_path":  "fields.n5_cov_curr",
+                               "reason":  "Coverage ratio downstream of Gate A balance-sheet replacement."
+                           },
+                           {
+                               "field_path":  "fields.n5_cov_de",
+                               "reason":  "Coverage ratio downstream of Gate A balance-sheet replacement."
+                           },
+                           {
+                               "field_path":  "fields.n5_cov_margin",
+                               "reason":  "Coverage ratio downstream of Gate B depreciation and rebuilt bad-debt election."
+                           },
+                           {
+                               "field_path":  "fields.n5_cov_interest",
+                               "reason":  "Gate A removes legacy starting_debt interest."
+                           },
+                           {
+                               "field_path":  "fields.n5_cov_cash",
+                               "reason":  "Gate A replaces opening cash and cash-flow result."
+                           },
+                           {
+                               "field_path":  "fields.n5_int_recon",
+                               "reason":  "Gate A removes legacy starting_debt interest."
+                           },
+                           {
+                               "field_path":  "fields.is_overhead",
+                               "reason":  "Approved pre-Phase-5 accounting amendment classifies manufacturing depreciation as manufacturing overhead and inventoriable product cost."
+                           },
+                           {
+                               "field_path":  "fields.is_freight",
+                               "reason":  "Approved pre-Phase-5 accounting amendment classifies distribution-center depreciation as selling and distribution period expense."
+                           },
+                           {
+                               "field_path":  "fields.is_admin",
+                               "reason":  "Approved pre-Phase-5 accounting amendment leaves only Technology depreciation in administrative operating expense."
+                           },
+                           {
+                               "field_path":  "fields.n3_overhead",
+                               "reason":  "Approved pre-Phase-5 accounting amendment classifies manufacturing depreciation as manufacturing overhead in inventory note disclosure."
+                           }
+                       ],
+    "depreciation_cascade":  {
+                                 "manufacturing":  {
+                                                       "legacy_basis":  20000000,
+                                                       "rebuilt_basis":  50000000,
+                                                       "legacy_depreciation":  500000,
+                                                       "rebuilt_depreciation":  1250000,
+                                                       "difference":  750000
+                                                   },
+                                 "technology":  {
+                                                    "legacy_basis":  5000000,
+                                                    "rebuilt_basis":  12500000,
+                                                    "legacy_depreciation":  250000,
+                                                    "rebuilt_depreciation":  625000,
+                                                    "difference":  375000,
+                                                    "technology_double_count_correction":  -4750000
+                                                },
+                                 "distribution_center":  {
+                                                             "legacy_basis":  15000000,
+                                                             "rebuilt_basis":  37500000,
+                                                             "legacy_depreciation":  187500,
+                                                             "rebuilt_depreciation":  468750,
+                                                             "difference":  281250
+                                                         },
+                                 "total_depreciation_difference":  1406250,
+                                 "tax_effect_at_25_percent_before_other_phase3_elections":  -351562.5,
+                                 "net_income_effect_before_other_phase3_elections":  -1054687.5,
+                                 "accumulated_depreciation_effect":  1406250,
+                                 "net_ppe_effect_from_depreciation_only":  -1406250,
+                                 "balance_sheet_effect":  "Gross PPE increases by 60800000, accumulated depreciation increases by 1406250, and separate Technology asset decreases by 4750000."
+                             }
+}
