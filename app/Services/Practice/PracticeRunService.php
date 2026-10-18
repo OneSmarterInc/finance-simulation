@@ -65,59 +65,69 @@ class PracticeRunService
             throw ValidationException::withMessages(['practice' => 'Save the course schedule and decision areas before rehearsing it.']);
         }
 
-        // One transaction, so a copy that fails part way leaves nothing behind. The warm-up runs once it commits.
-        return $this->withSyncQueue(fn (): Course => DB::transaction(function () use ($faculty, $source): Course {
-            $practice = $this->courses->saveSetup($faculty, [
-                'name' => 'Practice run: '.$source->name,
-                'institution_id' => $source->institution_id,
-                'scenario_id' => $source->scenario_id,
-                'starts_on' => $source->starts_on->toDateString(),
-                'ends_on' => $source->ends_on->toDateString(),
-                'payment_mode' => null,
-                'cf_plus_enabled' => (bool) $source->cf_plus_enabled,
-                'accounting_election_enabled' => (bool) $source->accounting_election_enabled,
-                'build_quarters' => $source->build_quarters,
-                'adversarial_quarters' => $source->adversarial_quarters,
-                'post_bid_quarters' => $source->post_bid_quarters,
-            ]);
-            $practice->forceFill([
-                'is_practice' => true,
-                'practice_source_course_id' => $source->id,
-                'practice_last_played_at' => now(),
-                'engine_version' => $source->engineVersion(),
-                'starting_elections' => $source->startingElections(),
-                'registration_enabled' => false,
-            ])->save();
+        // The copy is one transaction, so one that fails part way leaves nothing behind. The warm-up runs once it commits.
+        return $this->withSyncQueue(function () use ($faculty, $source): Course {
+            $practice = DB::transaction(fn (): Course => $this->copy($faculty, $source), 1);
+            // The first student quarter opens, as it would for a class, so its decision screen can be seen.
+            $this->openNext($faculty, $practice);
 
-            $this->courses->saveSchedule($faculty, $practice, $source->quarters->sortBy('quarter_number')->map(fn (CourseQuarter $quarter): array => [
-                'quarter_number' => $quarter->quarter_number,
-                'starts_on' => $quarter->starts_on->format('Y-m-d'),
-                'ends_on' => $quarter->ends_on->format('Y-m-d'),
-                // saveSchedule reads a deadline in the display time zone, so hand it back that way.
-                'decision_deadline_at' => $quarter->decision_deadline_at
-                    ? CarbonImmutable::instance($quarter->decision_deadline_at)->setTimezone(Dates::zone())->format('Y-m-d H:i:s')
-                    : $quarter->ends_on->format('Y-m-d'),
-            ])->values()->all());
+            return $practice->fresh();
+        });
+    }
 
-            $matrix = [];
-            foreach ($source->quarters->where('quarter_number', '>=', 4) as $quarter) {
-                foreach ($quarter->enablements as $row) {
-                    $matrix[$quarter->quarter_number][$row->category->code] = (bool) $row->enabled;
-                }
+    /** The copy itself: setup, schedule, decision areas, the three teams, then deploy (which starts the warm-up). */
+    private function copy(Faculty $faculty, Course $source): Course
+    {
+        $practice = $this->courses->saveSetup($faculty, [
+            'name' => 'Practice run: '.$source->name,
+            'institution_id' => $source->institution_id,
+            'scenario_id' => $source->scenario_id,
+            'starts_on' => $source->starts_on->toDateString(),
+            'ends_on' => $source->ends_on->toDateString(),
+            'payment_mode' => null,
+            'cf_plus_enabled' => (bool) $source->cf_plus_enabled,
+            'accounting_election_enabled' => (bool) $source->accounting_election_enabled,
+            'build_quarters' => $source->build_quarters,
+            'adversarial_quarters' => $source->adversarial_quarters,
+            'post_bid_quarters' => $source->post_bid_quarters,
+        ]);
+        $practice->forceFill([
+            'is_practice' => true,
+            'practice_source_course_id' => $source->id,
+            'practice_last_played_at' => now(),
+            'engine_version' => $source->engineVersion(),
+            'starting_elections' => $source->startingElections(),
+            'registration_enabled' => false,
+        ])->save();
+
+        $this->courses->saveSchedule($faculty, $practice, $source->quarters->sortBy('quarter_number')->map(fn (CourseQuarter $quarter): array => [
+            'quarter_number' => $quarter->quarter_number,
+            'starts_on' => $quarter->starts_on->format('Y-m-d'),
+            'ends_on' => $quarter->ends_on->format('Y-m-d'),
+            // saveSchedule reads a deadline in the display time zone, so hand it back that way.
+            'decision_deadline_at' => $quarter->decision_deadline_at
+                ? CarbonImmutable::instance($quarter->decision_deadline_at)->setTimezone(Dates::zone())->format('Y-m-d H:i:s')
+                : $quarter->ends_on->format('Y-m-d'),
+        ])->values()->all());
+
+        $matrix = [];
+        foreach ($source->quarters->where('quarter_number', '>=', 4) as $quarter) {
+            foreach ($quarter->enablements as $row) {
+                $matrix[$quarter->quarter_number][$row->category->code] = (bool) $row->enabled;
             }
-            $this->courses->saveEnablements($faculty, $practice, $matrix);
-            $this->courses->saveFacultyRoles($faculty, $practice, []);
+        }
+        $this->courses->saveEnablements($faculty, $practice, $matrix);
+        $this->courses->saveFacultyRoles($faculty, $practice, []);
 
-            foreach (ReferenceTeams::TEAMS as $team) {
-                $firm = $this->firms->createFirm($faculty, $practice, strtoupper($team), ReferenceTeams::NAMES[$team]);
-                $student = $this->practiceStudent($practice, $team);
-                $enrollment = $this->firms->enroll($faculty, $practice, $student);
-                $enrollment->forceFill(['paid_at' => now()])->save();
-                $this->firms->assign($faculty, $practice, $firm, $student);
-            }
+        foreach (ReferenceTeams::TEAMS as $team) {
+            $firm = $this->firms->createFirm($faculty, $practice, strtoupper($team), ReferenceTeams::NAMES[$team]);
+            $student = $this->practiceStudent($practice, $team);
+            $enrollment = $this->firms->enroll($faculty, $practice, $student);
+            $enrollment->forceFill(['paid_at' => now()])->save();
+            $this->firms->assign($faculty, $practice, $firm, $student);
+        }
 
-            return $this->courses->deploy($faculty, $practice->fresh());
-        }, 1))->fresh();
+        return $this->courses->deploy($faculty, $practice->fresh());
     }
 
     /**
@@ -149,14 +159,28 @@ class PracticeRunService
                     $this->quarters->queueClose($faculty, $quarter);
                 }
                 if ($quarter->fresh()->state !== CourseQuarter::CLOSED) {
-                    throw ValidationException::withMessages(['practice' => "Quarter {$quarter->quarter_number} did not close. Open the Quarters page to see which firm failed."]);
+                    throw ValidationException::withMessages(['practice' => "Quarter {$quarter->quarter_number} did not close. Start again, and if it happens again please report it."]);
                 }
             }
+            $this->openNext($faculty, $practice);
         });
 
         $practice->forceFill(['practice_last_played_at' => now()])->save();
 
         return $practice->fresh();
+    }
+
+    /**
+     * Open the quarter after the last one played, so the run stands where a
+     * class would: results in, next decisions open. The next Play has every
+     * team decide it by its rules.
+     */
+    private function openNext(Faculty $faculty, Course $practice): void
+    {
+        $next = $practice->quarters()->where('quarter_number', $this->playedTo($practice) + 1)->first();
+        if ($next && $next->state === CourseQuarter::LOCKED) {
+            $this->quarters->open($faculty, $next);
+        }
     }
 
     /** Start again: the old run is removed and a fresh copy of the course is made. */
@@ -295,7 +319,7 @@ class PracticeRunService
     {
         $user = new User;
         $user->forceFill([
-            'name' => ReferenceTeams::NAMES[$team].' (practice)',
+            'name' => ReferenceTeams::NAMES[$team].' student',
             'email' => 'practice-'.Str::lower(Str::random(12)).'-'.$team.'@practice.flexee.invalid',
             // Practice students never sign in: faculty view the run through the view-as switch (FF5).
             'password' => Hash::make(Str::random(64)),

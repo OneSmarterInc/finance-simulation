@@ -96,7 +96,10 @@
 
         {{-- The reference teams --}}
         <section class="space-y-3" aria-labelledby="teams-heading">
-            <flux:heading size="lg" level="2" id="teams-heading">The reference teams</flux:heading>
+            <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                <flux:heading size="lg" level="2" id="teams-heading">The reference teams</flux:heading>
+                <flux:text size="sm" class="max-w-xl sm:text-right">View as a team to open its student pages as its students see them. The next quarter is open, so its decision screen is there too. The next Play decides it by the team's rules, whatever was typed in.</flux:text>
+            </div>
             <div class="grid gap-3 md:grid-cols-3">
                 @foreach ($teams as $team)
                     @php
@@ -115,6 +118,10 @@
                             <flux:text size="sm">value created by Quarter {{ $played }}</flux:text>
                         @endif
                         <flux:text size="sm" class="mt-1">{{ $rules[$team] }}</flux:text>
+                        <form method="POST" action="{{ route('faculty.courses.practice.view-as', [$course, $team]) }}" class="mt-auto pt-2">
+                            @csrf
+                            <flux:button type="submit" size="sm" icon="eye" class="w-full">View as {{ $names[$team] }}</flux:button>
+                        </form>
                     </flux:card>
                 @endforeach
             </div>
