@@ -40,12 +40,14 @@ final class StatementPresenter
     {
         $columns = array_map(fn ($result) => self::columnData($result), array_values($results));
 
+        // Engine version 2 results carry accumulated depreciation by class.
+        $v2 = collect($columns)->contains(fn (array $column) => array_key_exists('n4_mfg_accum', $column['fields']));
         $layout = match ($statement) {
             'income_statement' => self::incomeLayout(),
             'balance_sheet' => self::balanceLayout(),
             'cash_flow_statement' => self::cashFlowLayout(),
             'summary' => self::summaryLayout(),
-            default => self::noteLayout($statement),
+            default => $v2 ? self::noteLayoutV2($statement) : self::noteLayout($statement),
         };
 
         $rows = [];
@@ -108,7 +110,7 @@ final class StatementPresenter
             }
         }
         foreach (array_keys(self::NOTES) as $note) {
-            foreach (self::noteLayout($note) as $row) {
+            foreach ([...self::noteLayout($note), ...self::noteLayoutV2($note)] as $row) {
                 if (is_string($row[2] ?? null) && str_starts_with($row[2], 'f:')) {
                     $labels[substr($row[2], 2)] ??= $row[1];
                 }
@@ -197,6 +199,7 @@ final class StatementPresenter
             ['line', 'Less: customer rebates', ['f', 'is_rebates', -1]],
             ['subtotal', 'Net revenue', 'is:net_revenue'],
             ['heading', 'Cost of goods sold', null],
+            ['line', 'Beginning inventory', 'f:is_beg_inv'],
             ['line', 'Raw materials', 'f:is_raw_mat'],
             ['line', 'Direct labour', 'f:is_labor'],
             ['line', 'Manufacturing overhead', 'f:is_overhead'],
@@ -307,6 +310,79 @@ final class StatementPresenter
             ['memo', 'Cash paid for interest', 'f:cf_cash_interest'],
             ['memo', 'Cash paid for income taxes', 'f:cf_cash_tax'],
         ];
+    }
+
+    /**
+     * Notes for engine version 2 (ED3, ED6, ED7): units customers ordered and
+     * what became of them, stock carried into next quarter, materials in
+     * transit counted in inventory, and the PPE note with accumulated
+     * depreciation, totalling to the balance sheet.
+     */
+    private static function noteLayoutV2(string $note): array
+    {
+        $units = [];
+        foreach (['p1' => 'Product 1', 'p2' => 'Product 2'] as $p => $product) {
+            foreach (['r1' => 'Northeast', 'r2' => 'Central', 'r3' => 'West'] as $r => $region) {
+                $units[$p][$r] = [$product, $region];
+            }
+        }
+        $byRegion = function (string $prefix, string $p) use ($units): array {
+            $rows = [];
+            foreach ($units[$p] as $r => [$product, $region]) {
+                $rows[] = ['line', "{$region}, {$product}", "f:{$prefix}_{$r}_{$p}", 'units'];
+            }
+
+            return $rows;
+        };
+        $ppeClass = fn (string $heading, string $k): array => [
+            ['heading', $heading, null],
+            ['line', 'At cost', "f:n4_{$k}_gross"],
+            ['line', 'Depreciation this quarter', "f:n4_{$k}_depr"],
+            ['line', 'Less: accumulated depreciation', ['f', "n4_{$k}_accum", -1]],
+            ['subtotal', 'Net book value', "f:n4_{$k}_net"],
+        ];
+
+        return match ($note) {
+            'revenue' => [
+                ...array_slice(self::noteLayout('revenue'), 0, 6),
+                ['heading', 'Units customers ordered', null],
+                ...$byRegion('n2_ord', 'p1'),
+                ...$byRegion('n2_ord', 'p2'),
+                ['heading', 'Units sold', null],
+                ...$byRegion('n2_sold', 'p1'),
+                ...$byRegion('n2_sold', 'p2'),
+                ['heading', 'Orders not filled', null],
+                ['line', 'Product 1', 'f:n2_short_p1', 'units'],
+                ['line', 'Product 2', 'f:n2_short_p2', 'units'],
+                ...array_slice(self::noteLayout('revenue'), 6),
+            ],
+            'inventory' => [
+                ['heading', 'Units left in stock at quarter end', null],
+                ['line', 'Product 1', 'f:n3_units_p1', 'units'],
+                ['line', 'Product 2', 'f:n3_units_p2', 'units'],
+                ['heading', 'Value of stock at cost (first-in, first-out)', null],
+                ['line', 'Product 1', 'f:n3_value_p1'],
+                ['line', 'Product 2', 'f:n3_value_p2'],
+                ['memo', 'Cost to make one unit this quarter', 'f:n3_unit_cost'],
+                ['heading', 'Inventory on the balance sheet', null],
+                ['line', 'Raw materials', 'f:n3_raw_mat'],
+                ['line', 'Finished goods', 'f:n3_fg'],
+                ['line', 'Materials bought and still in transit (FOB shipping point)', 'f:n3_in_transit'],
+                ['line', 'Less: LIFO reserve', ['f', 'n3_lifo_res', -1]],
+                ['total', 'Inventory', 'f:bs_inventory'],
+                ['memo', 'Change in LIFO reserve this quarter', 'f:n3_lifo_chg'],
+                ['memo', 'Manufacturing overhead for the quarter', 'f:n3_overhead'],
+            ],
+            'ppe' => [
+                ['line', 'Plant capacity used this quarter', 'f:n4_util_rate', 'percent'],
+                ...$ppeClass('Manufacturing plant', 'mfg'),
+                ...$ppeClass('Technology', 'tech'),
+                ...$ppeClass('Distribution centres', 'dc'),
+                ['total', 'Property, plant and equipment, net', ['sum', ['f:n4_mfg_net', 'f:n4_tech_net', 'f:n4_dc_net']]],
+                ...array_slice(self::noteLayout('ppe'), 13),
+            ],
+            default => self::noteLayout($note),
+        };
     }
 
     private static function noteLayout(string $note): array

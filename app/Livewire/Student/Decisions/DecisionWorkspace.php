@@ -106,13 +106,18 @@ class DecisionWorkspace extends Component
         $record = $isStudentQuarter ? $service->decision($this->firm, $this->quarter) : null;
         $status = CourseStatus::for($this->firm->course);
 
+        $version = $this->firm->course->engineVersion();
         $categories = $isStudentQuarter ? $service->enabledCategories($this->quarter) : [];
         $categoryFields = collect($categories)->mapWithKeys(fn ($category, string $code): array => [
             $code => array_values(array_filter(
                 $service->decisionFields($this->quarter, $category),
-                fn (array $field) => ! DecisionPresenter::isInert($code, $field['key']),
+                fn (array $field) => ! DecisionPresenter::isInert($code, $field['key'], $version),
             )),
         ])->filter()->all();
+        // Engine version 2 (ED2 b): once a team sets production itself, it isn't asked to forecast.
+        if ($version === 2 && isset($categoryFields['production'])) {
+            unset($categoryFields['forecasting']);
+        }
 
         $previous = $isStudentQuarter ? $service->previousDecisions($this->firm, $this->quarter) : null;
         $lastResult = $this->firm->engineResults()->where('quarter_number', $this->quarter->quarter_number - 1)->first();
@@ -127,6 +132,7 @@ class DecisionWorkspace extends Component
             'lastResult' => $lastResult,
             'parameters' => $service->parameters($this->firm),
             'result' => $this->firm->engineResults()->where('quarter_number', $this->quarter->quarter_number)->first(),
+            'engineVersion' => $version,
         ]);
     }
 
@@ -137,7 +143,7 @@ class DecisionWorkspace extends Component
         foreach ($service->enabledCategories($this->quarter) as $code => $category) {
             foreach ($service->decisionFields($this->quarter, $category) as $field) {
                 $key = $field['key'];
-                $payload[$code][$key] = DecisionPresenter::isInert($code, $key)
+                $payload[$code][$key] = DecisionPresenter::isInert($code, $key, $this->firm->course->engineVersion())
                     ? $service->fieldDefault($this->firm, $field)
                     : $this->toEngine($key, $this->decisions[$code][$key] ?? null);
             }

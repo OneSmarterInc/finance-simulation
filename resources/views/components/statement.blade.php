@@ -12,8 +12,9 @@
     $headings = array_keys($columns);
     $rows = StatementPresenter::rows($statement, $columns);
     // Hide lines that are zero in every column; keep headings, subtotals and totals.
+    // Unit counts stay even at zero (no orders left unfilled is worth seeing), but not where a result has none.
     $rows = array_values(array_filter($rows, fn ($row) => $row['type'] !== 'line' && $row['type'] !== 'memo'
-        || collect($row['values'])->contains(fn ($v) => $v !== null && abs($v) >= 0.005)));
+        || collect($row['values'])->contains(fn ($v) => $v !== null && ($row['format'] === 'units' || abs($v) >= 0.005))));
     // Drop a heading whose whole section is now empty (the next row is another heading or the end).
     $rows = array_values(array_filter($rows, function ($row, $i) use ($rows) {
         if ($row['type'] !== 'heading') {

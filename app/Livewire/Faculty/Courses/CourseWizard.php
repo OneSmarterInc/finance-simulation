@@ -8,6 +8,7 @@ use App\Models\Faculty;
 use App\Models\Institution;
 use App\Models\Scenario;
 use App\Services\Courses\CourseConfigurationService;
+use App\Support\Dates;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
@@ -342,7 +343,7 @@ class CourseWizard extends Component
                 $this->matrix[$quarter][$code] ??=
                     in_array(
                         $code,
-                        CourseConfigurationService::REQUIRED_QUARTER_FOUR,
+                        CourseConfigurationService::requiredQuarterFour($this->requiredCourse()),
                         true
                     );
             }
@@ -355,11 +356,11 @@ class CourseWizard extends Component
             ->quarters()
             ->orderBy('quarter_number')
             ->get()
-            ->map(fn(CourseQuarter $q): array => [
+            ->map(fn (CourseQuarter $q): array => [
                 'quarter_number' => $q->quarter_number,
                 'starts_on' => CarbonImmutable::parse($q->starts_on)->toDateString(),
                 'ends_on' => CarbonImmutable::parse($q->ends_on)->toDateString(),
-                'decision_deadline_at' => \App\Support\Dates::localDate($q->decision_deadline_at),
+                'decision_deadline_at' => Dates::localDate($q->decision_deadline_at),
             ])
             ->all();
 
