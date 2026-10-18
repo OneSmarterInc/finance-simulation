@@ -349,9 +349,7 @@ class FirmDecisionService
                         'notes_elections' => 'notes_elections is enabled and requires a submitted decision.',
                     ])
                 )
-                : CfManufacturingScenarioDefinition::fixedWarmupPayload(
-                    'notes_elections'
-                );
+                : $firm->course->startingElections();
         }
 
         if ($version === 2) {

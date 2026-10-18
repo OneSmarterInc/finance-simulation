@@ -91,6 +91,7 @@ class FirmDecisionHistory
                 $firm->id,
                 $firm->course->scenario,
                 $firm->course->engineVersion(),
+                $firm->course->startingElections(),
             );
             $stored = $firm->engineResults()->where('quarter_number', '<=', 3)->get()->keyBy('quarter_number');
             $decisions = [];

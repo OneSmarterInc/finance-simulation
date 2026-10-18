@@ -16,7 +16,7 @@
 
     @if (!$deployed)
         <nav aria-label="Course wizard progress" class="mb-8 grid grid-cols-2 gap-2 sm:grid-cols-6">
-            @foreach (['Setup', 'Schedule', 'Decisions', 'Industry', 'Faculty', 'Deploy'] as $index => $label)
+            @foreach (['Setup', 'Schedule', 'Decisions', 'Methods', 'Faculty', 'Deploy'] as $index => $label)
                 @php
                     $wizardStep = $index + 1;
                     $stepDisabled = $wizardStep > 1 && !$course;
@@ -311,30 +311,54 @@
          STEP 4 — INDUSTRY
          ============================================================ --}}
     @elseif($step === 4)
+        <form wire:submit="saveIndustry" class="space-y-6">
         <flux:card class="space-y-6">
 
             <div>
-                <flux:heading size="lg">
-                    Industry settings
-                </flux:heading>
-
+                <flux:heading size="lg">Starting accounting methods</flux:heading>
                 <flux:text class="mt-2">
-                    Manufacturing has no further settings for you to choose. Prices, demand, tax,
-                    financing and the other industry parameters are set by the simulation.
+                    Every firm reports with these methods in its three warm-up quarters and keeps them until a change is approved.
+                    Two sections of the same course can start from different methods, which makes a good class comparison.
+                    Inventory is always first-in, first-out.
                 </flux:text>
             </div>
+
+            <div class="grid gap-6 md:grid-cols-2">
+                @foreach (app(\App\Services\CfPlus\FirmAccountingElectionService::class)->studentVisibleFields() as $field)
+                    @php
+                        $key = $field['key'];
+                    @endphp
+                    <div class="space-y-1" wire:key="starting-{{ $key }}">
+                        <flux:select wire:model.live="starting_elections.{{ $key }}" :label="\App\Support\Presentation\DecisionPresenter::fieldLabel($key)">
+                            @foreach ($field['allowed_values'] as $option)
+                                <flux:select.option :value="$option">{{ \App\Support\Presentation\DecisionPresenter::valueLabel($key, $option) }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:text size="sm">{{ \App\Support\Presentation\AccountingMethodGuide::effect($key, $starting_elections[$key] ?? '') }}</flux:text>
+                    </div>
+                @endforeach
+            </div>
+            @error('starting_elections')
+                <flux:callout variant="danger" icon="exclamation-triangle" :heading="$message" />
+            @enderror
+
+            <flux:text>
+                Manufacturing has no further settings for you to choose. Prices, demand, tax,
+                financing and the other industry parameters are set by the simulation.
+            </flux:text>
 
             <div class="flex justify-between">
                 <flux:button type="button" wire:click="goToStep(3)" icon="arrow-left">
                     Back
                 </flux:button>
 
-                <flux:button type="button" wire:click="saveIndustry" icon="check" variant="primary">
-                    Acknowledge and continue
+                <flux:button type="submit" icon="check" variant="primary">
+                    Save and continue
                 </flux:button>
             </div>
 
         </flux:card>
+        </form>
 
         {{-- ============================================================
          STEP 5 — FACULTY
@@ -388,7 +412,7 @@
                 $reviewQuarters = $course->quarters()->with('enablements.category')->orderBy('quarter_number')->get();
                 $reviewStatus = \App\Services\Courses\CourseStatus::for($course);
                 $reviewCategories = $course->scenario->decisionCategories()->orderBy('sort_order')->get();
-                $defaults = \App\Support\Scenario\CfManufacturingScenarioDefinition::fixedWarmupPayload('notes_elections');
+                $defaults = $course->startingElections();
             @endphp
             <flux:card class="space-y-6">
                 <div class="flex items-center justify-between gap-4">
@@ -592,9 +616,9 @@
                 <div class="mt-4 border-t border-zinc-200 pt-4 text-sm dark:border-zinc-700">
                     <p>
                         @if ($accounting_election_enabled)
-                            Each team starts with the default methods below and can ask to change them, with a written reason, once per quarter. A request is the team's, filed by any member; you approve or decline it, and an approved change is disclosed in that quarter's notes.
+                            Each team starts with the methods below and can ask to change them, with a written reason, once per quarter. A request is the team's, filed by any member; you approve or decline it, and an approved change is disclosed in that quarter's notes.
                         @else
-                            Every firm reports with the default methods below throughout the course.
+                            Every firm reports with the methods below throughout the course.
                         @endif
                     </p>
                     <dl class="mt-3 grid gap-2 sm:grid-cols-2">

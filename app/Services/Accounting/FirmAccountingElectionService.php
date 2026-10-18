@@ -6,7 +6,6 @@ use App\Models\CourseQuarter;
 use App\Models\Firm;
 use App\Models\FirmAccountingElection;
 use App\Services\CfPlus\FirmAccountingElectionService as LegacyFirmAccountingElectionService;
-use App\Support\Scenario\CfManufacturingScenarioDefinition;
 
 class FirmAccountingElectionService
 {
@@ -32,7 +31,7 @@ class FirmAccountingElectionService
             ->where('firm_id', $firm->id)
             ->whereHas(
                 'courseQuarter',
-                fn($query) => $query->where(
+                fn ($query) => $query->where(
                     'quarter_number',
                     '<',
                     $quarter->quarter_number
@@ -41,8 +40,7 @@ class FirmAccountingElectionService
             ->with('courseQuarter')
             ->get()
             ->sortByDesc(
-                fn(FirmAccountingElection $record): int =>
-                (int) $record->courseQuarter->quarter_number
+                fn (FirmAccountingElection $record): int => (int) $record->courseQuarter->quarter_number
             )
             ->first();
 
@@ -57,29 +55,11 @@ class FirmAccountingElectionService
             return $firm->accounting_elections;
         }
 
-        $fields = CfManufacturingScenarioDefinition::inputFieldsForCategory(
-
-            'notes_elections'
-
-        )['fields'];
-
-        $defaults = collect($fields)
-
-            ->mapWithKeys(
-
-                fn(array $field): array => [
-
-                    $field['key'] => $field['default'] ?? null,
-
-                ]
-
-            )
-
-            ->all();
+        // ED9: the course's starting methods (the standard ones unless faculty chose otherwise).
+        $firm->loadMissing('course');
 
         return app(LegacyFirmAccountingElectionService::class)
-
-            ->validate($defaults);
+            ->validate($firm->course->startingElections());
     }
 
     public function setEffective(
