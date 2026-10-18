@@ -7,6 +7,7 @@ from pathlib import Path
 
 from . import rules, teams
 from .engine import Opening, calculate
+from .numbers import php_round
 from .market import market_path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -50,20 +51,32 @@ def play(team: str, version: int = 2, overrides: dict | None = None, last_quarte
             decisions["production"]["p1_production"] += extra_units_q[1]
             decisions["production"]["shifts"] = rules.shifts_for(decisions["production"]["p1_production"] + decisions["production"]["p2_production"], p)
         mkt = market.get(q)
-        dividend = 0.0
+        declared = paid = 0.0
         if q >= teams.CHOICES_OPEN_FROM and teams.DIVIDEND_SHARE[team] > 0:
+            # ED17 a: the limit a team sees comes from the opening position, known before any decision.
+            declared = math.floor(opening_dividend_limit(opening, p) * teams.DIVIDEND_SHARE[team] * 100 + 1e-6) / 100
+            # At the close, a dividend the quarter can't fund is cut to what it can.
             probe = calculate(version, q, decisions, p, opening, 0.0, mkt)
-            maximum = probe["intermediates"]["maximum_dividend"]
-            dividend = math.floor(maximum * teams.DIVIDEND_SHARE[team] * 100 + 1e-6) / 100
-        result = calculate(version, q, decisions, p, opening, dividend, mkt)
+            paid = min(declared, probe["intermediates"]["maximum_dividend"])
+        result = calculate(version, q, decisions, p, opening, paid, mkt)
         out.append({
             "quarter": q, "student_areas": areas, "student_payload": team_payload, "units_on_hand": on_hand,
             "market": mkt, "decisions": decisions,
-            "dividend_declared": dividend, "opening": opening.as_dict(), **result,
+            "dividend_declared": declared, "dividend_paid": paid, "opening": opening.as_dict(), **result,
         })
         prior = result["fields"]
         opening = Opening.from_fields(prior, version)
     return out
+
+
+def opening_dividend_limit(o: Opening, p: dict) -> float:
+    """ED17 a: the most a team may declare, from the quarter's opening position.
+
+    The smaller of opening retained earnings and opening cash above the
+    minimum buffer. It doesn't depend on the quarter's decisions, so it gives
+    nothing about the outcome away before the close.
+    """
+    return php_round(min(max(0.0, o.retained), max(0.0, o.cash - p["minimum_cash_buffer"])), 2)
 
 
 def value_created(rows: list[dict], through_quarter: int, from_quarter: int = 4) -> float:

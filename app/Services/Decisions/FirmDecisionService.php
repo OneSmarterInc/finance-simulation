@@ -15,9 +15,8 @@ use App\Services\Engines\CorporateFinance\CfManufacturingSimRulesService;
 use App\Services\Engines\CorporateFinance\Contracts\DividendLimit;
 use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngineInput;
 use App\Services\Engines\CorporateFinance\Contracts\OpeningFinancialPosition;
-use App\Services\Engines\CorporateFinance\DividendDecisionValidator;
+use App\Services\Engines\CorporateFinance\Exceptions\EngineCalculationException;
 use App\Services\Engines\CorporateFinance\MarketPath;
-use App\Services\Engines\CorporateFinance\VersionedManufacturingEngine;
 use App\Services\Quarters\QuarterScheduler;
 use App\Support\Scenario\CfManufacturingScenarioDefinition;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -205,33 +204,44 @@ class FirmDecisionService
         });
     }
 
+    /**
+     * The most a team may declare this quarter (ED17 a, decided 18 October
+     * 2026): the smaller of opening retained earnings and opening cash above
+     * the minimum buffer. It comes from the position the quarter opens with,
+     * so it doesn't move with the decisions on the screen and gives nothing
+     * about the quarter's outcome away. At the close, a dividend the quarter
+     * can't fund is cut to what it can (FirmQuarterCloseService).
+     *
+     * The payload is no longer read; the parameter stays for the callers.
+     *
+     * @param  array<string, mixed>  $payload
+     */
     public function dividendLimit(
         Firm $firm,
         CourseQuarter $quarter,
         array $payload,
         mixed $requested = 0
     ): DividendLimit {
-        $complete = $this->resolveCompleteDecisions(
-            $firm,
-            $quarter,
-            $payload
-        );
-
-        $parameters = $this->parameters($firm);
+        if (! is_numeric($requested)) {
+            throw new EngineCalculationException('Dividend must be a numeric monetary value.');
+        }
+        if ((float) $requested < 0) {
+            throw new EngineCalculationException('Dividend must be nonnegative.');
+        }
         $opening = $this->opening($firm, $quarter);
+        $buffer = (float) $this->parameters($firm)['minimum_cash_buffer'];
+        $distributable = round(max(0.0, $opening->retainedEarnings), 2);
+        $cash = round(max(0.0, $opening->cash - $buffer), 2);
+        $maximum = $quarter->quarter_number >= 4 ? round(min($distributable, $cash), 2) : 0.0;
+        $asked = round((float) $requested, 2);
+        if ($asked > $maximum) {
+            throw new EngineCalculationException(sprintf(
+                'Requested dividend %.2f exceeds the maximum permitted dividend %.2f for Quarter %d.',
+                $asked, $maximum, $quarter->quarter_number,
+            ));
+        }
 
-        $preview = (new VersionedManufacturingEngine)->calculate(
-            $this->engineInput($firm, $quarter, $complete, 0)
-        );
-
-        return (new DividendDecisionValidator)->validate(
-            $quarter->quarter_number,
-            $requested,
-            $opening->retainedEarnings,
-            (float) $preview->incomeStatement['net_income'],
-            (float) $preview->intermediates['pre_dividend_cash'],
-            (float) $parameters['minimum_cash_buffer']
-        );
+        return new DividendLimit($asked, $distributable, $cash, $maximum);
     }
 
     /**

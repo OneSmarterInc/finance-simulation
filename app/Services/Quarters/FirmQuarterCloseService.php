@@ -55,8 +55,14 @@ class FirmQuarterCloseService
             $submitted = $decision->submitted_payload ?? [];
             $resolved = $this->decisions->resolveCompleteDecisions($firm, $quarter, $submitted);
             $opening = $this->decisions->opening($firm, $quarter);
-            $this->decisions->dividendLimit($firm, $quarter, $submitted, $decision->dividend);
-            $result = $this->engine->calculate($this->decisions->engineInput($firm, $quarter, $resolved, $decision->dividend));
+            // ED17 a: the team declared against the opening position. A dividend the quarter
+            // can't fund (retained earnings plus profit, cash above the buffer) is cut to what it can.
+            $dividend = round(max(0.0, (float) $decision->dividend), 2);
+            if ($dividend > 0) {
+                $probe = $this->engine->calculate($this->decisions->engineInput($firm, $quarter, $resolved, 0.0));
+                $dividend = min($dividend, round((float) $probe->intermediates['maximum_dividend'], 2));
+            }
+            $result = $this->engine->calculate($this->decisions->engineInput($firm, $quarter, $resolved, $dividend));
 
             $this->accounting->validate($result->fields, $opening);
 

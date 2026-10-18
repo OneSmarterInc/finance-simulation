@@ -74,11 +74,6 @@ class DecisionWorkspace extends Component
         $this->refreshMaximum($service);
     }
 
-    public function updatedDecisions(): void
-    {
-        $this->refreshMaximum(app(FirmDecisionService::class));
-    }
-
     /** Item 10: the button existed but the method did not. */
     public function saveDraft(FirmDecisionService $service): void
     {

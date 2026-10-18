@@ -149,10 +149,14 @@
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <flux:heading size="lg" level="2">Dividend</flux:heading>
                 <flux:badge color="emerald">
-                    Most you can pay now:
-                    {{ $maximumDividend === null ? 'fill in the decisions above to see' : '$'.number_format($maximumDividend, 2) }}
+                    Most you can declare:
+                    {{ $maximumDividend === null ? 'not available yet' : '$'.number_format($maximumDividend, 2) }}
                 </flux:badge>
             </div>
+            {{-- L14, ED17 a: the limit comes from the opening position, so it can't be used to preview the quarter. --}}
+            <flux:text size="sm" class="max-w-3xl" data-test="dividend-rule">
+                This is the smaller of your firm's retained earnings and its cash above the minimum buffer at the start of the quarter, so it stays the same whatever you decide above. If the quarter's results can't fund the dividend you declare, it's cut to what they can when the quarter closes.
+            </flux:text>
             <flux:input class="max-w-sm" type="number" min="0" step="0.01" wire:model="dividend" :disabled="$readOnly" label="Dividend to declare ($)" />
         </flux:card>
     @endif

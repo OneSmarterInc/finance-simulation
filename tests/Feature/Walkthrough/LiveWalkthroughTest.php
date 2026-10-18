@@ -7,13 +7,17 @@ use App\Models\Admin;
 use App\Models\Faculty;
 use App\Models\Firm;
 use App\Models\FirmAccountingElectionRequest;
+use App\Models\FirmQuarterClose;
 use App\Models\User;
 use App\Services\Accounting\FirmAccountingElectionRequestService;
 use App\Services\Courses\CourseStatus;
+use App\Services\Decisions\FirmDecisionService;
 use App\Services\Practice\PracticeRunService;
+use App\Services\Quarters\FirmQuarterCloseService;
 use App\Services\Quarters\QuarterManagementService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Tests\Support\Phase7B\BuildsPhase7BCourse;
 use Tests\Support\Practice\BuildsPracticeSource;
@@ -156,5 +160,36 @@ class LiveWalkthroughTest extends TestCase
             ['depreciation_method' => 'double_declining_balance', 'shipping_terms' => 'fob_shipping_point', 'bad_debt_method' => 'percentage_of_receivables', 'warranty_method' => 'percentage_of_sales', 'excise_tax_treatment' => 'cogs_inclusion'],
             'Our plant loses most of its productive value early, so double-declining balance matches how it wears.');
         $this->assertSame('pending', $again->status, 'the team can file again in the same quarter');
+    }
+
+    /** L14, ED17 a: the dividend limit comes from the opening position, and the close cuts what the quarter can't fund. */
+    public function test_the_dividend_limit_comes_from_the_opening_position_and_the_close_cuts_what_it_cant_fund(): void
+    {
+        [$course, $firm, $student, $q4] = $this->phase7bCourse('Dividends');
+        $quarters = app(QuarterManagementService::class);
+        $quarters->open($course->faculty, $q4);
+        $decisions = app(FirmDecisionService::class);
+        $opening = $decisions->opening($firm, $q4);
+        $buffer = (float) $decisions->parameters($firm)['minimum_cash_buffer'];
+        $expected = round(min(max(0.0, $opening->retainedEarnings), max(0.0, $opening->cash - $buffer)), 2);
+
+        $low = $this->completePayload();
+        $high = $this->completePayload(50000);
+        $this->assertSame($expected, $decisions->dividendLimit($firm, $q4, $low)->maximum);
+        $this->assertSame($expected, $decisions->dividendLimit($firm, $q4, $high)->maximum, 'the limit does not move with the decisions');
+
+        $this->actingAs($student->user)->get(route('student.decisions.workspace', [$firm, $q4]))->assertOk()
+            ->assertSee('Most you can declare:')->assertSee('$'.number_format($expected, 2))
+            ->assertSee('so it stays the same whatever you decide above');
+
+        // A declared dividend the quarter can't fund is cut at the close instead of failing it.
+        $decisions->submit($student, $firm, $q4, $low, 0);
+        $firm->quarterDecisions()->where('course_quarter_id', $q4->id)->update(['dividend' => 999999999999]);
+        Queue::fake();
+        $quarters->queueClose($course->faculty, $q4);
+        app(FirmQuarterCloseService::class)->close(FirmQuarterClose::query()->firstOrFail());
+        $result = $firm->engineResults()->where('quarter_number', 4)->firstOrFail();
+        $this->assertEqualsWithDelta((float) $result->intermediates['maximum_dividend'], (float) $result->intermediates['dividend'], 0.001);
+        $this->assertLessThan(999999999999, (float) $result->intermediates['dividend']);
     }
 }
