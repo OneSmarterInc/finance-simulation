@@ -93,7 +93,7 @@ class TeamSettingsTest extends TestCase
         $run = $runs->saveSettings($this->faculty, $source, $settings);
 
         $this->assertNotSame($first->id, $run->id, 'the run was started again');
-        $this->assertSoftDeleted($first);
+        $this->assertDatabaseMissing('courses', ['id' => $first->id]);
         $this->assertSame(6, $runs->playedTo($run), 'and replayed to the quarter it had reached');
         $this->assertEquals(['careful' => ['price_pct' => 80, 'marketing_pct' => 10, 'supplier' => 'SUP001', 'production_pct' => 100, 'production_nets_stock' => false]], $source->fresh()->practice_team_settings, 'only the changes are stored');
         $this->assertSame($source->fresh()->practice_team_settings, $run->practice_team_settings, 'the run keeps the settings it was played with');

@@ -344,9 +344,91 @@ class PracticeRunService
     {
         $this->assertPractice($faculty, $practice);
         $source = Course::query()->findOrFail($practice->practice_source_course_id);
-        $practice->delete();
+        $this->purge($practice);
 
         return $this->create($faculty, $source);
+    }
+
+    /** FF6: a practice run is removed this many days after it was last played. */
+    public const KEEP_DAYS = 30;
+
+    /** The faculty member removes their practice run (FF6). */
+    public function remove(Faculty $faculty, Course $practice): void
+    {
+        $this->assertPractice($faculty, $practice);
+        $this->purge($practice);
+    }
+
+    /** When a run will be removed if it isn't played again. */
+    public function removedOn(Course $practice): CarbonImmutable
+    {
+        return CarbonImmutable::instance($practice->practice_last_played_at ?? $practice->created_at)->addDays(self::KEEP_DAYS);
+    }
+
+    /**
+     * The daily tidy-up (FF6): removes practice runs not played for 30 days,
+     * and any left hidden by an earlier version of Start again.
+     *
+     * @return int how many runs were removed
+     */
+    public function tidy(): int
+    {
+        $cutoff = now()->subDays(self::KEEP_DAYS);
+        $removed = 0;
+        Course::withTrashed()
+            ->where('is_practice', true)
+            ->where(fn ($q) => $q->whereNotNull('deleted_at')
+                ->orWhere('practice_last_played_at', '<', $cutoff)
+                ->orWhere(fn ($q) => $q->whereNull('practice_last_played_at')->where('created_at', '<', $cutoff)))
+            ->orderBy('created_at')
+            ->each(function (Course $practice) use (&$removed): void {
+                $this->purge($practice);
+                $removed++;
+            });
+
+        return $removed;
+    }
+
+    /**
+     * Remove a practice run for good: its evaluation stage, results,
+     * decisions, firms, practice students and their sign-ins, quarters and
+     * the course itself. The log of view-as switches and Ask Claude's
+     * question log are kept: they are records of what faculty did, and Ask
+     * Claude's log is pruned after 90 days anyway. The database guards allow this for practice runs
+     * only (migration 2026_10_19_000002). The frozen economics go first, so
+     * the roster guards on firms and memberships no longer apply.
+     */
+    private function purge(Course $practice): void
+    {
+        if (! $practice->is_practice) {
+            throw new \LogicException('Only a practice run can be removed this way.');
+        }
+        DB::transaction(function () use ($practice): void {
+            $id = $practice->id;
+            $firmIds = DB::table('firms')->where('course_id', $id)->pluck('id');
+            $quarterIds = DB::table('course_quarters')->where('course_id', $id)->pluck('id');
+            $studentIds = DB::table('students')->where('is_practice', true)
+                ->whereIn('id', DB::table('enrollments')->where('course_id', $id)->select('student_id'))
+                ->pluck('id');
+            $userIds = DB::table('students')->whereIn('id', $studentIds)->pluck('user_id');
+
+            foreach ([
+                'cf_plus_auction_results', 'cf_plus_offers', 'cf_plus_auction_economics', 'cf_plus_auction_economics_snapshots',
+                'cf_plus_consultant_reports', 'cf_plus_disclosure_snapshots',
+                'firm_quarter_closes', 'firm_quarter_decisions', 'firm_accounting_election_requests', 'firm_accounting_elections',
+                'firm_engine_results', 'firm_memberships', 'enrollments',
+            ] as $table) {
+                DB::table($table)->where('course_id', $id)->delete();
+            }
+            DB::table('firms')->whereIn('id', $firmIds)->delete();
+            DB::table('course_decision_enablements')->whereIn('course_quarter_id', $quarterIds)->delete();
+            DB::table('course_quarters')->where('course_id', $id)->delete();
+            DB::table('course_faculty_roles')->where('course_id', $id)->delete();
+            DB::table('students')->whereIn('id', $studentIds)->delete();
+            DB::table('sessions')->whereIn('user_id', $userIds)->delete();
+            DB::table('users')->whereIn('id', $userIds)->delete();
+            DB::table('courses')->where('id', $id)->delete();
+        });
     }
 
     /** The quarter a practice run has played to: its last closed student quarter, or 3 once the warm-up is in. */

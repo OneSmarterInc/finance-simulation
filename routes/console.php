@@ -1,11 +1,13 @@
 <?php
 
+use App\Models\AiQuestion;
 use App\Models\Course;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
 use App\Services\Quarters\QuarterScheduler;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -53,6 +55,16 @@ Artisan::command('flexee:practice {course : the id of the course to rehearse} {-
 Schedule::command('flexee:quarters')->everyMinute()->withoutOverlapping(10)->onOneServer();
 
 /*
+ * U9 layer 6 (FF6): remove practice runs not played for 30 days, and any
+ * copies an earlier Start again left hidden.
+ */
+Artisan::command('flexee:practice-tidy', function (PracticeRunService $runs) {
+    $this->info('Practice runs removed: '.$runs->tidy());
+})->purpose('Remove practice runs not played for 30 days');
+
+Schedule::command('flexee:practice-tidy')->dailyAt('03:17')->withoutOverlapping(30)->onOneServer();
+
+/*
  * Ask Claude (U1): one tiny request to Anthropic, to check the key and that the
  * server can reach api.anthropic.com before the helper is switched on (AC8).
  */
@@ -63,7 +75,7 @@ Artisan::command('flexee:ai-check', function () {
         return 1;
     }
     try {
-        $response = \Illuminate\Support\Facades\Http::withHeaders([
+        $response = Http::withHeaders([
             'x-api-key' => (string) config('services.anthropic.key'),
             'anthropic-version' => (string) config('services.anthropic.version'),
         ])->timeout(30)->acceptJson()->post((string) config('services.anthropic.url'), [
@@ -71,7 +83,7 @@ Artisan::command('flexee:ai-check', function () {
             'max_tokens' => 20,
             'messages' => [['role' => 'user', 'content' => 'Reply with the single word: ready']],
         ])->throw()->json();
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $this->error('Anthropic could not be reached: '.$e->getMessage());
 
         return 1;
@@ -83,4 +95,4 @@ Artisan::command('flexee:ai-check', function () {
 })->purpose('Check the Anthropic key and connection for Ask Claude');
 
 // Ask Claude's question log is kept for 90 days (U1, AC7).
-Schedule::command('model:prune', ['--model' => [\App\Models\AiQuestion::class]])->daily()->onOneServer();
+Schedule::command('model:prune', ['--model' => [AiQuestion::class]])->daily()->onOneServer();

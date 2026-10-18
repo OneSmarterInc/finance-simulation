@@ -27,6 +27,9 @@ class PracticeRun extends Component
 
     public bool $confirmingStartAgain = false;
 
+    /** Layer 6: the in-page check before removing the run. */
+    public bool $confirmingRemove = false;
+
     /** Layer 5: the team settings form is open. */
     public bool $editingTeams = false;
 
@@ -71,6 +74,16 @@ class PracticeRun extends Component
         $run = $this->run($runs);
         $this->attempt(fn () => $runs->startAgain($this->faculty(), $run));
         $this->confirmingStartAgain = false;
+        $this->target = 4;
+    }
+
+    public function remove(PracticeRunService $runs): void
+    {
+        $run = $this->run($runs);
+        $runs->remove($this->faculty(), $run);
+        $this->confirmingRemove = false;
+        $this->confirmingStartAgain = false;
+        $this->editingTeams = false;
         $this->target = 4;
     }
 
@@ -147,6 +160,8 @@ class PracticeRun extends Component
             'leader_spans' => $this->leaderSpans($leaders),
             'can_rehearse' => $this->course->engineVersion() === 2,
             'evaluation' => $run ? $runs->evaluation($run) : null,
+            'removed_on' => $run ? $runs->removedOn($run) : null,
+            'keep_days' => PracticeRunService::KEEP_DAYS,
             'bid_rules' => $runs->bidRules($run ?? $this->course),
             'stake' => (int) round(CfPlusAcquisitionFundingService::CONTROL_STAKE * 100),
         ]);

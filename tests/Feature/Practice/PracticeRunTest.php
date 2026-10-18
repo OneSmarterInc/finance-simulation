@@ -195,7 +195,7 @@ class PracticeRunTest extends TestCase
 
         $second = $runs->startAgain($this->faculty, $first);
 
-        $this->assertSoftDeleted('courses', ['id' => $first->id]);
+        $this->assertDatabaseMissing('courses', ['id' => $first->id]);
         $this->assertNotSame($first->id, $second->id);
         $this->assertSame($second->id, $runs->current($source)?->id);
         $this->assertSame(3, $runs->playedTo($second));

@@ -42,7 +42,7 @@
                 A practice run copies your course as it is set up now: the same schedule, the same decision areas opening in the same quarters, and the same starting methods. Three reference teams play it, Careful, Average and Careless. You can stop at any quarter and look at the results.
             </flux:text>
             <flux:text class="max-w-3xl">
-                The practice run is private to you. Its firms, students and results never appear in your class, your reports or your student counts.
+                The practice run is private to you. Its firms, students and results never appear in your class, your reports or your student counts. It's removed {{ $keep_days }} days after it was last played, or sooner if you remove it.
             </flux:text>
             <div>
                 <flux:button type="button" variant="primary" icon="play" wire:click="start">Start a practice run</flux:button>
@@ -52,8 +52,27 @@
             </div>
         </flux:card>
     @else
-        <flux:callout icon="lock-closed" color="zinc"
-            text="This practice run is private to you. Its firms, students and results never appear in your class, your reports or your student counts. It was made from your course's setup on {{ $run->created_at->copy()->setTimezone(\App\Support\Dates::zone())->format('j F Y') }}. If you change the setup, start again to rehearse the new version." />
+        <flux:callout icon="lock-closed" color="zinc">
+            <flux:callout.text>
+                This practice run is private to you. Its firms, students and results never appear in your class, your reports or your student counts. It was made from your course's setup on {{ $run->created_at->copy()->setTimezone(\App\Support\Dates::zone())->format('j F Y') }}. If you change the setup, start again to rehearse the new version.
+            </flux:callout.text>
+            <flux:callout.text data-test="practice-removal">
+                It's removed {{ $keep_days }} days after it was last played, so on {{ $removed_on->setTimezone(\App\Support\Dates::zone())->format('j F Y') }} unless you play it again.
+                @unless ($confirmingRemove)
+                    <button type="button" class="font-medium text-zinc-800 underline underline-offset-2 dark:text-white" wire:click="$set('confirmingRemove', true)">Remove it now</button>
+                @endunless
+            </flux:callout.text>
+        </flux:callout>
+
+        @if ($confirmingRemove)
+            <div class="flex flex-col gap-3 rounded-lg border border-red-300 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-red-500/40 dark:bg-red-500/10" data-test="practice-remove-confirm">
+                <flux:text>Remove this practice run? Its firms, practice students and results are deleted for good. Your course and its team settings stay, so you can start a new run at any time.</flux:text>
+                <div class="flex shrink-0 gap-2">
+                    <flux:button type="button" size="sm" wire:click="$set('confirmingRemove', false)">Keep it</flux:button>
+                    <flux:button type="button" size="sm" variant="danger" wire:click="remove">Remove the run</flux:button>
+                </div>
+            </div>
+        @endif
 
         {{-- Play the course --}}
         <flux:card class="space-y-4">
