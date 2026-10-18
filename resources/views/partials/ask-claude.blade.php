@@ -14,8 +14,8 @@
         </flux:modal.trigger>
     </div>
 
-    <flux:modal name="ask-claude" variant="flyout" position="right" class="w-full max-w-lg">
-        <livewire:ask-claude-panel :course="$askClaude['course']" :context="$askClaude['context']" :suggestions="$askClaude['suggestions']"
+    <flux:modal name="ask-claude" variant="flyout" position="right" class="w-full max-w-xl">
+        <livewire:ask-claude-panel :course="$askClaude['course']" :context="$askClaude['context']" :suggestions="$askClaude['suggestions']" :course-options="$askClaude['options']"
             :key="'ask-claude-'.$askClaude['course']->id.'-'.$askClaude['context']['page']" />
     </flux:modal>
 @endif

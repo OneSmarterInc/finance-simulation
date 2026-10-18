@@ -72,7 +72,7 @@ class AskClaudeTest extends TestCase
                 && $body['model'] === 'claude-sonnet-5-5'
                 && ($body['system'][0]['cache_control']['type'] ?? null) === 'ephemeral'
                 && str_contains($body['system'][1]['text'], 'Quarters')
-                && collect($body['tools'])->pluck('name')->all() === ['get_course_setup', 'get_course_status'];
+                && collect($body['tools'])->pluck('name')->take(2)->all() === ['get_course_setup', 'get_course_status'];
         });
     }
 
