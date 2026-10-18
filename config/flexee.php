@@ -26,10 +26,12 @@ return [
     'require_payment' => (bool) env('FLEXEE_REQUIRE_PAYMENT', env('APP_ENV', 'production') === 'production'),
 
     /*
-    | Engine version for courses created from now on. Running courses keep the
-    | version they started with (engine design note, ED11). Version 2 needs the
-    | screens from the next layer, so it stays off until that layer ships.
+    | Engine version for courses created from now on: 2 since the engine
+    | design note's layers shipped (October 2026). Running courses keep the
+    | version they started with (ED11). The test suite pins 1 in phpunit.xml so
+    | the older tests keep covering the courses that still run version 1; the
+    | version 2 tests set it themselves.
     */
-    'engine_version_for_new_courses' => (int) env('FLEXEE_ENGINE_VERSION', 1),
+    'engine_version_for_new_courses' => (int) env('FLEXEE_ENGINE_VERSION', 2),
 
 ];

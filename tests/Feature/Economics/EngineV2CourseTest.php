@@ -33,9 +33,12 @@ class EngineV2CourseTest extends TestCase
         $this->seed(DatabaseSeeder::class);
     }
 
-    public function test_new_courses_stay_on_version_1_until_switched(): void
+    public function test_new_courses_take_the_configured_engine_version(): void
     {
-        [$course, $firm] = $this->phase7bCourse('Still version 1');
+        $this->assertStringContainsString("env('FLEXEE_ENGINE_VERSION', 2)", (string) file_get_contents(config_path('flexee.php')), 'new courses default to version 2');
+
+        config(['flexee.engine_version_for_new_courses' => 1]);
+        [$course, $firm] = $this->phase7bCourse('Version 1 by setting');
 
         $this->assertSame(1, $course->engineVersion());
         $this->assertSame([FirmEngineResult::ENGINE_CONTRACT], $firm->engineResults()->distinct()->pluck('engine_contract')->all());
