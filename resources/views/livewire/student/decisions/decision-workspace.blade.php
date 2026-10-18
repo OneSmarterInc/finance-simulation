@@ -118,9 +118,8 @@
                                 @endforeach
                             </flux:select>
                         @else
-                            <flux:input type="number" step="any" min="0"
-                                wire:model.live.debounce.500ms="decisions.{{ $code }}.{{ $key }}"
-                                :disabled="$readOnly" :label="Names::fieldLabel($key, $engineVersion).($isPercent ? ' (%)' : '')" />
+                            <x-number-box :model="'decisions.'.$code.'.'.$key" :disabled="$readOnly"
+                                :label="Names::fieldLabel($key, $engineVersion).($isPercent ? ' (%)' : '')" />
                         @endif
 
                         @if ($last !== null)
@@ -157,7 +156,9 @@
             <flux:text size="sm" class="max-w-3xl" data-test="dividend-rule">
                 This is the smaller of your firm's retained earnings and its cash above the minimum buffer at the start of the quarter, so it stays the same whatever you decide above. If the quarter's results can't fund the dividend you declare, it's cut to what they can when the quarter closes.
             </flux:text>
-            <flux:input class="max-w-sm" type="number" min="0" step="0.01" wire:model="dividend" :disabled="$readOnly" label="Dividend to declare ($)" />
+            <div class="max-w-sm">
+                <x-number-box model="dividend" :disabled="$readOnly" label="Dividend to declare ($)" />
+            </div>
         </flux:card>
     @endif
 
