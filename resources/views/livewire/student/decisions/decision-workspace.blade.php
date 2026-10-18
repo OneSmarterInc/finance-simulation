@@ -12,7 +12,15 @@
         'postponed_flag' => 'Saves 60% of the excise duty on the units made this way.',
         'postponed_pct' => 'Only used when postponed production is on.',
     ];
+    if ($engineVersion === 2) {
+        $unitsHint['marketing_budget_pct'] = 'For example, 5 means 5% of revenue. 5% keeps orders where they are. Spending more brings more orders, but each extra point adds less: 10% adds about 4% and 20% about 7.5%. Spending nothing loses about 11% of orders.';
+    }
+    $areaNotes = $engineVersion === 2 ? [
+        'forecasting' => 'Customers decide how many units they order. Your forecast is your best estimate of those orders. The plant makes what you forecast, less the units you already have in stock. Forecast too high and the extra units wait in stock; forecast too low and some orders go unfilled.',
+        'production' => 'Customers are sold the units already in stock first, then what you make this quarter. Units nobody orders stay in stock for next quarter.',
+    ] : [];
     $intermediates = $lastResult?->intermediates ?? [];
+    $lastFields = $lastResult?->fields ?? [];
 @endphp
 <div class="flexee-page">
     <x-page-header :eyebrow="$firm->course->name" :title="$firm->name.' · Quarter '.$quarter->quarter_number.' decisions'"
@@ -52,7 +60,16 @@
             <flux:heading size="lg" level="2">Last quarter at a glance (Quarter {{ $lastResult->quarter_number }})</flux:heading>
             <dl class="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                 @foreach (['p1' => 'Product 1', 'p2' => 'Product 2'] as $p => $label)
-                    @if (isset($intermediates[$p.'_sold']))
+                    @if (array_key_exists('n2_ord_r1_'.$p, $lastFields))
+                        @php
+                            $ordered = collect(['r1', 'r2', 'r3'])->sum(fn ($r) => (float) $lastFields['n2_ord_'.$r.'_'.$p]);
+                            $sold = collect(['r1', 'r2', 'r3'])->sum(fn ($r) => (float) $lastFields['n2_sold_'.$r.'_'.$p]);
+                        @endphp
+                        <div class="rounded-md bg-zinc-50 p-3 dark:bg-white/5">
+                            <dt class="text-zinc-500">{{ $label }}</dt>
+                            <dd>Customers ordered {{ number_format($ordered) }} and you sold {{ number_format($sold) }}. {{ number_format((float) $lastFields['n2_short_'.$p]) }} orders weren't filled, and {{ number_format((float) $lastFields['n3_units_'.$p]) }} units are left in stock.</dd>
+                        </div>
+                    @elseif (isset($intermediates[$p.'_sold']))
                         <div class="rounded-md bg-zinc-50 p-3 dark:bg-white/5">
                             <dt class="text-zinc-500">{{ $label }}</dt>
                             <dd>Made {{ number_format((float) ($previous['production'][$p.'_production'] ?? 0)) }}, sold {{ number_format((float) $intermediates[$p.'_sold']) }}, unsold {{ number_format((float) ($intermediates[$p.'_unsold'] ?? 0)) }}</dd>
@@ -74,6 +91,9 @@
     @foreach ($categories as $code => $category)
         <flux:card class="space-y-4" wire:key="category-{{ $code }}">
             <flux:heading size="lg" level="2">{{ Names::categoryLabel($code) }}</flux:heading>
+            @if (isset($areaNotes[$code]))
+                <flux:text>{{ $areaNotes[$code] }}</flux:text>
+            @endif
 
             <div class="grid gap-x-6 gap-y-6 md:grid-cols-2">
                 @foreach ($categoryFields[$code] ?? [] as $field)
@@ -84,7 +104,7 @@
                     @endphp
                     <div class="space-y-1" wire:key="field-{{ $code }}-{{ $key }}">
                         @if (in_array($field['type'] ?? '', ['dropdown', 'select'], true))
-                            <flux:select wire:model.live="decisions.{{ $code }}.{{ $key }}" :disabled="$readOnly" :label="Names::fieldLabel($key)">
+                            <flux:select wire:model.live="decisions.{{ $code }}.{{ $key }}" :disabled="$readOnly" :label="Names::fieldLabel($key, $engineVersion)">
                                 @foreach ($field['allowed_values'] ?? [] as $option)
                                     <flux:select.option :value="$option">
                                         {{ in_array($key, ['primary_supplier', 'secondary_supplier'], true) ? Names::supplierDetail($option, $parameters) : Names::valueLabel($key, $option, $parameters) }}
@@ -94,7 +114,7 @@
                         @else
                             <flux:input type="number" step="any" min="0"
                                 wire:model.live.debounce.500ms="decisions.{{ $code }}.{{ $key }}"
-                                :disabled="$readOnly" :label="Names::fieldLabel($key).($isPercent ? ' (%)' : '')" />
+                                :disabled="$readOnly" :label="Names::fieldLabel($key, $engineVersion).($isPercent ? ' (%)' : '')" />
                         @endif
 
                         @if ($last !== null)
@@ -109,7 +129,7 @@
                 @endforeach
             </div>
 
-            @if ($code === 'marketing')
+            @if ($code === 'marketing' && $engineVersion === 1)
                 @php($segments = collect(['marketing_alloc_champions', 'marketing_alloc_growth', 'marketing_alloc_at_risk', 'marketing_alloc_other'])->sum(fn ($k) => (float) ($decisions['marketing'][$k] ?? 0)))
                 <p @class(['text-sm', 'text-emerald-700 dark:text-emerald-300' => abs($segments - 100) < 0.01, 'text-amber-700 dark:text-amber-300' => abs($segments - 100) >= 0.01])>
                     Segment shares total {{ rtrim(rtrim(number_format($segments, 2), '0'), '.') }}%{{ abs($segments - 100) < 0.01 ? '.' : '. They should add up to 100%.' }}

@@ -2,6 +2,8 @@
 
 namespace App\Support\Presentation;
 
+use App\Support\Scenario\CfManufacturingScenarioDefinition;
+
 /**
  * Plain names and values for decision fields (walkthrough items 36, 60, 74, 75).
  *
@@ -99,10 +101,13 @@ final class DecisionPresenter
         return self::CATEGORY_LABELS[$code] ?? ucfirst(str_replace('_', ' ', $code));
     }
 
-    public static function fieldLabel(string $key): string
+    public static function fieldLabel(string $key, int $engineVersion = 1): string
     {
         if (preg_match('/^forecast_(p[12])_(r[123])$/', $key, $m)) {
-            return self::PRODUCTS[$m[1]].' demand forecast, '.self::REGIONS[$m[2]].' (units)';
+            // Version 1: the forecast is the demand. Version 2: it is the team's estimate of orders.
+            return $engineVersion === 2
+                ? self::PRODUCTS[$m[1]].' orders you expect, '.self::REGIONS[$m[2]].' (units)'
+                : self::PRODUCTS[$m[1]].' demand forecast, '.self::REGIONS[$m[2]].' (units)';
         }
         if (preg_match('/^price_(p[12])_(r[123])$/', $key, $m)) {
             return self::PRODUCTS[$m[1]].' price, '.self::REGIONS[$m[2]];
@@ -142,7 +147,7 @@ final class DecisionPresenter
     {
         $key = 'supplier_'.strtolower($code).'_name';
 
-        return (string) ($parameters[$key] ?? \App\Support\Scenario\CfManufacturingScenarioDefinition::parameters()[$key] ?? $code);
+        return (string) ($parameters[$key] ?? CfManufacturingScenarioDefinition::parameters()[$key] ?? $code);
     }
 
     /** "China: $120 a unit, 3.0% defects, 45-day lead time" for choosing a supplier. */
@@ -151,7 +156,7 @@ final class DecisionPresenter
         if ($code === 'NONE') {
             return 'None';
         }
-        $defaults = \App\Support\Scenario\CfManufacturingScenarioDefinition::parameters();
+        $defaults = CfManufacturingScenarioDefinition::parameters();
         $p = fn (string $suffix) => $parameters['supplier_'.strtolower($code).'_'.$suffix] ?? $defaults['supplier_'.strtolower($code).'_'.$suffix] ?? null;
         $lead = (int) $p('lead_days');
 
@@ -164,9 +169,23 @@ final class DecisionPresenter
         );
     }
 
-    public static function isInert(string $category, string $key): bool
+    /**
+     * Engine version 2 reads fewer inputs (ED8, ED10): the marketing segment
+     * shares and postponed production are gone as well.
+     */
+    public const INERT_FIELDS_V2 = [
+        'forecasting' => ['forecast_confidence'],
+        'pricing' => ['discount_policy'],
+        'certification' => ['attestation_scope'],
+        'marketing' => ['marketing_alloc_champions', 'marketing_alloc_growth', 'marketing_alloc_at_risk', 'marketing_alloc_other'],
+        'production' => ['postponed_flag', 'postponed_pct'],
+    ];
+
+    public static function isInert(string $category, string $key, int $engineVersion = 1): bool
     {
-        return in_array($key, self::INERT_FIELDS[$category] ?? [], true);
+        $inert = $engineVersion === 2 ? self::INERT_FIELDS_V2 : self::INERT_FIELDS;
+
+        return in_array($key, $inert[$category] ?? [], true);
     }
 
     /**

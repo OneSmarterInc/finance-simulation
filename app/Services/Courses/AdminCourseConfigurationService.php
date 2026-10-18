@@ -2,22 +2,21 @@
 
 namespace App\Services\Courses;
 
+use App\Events\CourseDeploymentReachedWarmupBoundary;
 use App\Models\Admin;
-use Illuminate\Auth\Access\AuthorizationException;
 use App\Models\Course;
+use App\Models\CourseDecisionEnablement;
 use App\Models\CourseFacultyRole;
 use App\Models\CourseQuarter;
-
-use App\Models\CourseDecisionEnablement;
-use App\Models\ScenarioDecisionCategory;
 use App\Models\Faculty;
-use App\Events\CourseDeploymentReachedWarmupBoundary;
-
+use App\Support\Dates;
+use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Str;
 
 class AdminCourseConfigurationService
 {
@@ -62,7 +61,7 @@ class AdminCourseConfigurationService
         ])->validate();
 
         if (
-            ! \App\Models\Faculty::query()
+            ! Faculty::query()
                 ->whereKey($data['faculty_id'])
                 ->where('institution_id', $data['institution_id'])
                 ->exists()
@@ -75,7 +74,7 @@ class AdminCourseConfigurationService
         if (
             $data['cf_plus_enabled']
             && collect(['build_quarters', 'adversarial_quarters', 'post_bid_quarters'])
-            ->contains(fn($key) => empty($data[$key]))
+                ->contains(fn ($key) => empty($data[$key]))
         ) {
             throw ValidationException::withMessages([
                 'cf_plus_enabled' => 'Enter the number of quarters for each part of the evaluation stage.',
@@ -128,7 +127,7 @@ class AdminCourseConfigurationService
         $quarters = array_map(function (array $quarter): array {
             if (filled($quarter['decision_deadline_at'] ?? null)) {
                 try {
-                    $quarter['decision_deadline_at'] = \App\Support\Dates::deadlineFromInput((string) $quarter['decision_deadline_at'])->toDateTimeString();
+                    $quarter['decision_deadline_at'] = Dates::deadlineFromInput((string) $quarter['decision_deadline_at'])->toDateTimeString();
                 } catch (\Throwable) {
                     // left as given; the validator reports it
                 }
@@ -139,15 +138,15 @@ class AdminCourseConfigurationService
         $ordered = collect($quarters)->sortBy('quarter_number')->values();
 
         foreach ($ordered as $index => $quarter) {
-            $start = \Carbon\CarbonImmutable::parse($quarter['starts_on']);
-            $end = \Carbon\CarbonImmutable::parse($quarter['ends_on']);
-            $deadline = \Carbon\CarbonImmutable::parse($quarter['decision_deadline_at']);
+            $start = CarbonImmutable::parse($quarter['starts_on']);
+            $end = CarbonImmutable::parse($quarter['ends_on']);
+            $deadline = CarbonImmutable::parse($quarter['decision_deadline_at']);
 
             if (
                 (int) $quarter['quarter_number'] !== $index + 1
                 || $start->gt($end)
-                || $deadline->setTimezone(\App\Support\Dates::zone())->startOfDay()->lt($start)
-                || $deadline->setTimezone(\App\Support\Dates::zone())->startOfDay()->gt($end)
+                || $deadline->setTimezone(Dates::zone())->startOfDay()->lt($start)
+                || $deadline->setTimezone(Dates::zone())->startOfDay()->gt($end)
             ) {
                 throw ValidationException::withMessages([
                     'quarters' => 'Quarter sequence and dates must be coherent.',
@@ -158,7 +157,7 @@ class AdminCourseConfigurationService
                 $start->lt($course->starts_on)
                 || $end->gt($course->ends_on)
                 || ($index && $start->lte(
-                    \Carbon\CarbonImmutable::parse($ordered[$index - 1]['ends_on'])
+                    CarbonImmutable::parse($ordered[$index - 1]['ends_on'])
                 ))
             ) {
                 throw ValidationException::withMessages([
@@ -206,7 +205,7 @@ class AdminCourseConfigurationService
         $this->authorize($actor);
 
         if (collect(array_keys($matrix))->contains(
-            fn(int|string $quarter): bool => (int) $quarter < 4
+            fn (int|string $quarter): bool => (int) $quarter < 4
         )) {
             throw ValidationException::withMessages([
                 'matrix' => 'Quarters 1 through 3 are reserved for system-generated warm-up history. Student enablement begins at Quarter 4.',
@@ -243,7 +242,7 @@ class AdminCourseConfigurationService
             }
         }
 
-        foreach (CourseConfigurationService::REQUIRED_QUARTER_FOUR as $code) {
+        foreach (CourseConfigurationService::requiredQuarterFour($course) as $code) {
             if (! ($matrix[4][$code] ?? false)) {
                 throw ValidationException::withMessages([
                     'matrix' => "Quarter 4 must enable {$code}.",
@@ -252,8 +251,7 @@ class AdminCourseConfigurationService
         }
 
         foreach (
-            $categories->keys()->reject(fn($code) => $code === 'certification')
-            as $code
+            $categories->keys()->reject(fn ($code) => $code === 'certification') as $code
         ) {
             $opened = false;
 
@@ -311,10 +309,10 @@ class AdminCourseConfigurationService
 
             if (
                 $course->quarters
-                ->where('quarter_number', '<', 4)
-                ->flatMap
-                ->enablements
-                ->isNotEmpty()
+                    ->where('quarter_number', '<', 4)
+                    ->flatMap
+                    ->enablements
+                    ->isNotEmpty()
             ) {
                 throw ValidationException::withMessages([
                     'deploy' => 'Quarters 1 through 3 are reserved for warm-up and cannot contain student decision enablements.',
@@ -331,8 +329,7 @@ class AdminCourseConfigurationService
                 || $studentQuarters->isEmpty()
                 || $course->quarters->flatMap->enablements->count() !== $expected
                 || ! $course->facultyRoles->contains(
-                    fn($role) =>
-                    $role->faculty_id === $course->faculty_id
+                    fn ($role) => $role->faculty_id === $course->faculty_id
                         && $role->role === CourseFacultyRole::ROLE_OWNER
                 )
             ) {

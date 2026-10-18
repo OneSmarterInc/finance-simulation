@@ -231,8 +231,13 @@
     @elseif($step === 3)
         <form wire:submit="saveEnablements" class="space-y-5">
 
+            @php
+                $requiredQ4 = \App\Services\Courses\CourseConfigurationService::requiredQuarterFour($course ?? null);
+            @endphp
             <flux:callout variant="success" icon="information-circle" heading="Student control begins at Quarter 4"
-                text="Quarters 1 to 3 are the warm-up, run by the simulation. Quarter 4 must open forecasting, sourcing and production, and an area stays open once you open it. Open the other areas gradually so each quarter gives students something new to explain." />
+                :text="in_array('production', $requiredQ4, true)
+                    ? 'Quarters 1 to 3 are the warm-up, run by the simulation. Quarter 4 must open forecasting, sourcing and production, and an area stays open once you open it. Open the other areas gradually so each quarter gives students something new to explain.'
+                    : 'Quarters 1 to 3 are the warm-up, run by the simulation. Quarter 4 must open forecasting and sourcing. Until you open production, the plant makes what each team forecasts, less the units it already has in stock. An area stays open once you open it. Open the other areas gradually so each quarter gives students something new to explain.'" />
 
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[760px] text-sm">

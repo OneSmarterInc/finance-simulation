@@ -8,6 +8,8 @@ use App\Models\Institution;
 use App\Models\Scenario;
 use App\Services\Courses\AdminCourseConfigurationService;
 use App\Services\Courses\CourseConfigurationService;
+use App\Support\Dates;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -59,7 +61,7 @@ class CoursePreparation extends Component
     ): void {
         $configurationService->authorize(auth()->user()->admin);
 
-        if ($course === null || ! $course->exists) { 
+        if ($course === null || ! $course->exists) {
             return;
         }
 
@@ -90,11 +92,11 @@ class CoursePreparation extends Component
 
         $this->quarters = $course->quarters
             ->sortBy('quarter_number')
-            ->map(fn($quarter): array => [
+            ->map(fn ($quarter): array => [
                 'quarter_number' => (int) $quarter->quarter_number,
                 'starts_on' => $quarter->starts_on->format('Y-m-d'),
                 'ends_on' => $quarter->ends_on->format('Y-m-d'),
-                'decision_deadline_at' => \App\Support\Dates::localDate($quarter->decision_deadline_at),
+                'decision_deadline_at' => Dates::localDate($quarter->decision_deadline_at),
             ])
             ->values()
             ->all();
@@ -175,8 +177,8 @@ class CoursePreparation extends Component
             return;
         }
 
-        $start = \Carbon\CarbonImmutable::parse($this->starts_on);
-        $end = \Carbon\CarbonImmutable::parse($this->ends_on);
+        $start = CarbonImmutable::parse($this->starts_on);
+        $end = CarbonImmutable::parse($this->ends_on);
 
         $days = max(1, $start->diffInDays($end) + 1);
         $length = max(1, intdiv((int) $days, $this->quarter_count));
@@ -324,7 +326,7 @@ class CoursePreparation extends Component
                 $this->matrix[$quarter->quarter_number][$category->code] ??=
                     in_array(
                         $category->code,
-                        CourseConfigurationService::REQUIRED_QUARTER_FOUR,
+                        CourseConfigurationService::requiredQuarterFour($this->course),
                         true
                     );
             }

@@ -8,6 +8,7 @@ use App\Models\CourseDecisionEnablement;
 use App\Models\CourseFacultyRole;
 use App\Models\CourseQuarter;
 use App\Models\Faculty;
+use App\Support\Dates;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,17 @@ use Illuminate\Validation\ValidationException;
 class CourseConfigurationService
 {
     public const REQUIRED_QUARTER_FOUR = ['forecasting', 'sourcing', 'production'];
+
+    /** Engine version 2 opens production later (ED2 b, item 78). */
+    public const REQUIRED_QUARTER_FOUR_V2 = ['forecasting', 'sourcing'];
+
+    /** @return list<string> the areas Quarter 4 must open for this course's engine version */
+    public static function requiredQuarterFour(?Course $course): array
+    {
+        $version = $course?->exists ? $course->engineVersion() : (int) config('flexee.engine_version_for_new_courses', 1);
+
+        return $version === 2 ? self::REQUIRED_QUARTER_FOUR_V2 : self::REQUIRED_QUARTER_FOUR;
+    }
 
     /** @param array<string, mixed> $input */
     public function saveSetup(Faculty $actor, array $input, ?Course $course = null): Course
@@ -67,7 +79,7 @@ class CourseConfigurationService
         $quarters = array_map(function (array $quarter): array {
             if (filled($quarter['decision_deadline_at'] ?? null)) {
                 try {
-                    $quarter['decision_deadline_at'] = \App\Support\Dates::deadlineFromInput((string) $quarter['decision_deadline_at'])->toDateTimeString();
+                    $quarter['decision_deadline_at'] = Dates::deadlineFromInput((string) $quarter['decision_deadline_at'])->toDateTimeString();
                 } catch (\Throwable) {
                     // left as given; the validator reports it
                 }
@@ -80,7 +92,7 @@ class CourseConfigurationService
             $start = CarbonImmutable::parse($quarter['starts_on']);
             $end = CarbonImmutable::parse($quarter['ends_on']);
             $deadline = CarbonImmutable::parse($quarter['decision_deadline_at']);
-            if ((int) $quarter['quarter_number'] !== $index + 1 || $start->gt($end) || $deadline->setTimezone(\App\Support\Dates::zone())->startOfDay()->lt($start) || $deadline->setTimezone(\App\Support\Dates::zone())->startOfDay()->gt($end)) {
+            if ((int) $quarter['quarter_number'] !== $index + 1 || $start->gt($end) || $deadline->setTimezone(Dates::zone())->startOfDay()->lt($start) || $deadline->setTimezone(Dates::zone())->startOfDay()->gt($end)) {
                 throw ValidationException::withMessages(['quarters' => 'Quarter sequence and dates must be coherent.']);
             }
             if ($start->lt($course->starts_on) || $end->gt($course->ends_on) || ($index && $start->lte(CarbonImmutable::parse($ordered[$index - 1]['ends_on'])))) {
@@ -123,7 +135,7 @@ class CourseConfigurationService
                 }
             }
         }
-        foreach (self::REQUIRED_QUARTER_FOUR as $code) {
+        foreach (self::requiredQuarterFour($course) as $code) {
             if (! ($matrix[4][$code] ?? false)) {
                 throw ValidationException::withMessages(['matrix' => "Quarter 4 must enable {$code}."]);
             }
