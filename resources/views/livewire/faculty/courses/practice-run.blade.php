@@ -100,6 +100,14 @@
                 <flux:heading size="lg" level="2" id="teams-heading">The reference teams</flux:heading>
                 <flux:text size="sm" class="max-w-xl sm:text-right">View as a team to open its student pages as its students see them. The next quarter is open, so its decision screen is there too. The next Play decides it by the team's rules, whatever was typed in.</flux:text>
             </div>
+            @unless ($editingTeams)
+                <div class="flex flex-wrap items-center gap-2">
+                    <flux:button type="button" size="sm" icon="adjustments-horizontal" wire:click="editTeams">Change the teams</flux:button>
+                    @if ($custom !== [])
+                        <flux:text size="sm">{{ count($custom) === 1 ? 'One team plays' : count($custom).' teams play' }} custom settings.</flux:text>
+                    @endif
+                </div>
+            @endunless
             <div class="grid gap-3 md:grid-cols-3">
                 @foreach ($teams as $team)
                     @php
@@ -113,6 +121,11 @@
                                 <flux:badge size="sm" color="emerald">Leading</flux:badge>
                             @endif
                         </div>
+                        @if (in_array($team, $custom, true))
+                            <div>
+                                <span class="inline-block rounded-md bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800 dark:bg-violet-400/15 dark:text-violet-300" data-test="custom-badge">Custom: {{ $summaries[$team] }}</span>
+                            </div>
+                        @endif
                         @if ($row)
                             <div class="text-2xl font-semibold tabular-nums">{{ $millions($row['value']) }}</div>
                             <flux:text size="sm">value created by Quarter {{ $played }}</flux:text>
@@ -126,6 +139,71 @@
                 @endforeach
             </div>
         </section>
+
+        {{-- Layer 5: the teams' settings --}}
+        @if ($editingTeams)
+            @php
+                $main = \App\Services\Practice\TeamSettings::MAIN_GROUPS;
+                $more = \App\Services\Practice\TeamSettings::MORE_GROUPS;
+                if ($evaluation === null) {
+                    unset($more['Bids in the evaluation stage']);
+                }
+            @endphp
+            <flux:card class="space-y-4" data-test="team-settings">
+                <div class="space-y-1">
+                    <flux:heading size="lg" level="2">Change the teams</flux:heading>
+                    <flux:text class="max-w-3xl">Each team starts from its standard rules. Saving starts the run again and replays it{{ $played >= 4 ? ' from the warm-up to Quarter '.$played : '' }} with the new settings, so the table never mixes two sets of rules. The same settings always play out the same way.</flux:text>
+                </div>
+                <div class="grid gap-4 lg:grid-cols-3">
+                    @foreach ($teams as $team)
+                        <fieldset class="min-w-0 space-y-4 rounded-lg border border-zinc-200 p-4 dark:border-white/10" wire:key="team-settings-{{ $team }}">
+                            <legend class="flex items-center gap-2 px-1 font-semibold">
+                                <span class="size-2.5 rounded-full {{ $dot[$team] }}" aria-hidden="true"></span>{{ $names[$team] }}
+                            </legend>
+                            @php
+                                $showMore = $moreOpen[$team] ?? false;
+                            @endphp
+                            @foreach ([$main, $more] as $section => $groupsHere)
+                                @continue($section === 1 && ! $showMore)
+                                <div class="space-y-4">
+                                    @foreach ($groupsHere as $group => $keys)
+                                        <div class="space-y-3">
+                                            <flux:heading level="3" size="sm" class="text-zinc-500 dark:text-zinc-400">{{ $group }}</flux:heading>
+                                            @foreach ($keys as $key)
+                                                @if (in_array($key, \App\Services\Practice\TeamSettings::BOOLEANS, true))
+                                                    <flux:checkbox wire:model="settings.{{ $team }}.{{ $key }}" :label="\App\Services\Practice\TeamSettings::label($key)" />
+                                                @elseif (isset(\App\Services\Practice\TeamSettings::RANGES[$key]))
+                                                    <flux:input type="number" step="1" wire:model="settings.{{ $team }}.{{ $key }}" :label="\App\Services\Practice\TeamSettings::label($key)" />
+                                                @else
+                                                    <flux:select wire:model="settings.{{ $team }}.{{ $key }}" :label="\App\Services\Practice\TeamSettings::label($key)">
+                                                        @foreach (\App\Services\Practice\TeamSettings::choices($key) as $value)
+                                                            <flux:select.option :value="$value">{{ \App\Services\Practice\TeamSettings::choiceLabel($key, $value) }}</flux:select.option>
+                                                        @endforeach
+                                                    </flux:select>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @endforeach
+                                </div>
+                                @if ($section === 0)
+                                    <button type="button" class="text-start text-sm font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400" wire:click="toggleMore('{{ $team }}')" aria-expanded="{{ $showMore ? 'true' : 'false' }}">
+                                        {{ $showMore ? 'Fewer settings' : 'More settings: making, methods, dividend'.($evaluation !== null ? ', bids' : '') }}
+                                    </button>
+                                @endif
+                            @endforeach
+                            <flux:button type="button" size="sm" variant="ghost" icon="arrow-uturn-left" wire:click="standardTeam('{{ $team }}')">Back to standard rules</flux:button>
+                        </fieldset>
+                    @endforeach
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <flux:button type="button" variant="primary" wire:click="saveTeams">Save and start again</flux:button>
+                    <flux:button type="button" wire:click="cancelTeams">Cancel</flux:button>
+                    <div wire:loading.flex wire:target="saveTeams" class="items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300" role="status">
+                        <flux:icon.loading class="size-4" /> Starting again and replaying the quarters…
+                    </div>
+                </div>
+            </flux:card>
+        @endif
 
         {{-- Quarter by quarter --}}
         <flux:card class="space-y-3">
@@ -177,7 +255,9 @@
                     </tbody>
                 </table>
             </div>
-            @if ($played >= 4)
+            @if ($played >= 4 && $custom !== [])
+                <flux:text size="sm" data-test="practice-leader-spans">{{ $leader_spans }}</flux:text>
+            @elseif ($played >= 4)
                 @if ($careful_leads)
                     <flux:text size="sm"><span class="font-semibold {{ $ink['careful'] }}">Careful leads in every quarter from 4 to {{ $played }}</span>, as the reference teams should.</flux:text>
                 @else

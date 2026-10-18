@@ -197,7 +197,7 @@ class AskClaudeTools
             'evaluation_stage_open' => $this->course->cf_plus_enabled ? $status->evaluationOpen() : null,
             'practice_run' => $practice ? [
                 'played_to_quarter' => app(PracticeRunService::class)->playedTo($practice),
-                'team_rules' => ReferenceTeams::RULES,
+                'team_rules' => app(PracticeRunService::class)->rules($practice),
             ] : 'none',
         ];
     }
@@ -359,7 +359,8 @@ class AskClaudeTools
         return [
             'played_to_quarter' => $runs->playedTo($practice),
             'leader_by_quarter' => collect($runs->leaders($practice))->mapWithKeys(fn ($t, $q) => ['Quarter '.$q => ReferenceTeams::NAMES[$t]])->all(),
-            'team_rules' => collect(ReferenceTeams::RULES)->mapWithKeys(fn ($rule, $t) => [ReferenceTeams::NAMES[$t] => $rule])->all(),
+            'team_rules' => collect($runs->rules($practice))->mapWithKeys(fn ($rule, $t) => [ReferenceTeams::NAMES[$t] => $rule])->all(),
+            'teams_on_custom_settings' => array_map(fn ($t) => ReferenceTeams::NAMES[$t], $runs->customTeams($practice)),
             'results' => $out,
         ];
     }

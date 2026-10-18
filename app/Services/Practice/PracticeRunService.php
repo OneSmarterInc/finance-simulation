@@ -105,6 +105,8 @@ class PracticeRunService
             'engine_version' => $source->engineVersion(),
             'starting_elections' => $source->startingElections(),
             'registration_enabled' => false,
+            // A run keeps the team settings it was made with (layer 5, FF7).
+            'practice_team_settings' => $source->practice_team_settings,
         ])->save();
 
         $this->courses->saveSchedule($faculty, $practice, $source->quarters->sortBy('quarter_number')->map(fn (CourseQuarter $quarter): array => [
@@ -179,12 +181,61 @@ class PracticeRunService
         return $practice->fresh();
     }
 
-    /** FF4: how each reference team bids for a rival's controlling stake. */
-    public const BID_RULES = [
-        'careful' => 'Offers 95% of what the stake is truly worth: it reads past reported income.',
-        'average' => 'Offers the consultant\'s value of the stake.',
-        'careless' => 'Offers 25% above the consultant\'s value of the stake.',
-    ];
+    /**
+     * The teams' settings a run is played with (layer 5): the standard rules
+     * unless the faculty member changed them.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function settings(Course $course): array
+    {
+        return TeamSettings::resolve($course->practice_team_settings);
+    }
+
+    /** @return array<string, string> each team's rule in plain words */
+    public function rules(Course $course): array
+    {
+        return collect($this->settings($course))->map(fn (array $s, string $team): string => TeamSettings::describe($team, $s))->all();
+    }
+
+    /** @return array<string, string> each team's bidding rule (FF4, FF8) */
+    public function bidRules(Course $course): array
+    {
+        return collect($this->settings($course))->map(fn (array $s, string $team): string => TeamSettings::describeBid($team, $s))->all();
+    }
+
+    /** @return list<string> the teams playing something other than their standard rules */
+    public function customTeams(Course $course): array
+    {
+        return array_keys(array_filter($this->settings($course), fn (array $s, string $team): bool => ! TeamSettings::isStandard($team, $s), ARRAY_FILTER_USE_BOTH));
+    }
+
+    /**
+     * Save the teams' settings on the course being rehearsed (FF7): if there
+     * is a run, it is started again and replayed to the quarter it had
+     * reached, so the table never mixes two sets of rules.
+     *
+     * @param  array<string, array<string, mixed>>  $input
+     */
+    public function saveSettings(Faculty $faculty, Course $source, array $input): ?Course
+    {
+        $this->courses->authorize($faculty, $source);
+        if ($source->is_practice) {
+            throw ValidationException::withMessages(['practice' => 'Team settings belong to the course being rehearsed.']);
+        }
+        $clean = TeamSettings::validate($input);
+        $changes = array_filter(collect($clean)->map(fn (array $s, string $team): array => TeamSettings::differences($team, $s))->all());
+        $source->forceFill(['practice_team_settings' => $changes === [] ? null : $changes])->save();
+
+        $run = $this->current($source);
+        if (! $run) {
+            return null;
+        }
+        $reached = $this->playedTo($run);
+        $fresh = $this->startAgain($faculty, $run);
+
+        return $reached >= 4 ? $this->playTo($faculty, $fresh, $reached) : $fresh;
+    }
 
     /**
      * In an offer quarter, every reference team places a sealed offer for each
@@ -202,6 +253,7 @@ class PracticeRunService
         }
         $economics = app(CfPlusAuctionEconomicsSnapshotService::class)->forCourse($practice)->economics()->get()->keyBy('firm_id');
         $offers = app(CfPlusOfferService::class);
+        $settings = $this->settings($practice);
         $firms = $practice->firms()->get();
         foreach ($firms as $bidder) {
             foreach ($firms->where('id', '!=', $bidder->id) as $target) {
@@ -209,12 +261,12 @@ class PracticeRunService
                 if (! $e) {
                     continue;
                 }
-                $wanted = match (strtolower((string) $bidder->code)) {
-                    'careful' => 0.95 * (float) $e->displayed_true_stake_worth,
-                    'average' => (float) $e->consultant_stake_value,
-                    'careless' => 1.25 * (float) $e->consultant_stake_value,
-                    default => 0.0,
-                };
+                $rule = $settings[strtolower((string) $bidder->code)] ?? null;
+                if (! $rule) {
+                    continue;
+                }
+                $base = $rule['bid_basis'] === 'true_worth' ? (float) $e->displayed_true_stake_worth : (float) $e->consultant_stake_value;
+                $wanted = $rule['bid_pct'] === 100 ? $base : ($rule['bid_pct'] / 100) * $base;
                 $cap = (float) $offers->fundingContext($practice, $bidder, $target)['maximum_fundable_offer'];
                 $offers->submit($practice, $bidder, $target, max(0.0, floor(min($wanted, $cap) * 100) / 100));
             }
@@ -392,7 +444,8 @@ class PracticeRunService
         }
         $course = $firm->course;
         $prior = $firm->engineResults()->where('quarter_number', $quarter->quarter_number - 1)->firstOrFail()->fields;
-        $decision = $this->teams->decide($team, $quarter->quarter_number, $prior, $this->decisions->parameters($firm), $course->startingElections());
+        $settings = $this->settings($course)[$team];
+        $decision = $this->teams->decide($team, $quarter->quarter_number, $prior, $this->decisions->parameters($firm), $course->startingElections(), $settings);
 
         // Start from last quarter's decisions for every open area, then apply the team's rules.
         [$payload] = $this->decisions->carryForwardPayload($firm, $quarter);
@@ -410,7 +463,7 @@ class PracticeRunService
             app(FirmAccountingElectionService::class)->setEffective($firm, $quarter, $decision['notes']);
         }
 
-        $share = ReferenceTeams::DIVIDEND_SHARE[$team];
+        $share = $settings['dividend_pct'] / 100;
         $dividend = 0.0;
         if ($share > 0) {
             $maximum = (float) $this->decisions->dividendLimit($firm, $quarter, $payload, 0)->maximum;

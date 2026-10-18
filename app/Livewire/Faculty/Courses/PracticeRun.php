@@ -6,6 +6,7 @@ use App\Models\Course;
 use App\Services\CfPlus\CfPlusAcquisitionFundingService;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
+use App\Services\Practice\TeamSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -25,6 +26,15 @@ class PracticeRun extends Component
     public int $target = 4;
 
     public bool $confirmingStartAgain = false;
+
+    /** Layer 5: the team settings form is open. */
+    public bool $editingTeams = false;
+
+    /** @var array<string, array<string, mixed>> the settings as typed */
+    public array $settings = [];
+
+    /** @var array<string, bool> teams whose "More settings" are showing */
+    public array $moreOpen = [];
 
     public function mount(Course $course): void
     {
@@ -64,6 +74,56 @@ class PracticeRun extends Component
         $this->target = 4;
     }
 
+    public function editTeams(PracticeRunService $runs): void
+    {
+        $this->settings = $runs->settings($this->course->fresh());
+        $this->editingTeams = true;
+        $this->moreOpen = [];
+        $this->resetErrorBag();
+    }
+
+    public function toggleMore(string $team): void
+    {
+        abort_unless(in_array($team, ReferenceTeams::TEAMS, true), 404);
+        $this->moreOpen[$team] = ! ($this->moreOpen[$team] ?? false);
+    }
+
+    public function standardTeam(string $team): void
+    {
+        abort_unless(in_array($team, ReferenceTeams::TEAMS, true), 404);
+        $this->settings[$team] = TeamSettings::STANDARD[$team];
+    }
+
+    public function cancelTeams(): void
+    {
+        $this->editingTeams = false;
+        $this->resetErrorBag();
+    }
+
+    public function saveTeams(PracticeRunService $runs): void
+    {
+        $this->resetErrorBag();
+        try {
+            $run = $runs->saveSettings($this->faculty(), $this->course, $this->settings);
+        } catch (ValidationException $e) {
+            $more = array_merge(...array_values(TeamSettings::MORE_GROUPS));
+            foreach ($e->errors() as $key => $messages) {
+                $this->addError(str_starts_with($key, 'settings.') ? $key : 'practice', $messages[0]);
+                // An error in a setting under "More settings" opens them, so it can be seen.
+                if (preg_match('/^settings\.(\w+)\.(\w+)$/', $key, $m) && in_array($m[2], $more, true)) {
+                    $this->moreOpen[$m[1]] = true;
+                }
+            }
+
+            return;
+        }
+        $this->course->refresh();
+        $this->editingTeams = false;
+        if ($run) {
+            $this->target = min($this->lastQuarter($run), $runs->playedTo($run) + 1);
+        }
+    }
+
     public function render(PracticeRunService $runs): View
     {
         $run = $runs->current($this->course);
@@ -81,12 +141,41 @@ class PracticeRun extends Component
             'careful_leads' => $leaders !== [] && collect($leaders)->every(fn (string $team): bool => $team === 'careful'),
             'teams' => ReferenceTeams::TEAMS,
             'names' => ReferenceTeams::NAMES,
-            'rules' => ReferenceTeams::RULES,
+            'rules' => $runs->rules($run ?? $this->course),
+            'custom' => $runs->customTeams($run ?? $this->course),
+            'summaries' => collect($runs->settings($run ?? $this->course))->map(fn (array $s, string $team): string => TeamSettings::changeSummary($team, $s))->all(),
+            'leader_spans' => $this->leaderSpans($leaders),
             'can_rehearse' => $this->course->engineVersion() === 2,
             'evaluation' => $run ? $runs->evaluation($run) : null,
-            'bid_rules' => PracticeRunService::BID_RULES,
+            'bid_rules' => $runs->bidRules($run ?? $this->course),
             'stake' => (int) round(CfPlusAcquisitionFundingService::CONTROL_STAKE * 100),
         ]);
+    }
+
+    /**
+     * FF9: who led on value created, as runs of quarters, for example
+     * "Average led in Quarters 4 to 6, Careful in Quarters 7 to 11."
+     *
+     * @param  array<int, string>  $leaders
+     */
+    private function leaderSpans(array $leaders): string
+    {
+        $spans = [];
+        foreach ($leaders as $quarter => $team) {
+            $last = array_key_last($spans);
+            if ($last !== null && $spans[$last]['team'] === $team && $spans[$last]['to'] === $quarter - 1) {
+                $spans[$last]['to'] = $quarter;
+            } else {
+                $spans[] = ['team' => $team, 'from' => $quarter, 'to' => $quarter];
+            }
+        }
+        $words = [];
+        foreach ($spans as $i => $span) {
+            $quarters = $span['from'] === $span['to'] ? 'Quarter '.$span['from'] : 'Quarters '.$span['from'].' to '.$span['to'];
+            $words[] = ReferenceTeams::NAMES[$span['team']].($i === 0 ? ' led in ' : ' in ').$quarters;
+        }
+
+        return $words === [] ? '' : implode(', ', $words).'.';
     }
 
     private function run(PracticeRunService $runs): Course

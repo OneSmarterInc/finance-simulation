@@ -24,15 +24,11 @@ final class ReferenceTeams
 
     public const NAMES = ['careful' => 'Careful team', 'average' => 'Average team', 'careless' => 'Careless team'];
 
-    /** Share of the largest dividend allowed that each team declares. */
+    /** Share of the largest dividend allowed that each team declares on its standard settings. */
     public const DIVIDEND_SHARE = ['careful' => 0.25, 'average' => 0.0, 'careless' => 1.0];
 
-    /** The rule each team follows, in the words faculty see. */
-    public const RULES = [
-        'careful' => "Plans from last quarter's orders, adjusted for the season, and keeps a small buffer. Buys from India with Basic inspection. Pays a quarter of the dividend allowed.",
-        'average' => "Repeats last quarter's sales and ignores the season. Stays with the default supplier and shipping. Uses units of production and FOB destination. Pays no dividend.",
-        'careless' => "Plans 25% above last quarter's orders and makes all of it. Cuts prices 10% and spends 12% on marketing. Switches to declining balance. Skips inspection and ships by air. Pays the largest dividend allowed.",
-    ];
+    /** The rule each team follows on its standard settings, in the words faculty see. */
+    public const RULES = TeamSettings::STANDARD_RULES;
 
     private const PRODUCTS = ['p1', 'p2'];
 
@@ -41,13 +37,15 @@ final class ReferenceTeams
     /**
      * A team's decisions for Quarter $quarter (4 or later), every area, from
      * last quarter's engine fields. The caller keeps the areas that are open.
+     * Without settings the team plays its standard rules (layer 5, FF3).
      *
      * @param  array<string, float>  $prior  last quarter's engine fields (engine version 2)
      * @param  array<string, mixed>  $parameters
      * @param  array<string, string>  $startingElections  the course's starting methods
+     * @param  array<string, mixed>|null  $settings  the team's settings (TeamSettings)
      * @return array{payload: array<string, array<string, mixed>>, notes: array<string, string>}
      */
-    public function decide(string $team, int $quarter, array $prior, array $parameters, array $startingElections): array
+    public function decide(string $team, int $quarter, array $prior, array $parameters, array $startingElections, ?array $settings = null): array
     {
         if (! in_array($team, self::TEAMS, true)) {
             throw new InvalidArgumentException("Unknown reference team [{$team}].");
@@ -55,22 +53,19 @@ final class ReferenceTeams
         if (! array_key_exists('n2_ord_r1_p1', $prior)) {
             throw new InvalidArgumentException('Reference teams need engine version 2 results to plan from.');
         }
+        $s = $settings ?? TeamSettings::STANDARD[$team];
 
-        $forecast = $this->forecast($team, $quarter, $prior, $parameters);
+        $forecast = $this->forecast($s, $quarter, $prior, $parameters);
         $payload = ['forecasting' => $forecast];
-        $payload['sourcing'] = [
-            'careful' => ['primary_supplier' => 'SUP006', 'primary_alloc' => 1.0, 'secondary_supplier' => 'NONE'],
-            'average' => ['primary_supplier' => 'SUP001', 'primary_alloc' => 1.0, 'secondary_supplier' => 'NONE'],
-            'careless' => ['primary_supplier' => 'SUP004', 'primary_alloc' => 1.0, 'secondary_supplier' => 'NONE'],
-        ][$team];
-        $priceMultiplier = $team === 'careless' ? 0.90 : 1.0;
+        $payload['sourcing'] = ['primary_supplier' => $s['supplier'], 'primary_alloc' => 1.0, 'secondary_supplier' => 'NONE'];
+        $priceMultiplier = $s['price_pct'] / 100;
         $payload['pricing'] = [];
         foreach (self::PRODUCTS as $product) {
             foreach (self::REGIONS as $region) {
                 $payload['pricing']["price_{$product}_{$region}"] = round((float) $parameters["{$product}_base_price"] * $priceMultiplier, 2);
             }
         }
-        $payload['marketing'] = ['marketing_budget_pct' => $team === 'careless' ? 0.12 : 0.05];
+        $payload['marketing'] = ['marketing_budget_pct' => $s['marketing_pct'] / 100];
 
         $units = [];
         foreach (self::PRODUCTS as $product) {
@@ -78,43 +73,45 @@ final class ReferenceTeams
             foreach (self::REGIONS as $region) {
                 $want += $forecast["forecast_{$product}_{$region}"];
             }
-            $units[$product] = $team === 'careful'
-                ? max(0.0, round($want * 1.03 - (float) $prior["n3_units_{$product}"]))
-                : (float) $want;
+            $units[$product] = $s['production_nets_stock']
+                ? max(0.0, round($want * ($s['production_pct'] / 100) - (float) $prior["n3_units_{$product}"]))
+                : (float) round($want * ($s['production_pct'] / 100));
         }
         $payload['production'] = [
             'p1_production' => $units['p1'],
             'p2_production' => $units['p2'],
             'shifts' => (new CfManufacturingSimRulesService)->shiftsFor($units['p1'] + $units['p2'], $parameters),
         ];
-        $payload['quality'] = ['inspection_level' => ['careful' => 'BASIC', 'average' => 'BASIC', 'careless' => 'NONE'][$team]];
-        $payload['logistics'] = ['logistics_mode' => ['careful' => 'STANDARD', 'average' => 'EXPRESS', 'careless' => 'AIR'][$team]];
+        $payload['quality'] = ['inspection_level' => $s['inspection']];
+        $payload['logistics'] = ['logistics_mode' => $s['logistics']];
 
         $notes = $startingElections;
-        if ($team === 'average') {
-            $notes['depreciation_method'] = 'units_of_production';
-            $notes['shipping_terms'] = 'fob_destination';
+        if ($s['depreciation_method'] !== '' && $quarter >= $s['depreciation_from']) {
+            $notes['depreciation_method'] = $s['depreciation_method'];
         }
-        if ($team === 'careless' && $quarter >= 6) {
-            $notes['depreciation_method'] = 'double_declining_balance';
+        if ($s['shipping_terms'] !== '') {
+            $notes['shipping_terms'] = $s['shipping_terms'];
         }
 
         return ['payload' => $payload, 'notes' => $notes];
     }
 
-    /** @return array<string, int> */
-    private function forecast(string $team, int $quarter, array $prior, array $parameters): array
+    /**
+     * @param  array<string, mixed>  $s
+     * @return array<string, int>
+     */
+    private function forecast(array $s, int $quarter, array $prior, array $parameters): array
     {
         $out = [];
         foreach (self::PRODUCTS as $product) {
             foreach (self::REGIONS as $region) {
-                $ordered = (float) $prior["n2_ord_{$region}_{$product}"];
-                $sold = (float) $prior["n2_sold_{$region}_{$product}"];
-                $value = match ($team) {
-                    'careful' => $ordered / MarketPath::season($parameters, $quarter - 1) * MarketPath::season($parameters, $quarter) * 1.02,
-                    'average' => $sold,
-                    'careless' => $ordered * 1.25,
-                };
+                $value = (float) $prior[$s['forecast_basis'] === 'orders' ? "n2_ord_{$region}_{$product}" : "n2_sold_{$region}_{$product}"];
+                if ($s['forecast_season']) {
+                    $value = $value / MarketPath::season($parameters, $quarter - 1) * MarketPath::season($parameters, $quarter);
+                }
+                if ($s['forecast_adjust'] !== 0) {
+                    $value = $value * ((100 + $s['forecast_adjust']) / 100);
+                }
                 $out["forecast_{$product}_{$region}"] = (int) round($value);
             }
         }
