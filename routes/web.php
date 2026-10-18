@@ -6,6 +6,7 @@ use App\Livewire\Faculty\Courses\CfPlusAuction;
 use App\Livewire\Faculty\Courses\CourseWizard;
 use App\Livewire\Faculty\Courses\FirmManager;
 use App\Livewire\Faculty\Courses\QuarterManagement;
+use App\Livewire\Faculty\Courses\PracticeRun;
 use App\Livewire\Faculty\Courses\QuarterResults;
 use App\Livewire\InheritedHistory;
 use App\Livewire\Student\AccountingElection;
@@ -70,6 +71,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('faculty/courses/{course}/quarter-results', QuarterResults::class)
         ->name('faculty.courses.quarter-results');
+
+    Route::get('faculty/courses/{course}/practice', PracticeRun::class)
+        ->name('faculty.courses.practice');
 
 
     Route::get('firms/{firm}/quarters/{quarter}/decisions', DecisionWorkspace::class)

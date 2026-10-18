@@ -641,6 +641,18 @@
                     text="This course is running and its setup is locked. Use the course pages in the left menu to manage firms, students, quarters and results." />
 
             @else
+                @if ($course?->exists && $course->engineVersion() === 2)
+                    <div class="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
+                        <div class="min-w-0">
+                            <flux:heading level="3">Rehearse this course</flux:heading>
+                            <flux:text class="mt-1">Three reference teams play a private copy of the course with the class's engine, so you can see how it unfolds before you deploy it.</flux:text>
+                        </div>
+                        <flux:button :href="route('faculty.courses.practice', $course)" icon="play-circle" wire:navigate class="shrink-0">
+                            Rehearse this course
+                        </flux:button>
+                    </div>
+                @endif
+
                 <flux:callout variant="warning" icon="information-circle" heading="Deployment validation"
                     text="Deployment revalidates the complete schedule, matrix, and faculty ownership atomically." />
 

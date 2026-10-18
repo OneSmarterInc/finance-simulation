@@ -21,7 +21,7 @@
         $navRoute = request()->route()?->getName();
         $navSwitchable = in_array($navRoute, [
             'faculty.courses.wizard', 'faculty.courses.firms', 'faculty.courses.students', 'faculty.courses.quarters',
-            'faculty.courses.quarter-results', 'faculty.courses.accounting-election-requests', 'faculty.courses.cf-plus-auction',
+            'faculty.courses.quarter-results', 'faculty.courses.practice', 'faculty.courses.accounting-election-requests', 'faculty.courses.cf-plus-auction',
         ], true) ? $navRoute : 'faculty.courses.quarters';
     @endphp
 
@@ -71,6 +71,14 @@
             :current="request()->routeIs('faculty.courses.quarter-results')" wire:navigate>
             {{ __('Quarter results') }}
         </flux:sidebar.item>
+
+        {{-- U9: rehearse the course with the three reference teams. Owner only, current engine only. --}}
+        @if (! $navCourse->is_practice && $navCourse->faculty_id === $navFaculty->id && $navCourse->engineVersion() === 2)
+            <flux:sidebar.item icon="play-circle" :href="route('faculty.courses.practice', $navCourse)"
+                :current="request()->routeIs('faculty.courses.practice')" wire:navigate>
+                {{ __('Practice run') }}
+            </flux:sidebar.item>
+        @endif
 
         @if ($navCourse->accounting_election_enabled)
             <flux:sidebar.item icon="document-text" :href="route('faculty.courses.accounting-election-requests', $navCourse)"
