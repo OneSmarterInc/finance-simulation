@@ -6,6 +6,7 @@ use App\Livewire\Faculty\Courses\CfPlusAuction;
 use App\Livewire\Faculty\Courses\CourseWizard;
 use App\Livewire\Faculty\Courses\FirmManager;
 use App\Livewire\Faculty\Courses\QuarterManagement;
+use App\Http\Controllers\Practice\PracticeViewController;
 use App\Livewire\Faculty\Courses\PracticeRun;
 use App\Livewire\Faculty\Courses\QuarterResults;
 use App\Livewire\InheritedHistory;
@@ -74,6 +75,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('faculty/courses/{course}/practice', PracticeRun::class)
         ->name('faculty.courses.practice');
+
+    Route::post('faculty/courses/{course}/practice/view-as/{team}', [PracticeViewController::class, 'viewAs'])
+        ->whereIn('team', \App\Services\Practice\ReferenceTeams::TEAMS)
+        ->name('faculty.courses.practice.view-as');
+
+    Route::post('practice/back', [PracticeViewController::class, 'back'])
+        ->name('practice.back');
 
 
     Route::get('firms/{firm}/quarters/{quarter}/decisions', DecisionWorkspace::class)

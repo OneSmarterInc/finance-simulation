@@ -96,6 +96,9 @@ final class CourseStatus
     /** When a quarter that is not open yet will open, in words. */
     public function opensWhen(CourseQuarter $quarter): string
     {
+        if ($this->course->is_practice) {
+            return 'This is a practice run. Quarter '.$quarter->quarter_number.' opens when the run is played on from the Practice run page.';
+        }
         if ($quarter->quarter_number === 4) {
             return 'Opens automatically on '.Dates::day($quarter->starts_on).'.';
         }

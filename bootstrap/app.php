@@ -15,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([ 
             'admin' => \App\Http\Middleware\AdminMiddleware::class, 
          ]);
+        // U9 view-as: keep a faculty member viewing a practice run on that team's pages.
+        $middleware->appendToGroup('web', \App\Http\Middleware\RestrictPracticeView::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

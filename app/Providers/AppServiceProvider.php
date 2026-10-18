@@ -36,6 +36,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // U9 view-as: Livewire actions are checked against the page they came from too.
+        \Livewire\Livewire::addPersistentMiddleware([\App\Http\Middleware\RestrictPracticeView::class]);
+
         Event::listen(
             CourseDeploymentReachedWarmupBoundary::class,
             DispatchFirmWarmups::class

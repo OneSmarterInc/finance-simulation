@@ -11,7 +11,6 @@ use App\Models\User;
 use App\Services\Accounting\FirmAccountingElectionService;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
-use App\Services\Quarters\QuarterManagementService;
 use App\Services\Quarters\QuarterScheduler;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -73,6 +72,8 @@ class PracticeRunTest extends TestCase
 
         $this->assertSame($practice->id, app(PracticeRunService::class)->current($source)?->id);
         $this->assertSame(3, app(PracticeRunService::class)->playedTo($practice));
+        // Quarter 4 is open, as it would be for a class, so its decision screen can be seen.
+        $this->assertSame(CourseQuarter::OPEN, $practice->quarters()->where('quarter_number', 4)->value('state'));
     }
 
     public function test_playing_forward_closes_each_quarter_with_every_team_deciding_by_its_rules(): void
@@ -82,7 +83,8 @@ class PracticeRunTest extends TestCase
 
         $practice = $runs->playTo($this->faculty, $practice, 6);
         $this->assertSame(6, $runs->playedTo($practice));
-        $this->assertSame(CourseQuarter::LOCKED, $practice->quarters()->where('quarter_number', 7)->value('state'));
+        $this->assertSame(CourseQuarter::OPEN, $practice->quarters()->where('quarter_number', 7)->value('state'));
+        $this->assertSame(CourseQuarter::LOCKED, $practice->quarters()->where('quarter_number', 8)->value('state'));
 
         $firms = $practice->firms()->get()->keyBy(fn ($firm) => strtolower($firm->code));
         foreach ($firms as $firm) {
@@ -130,12 +132,32 @@ class PracticeRunTest extends TestCase
         $this->assertSame(6, $runs->playedTo($practice));
     }
 
+    public function test_playing_on_uses_the_teams_rules_even_after_someone_edited_the_open_quarter(): void
+    {
+        $runs = app(PracticeRunService::class);
+        $practice = $runs->playTo($this->faculty, $runs->create($this->faculty, $this->sourceCourse('Edited')), 5);
+        $firm = $practice->firms()->where('code', 'CARELESS')->with('memberships.student')->firstOrFail();
+        $q6 = $practice->quarters()->where('quarter_number', 6)->firstOrFail();
+        $decisions = app(\App\Services\Decisions\FirmDecisionService::class);
+        [$payload] = $decisions->carryForwardPayload($firm, $q6);
+        $payload['marketing']['marketing_budget_pct'] = 0.30;
+        $decisions->submit($firm->memberships->first()->student, $firm, $q6, $payload, 0);
+
+        $runs->playTo($this->faculty, $practice, 6);
+
+        $resolved = $firm->quarterDecisions()->where('course_quarter_id', $q6->id)->firstOrFail()->resolved_payload;
+        $this->assertEquals(0.12, $resolved['marketing']['marketing_budget_pct']);
+        $this->assertSame(
+            'This is a practice run. Quarter 8 opens when the run is played on from the Practice run page.',
+            \App\Services\Courses\CourseStatus::for($practice->fresh())->opensWhen($practice->quarters()->where('quarter_number', 8)->firstOrFail()),
+        );
+    }
+
     public function test_the_scheduler_never_plays_a_practice_run(): void
     {
         $runs = app(PracticeRunService::class);
         $practice = $runs->create($this->faculty, $this->sourceCourse('Not by the clock'));
         $q4 = $practice->quarters()->where('quarter_number', 4)->firstOrFail();
-        app(QuarterManagementService::class)->open($this->faculty, $q4);
         $q4->forceFill(['decision_deadline_at' => now()->subDay(), 'opened_at' => now()->subWeek()])->save();
 
         $this->travel(1)->hours();
@@ -159,7 +181,7 @@ class PracticeRunTest extends TestCase
 
         $admin = User::query()->where('email', 'admin@example.com')->firstOrFail();
         $this->actingAs($admin)->get(route('admin.courses'))->assertOk()->assertDontSee('Practice run: Visible course');
-        $this->actingAs($admin)->get(route('admin.students'))->assertOk()->assertDontSee('practice.flexee.invalid')->assertDontSee('Careful team (practice)');
+        $this->actingAs($admin)->get(route('admin.students'))->assertOk()->assertDontSee('practice.flexee.invalid')->assertDontSee('Careful team student');
 
         $this->assertSame(3, Student::query()->where('is_practice', true)->count());
     }
