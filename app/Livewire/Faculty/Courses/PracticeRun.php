@@ -3,6 +3,7 @@
 namespace App\Livewire\Faculty\Courses;
 
 use App\Models\Course;
+use App\Services\CfPlus\CfPlusAcquisitionFundingService;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
 use Illuminate\Contracts\View\View;
@@ -82,6 +83,9 @@ class PracticeRun extends Component
             'names' => ReferenceTeams::NAMES,
             'rules' => ReferenceTeams::RULES,
             'can_rehearse' => $this->course->engineVersion() === 2,
+            'evaluation' => $run ? $runs->evaluation($run) : null,
+            'bid_rules' => PracticeRunService::BID_RULES,
+            'stake' => (int) round(CfPlusAcquisitionFundingService::CONTROL_STAKE * 100),
         ]);
     }
 

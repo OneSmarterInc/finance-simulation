@@ -185,5 +185,133 @@
                 @endif
             @endif
         </flux:card>
+        {{-- The evaluation stage (+ courses) --}}
+        @if ($evaluation)
+            <flux:card class="space-y-4" data-test="practice-evaluation">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <flux:heading size="lg" level="2">Evaluation stage</flux:heading>
+                    @if ($evaluation['settled'])
+                        <flux:badge color="zinc">Settled after Quarter {{ $last }}</flux:badge>
+                    @elseif ($evaluation['open'])
+                        <flux:badge color="amber">Open{{ $evaluation['offers'] !== [] ? ': offers placed' : '' }}</flux:badge>
+                    @else
+                        <flux:badge color="amber">Opens with Quarter {{ $evaluation['opens_with'] }}</flux:badge>
+                    @endif
+                </div>
+
+                @if (! $evaluation['open'])
+                    <flux:text>Play to Quarter {{ $evaluation['opens_with'] - 1 }} to open the stage and see the consultant reports and each team's true worth. The teams bid in Quarter {{ $evaluation['opens_with'] }}.</flux:text>
+                @else
+                    <div class="grid gap-6 lg:grid-cols-2">
+                        <div class="min-w-0 space-y-2">
+                            <flux:heading level="3">What each firm is worth</flux:heading>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm tabular-nums">
+                                    <thead>
+                                        <tr class="border-b border-zinc-200 text-left dark:border-white/10">
+                                            <th scope="col" class="py-2 pe-3 font-medium">Firm</th>
+                                            <th scope="col" class="px-3 py-2 text-right font-medium">Consultant value</th>
+                                            <th scope="col" class="px-3 py-2 text-right font-medium">True worth</th>
+                                            <th scope="col" class="ps-3 py-2 text-right font-medium">{{ $stake }}% stake at true worth</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($evaluation['firms'] as $firm)
+                                            <tr class="border-b border-zinc-100 dark:border-white/5">
+                                                <th scope="row" class="py-1.5 pe-3 text-left font-normal whitespace-nowrap">
+                                                    <span class="me-1 inline-block size-2.5 rounded-full {{ $dot[$firm['team']] }}" aria-hidden="true"></span>{{ $firm['name'] }}
+                                                </th>
+                                                <td class="px-3 py-1.5 text-right">{{ $millions($firm['consultant']) }}</td>
+                                                <td class="px-3 py-1.5 text-right">{{ $millions($firm['true_worth']) }}</td>
+                                                <td class="ps-3 py-1.5 text-right">{{ $millions($firm['true_stake']) }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            <flux:text size="sm">The consultant values each firm from its reported operating income. True worth is based on its operating cash. Students see only the consultant's figure, so a team that reads past reported income can bid closer to what a firm is really worth.</flux:text>
+                        </div>
+
+                        <div class="min-w-0 space-y-2">
+                            <flux:heading level="3">Offers for a {{ $stake }}% stake</flux:heading>
+                            @if ($evaluation['offers'] === [])
+                                <flux:text>The teams place their offers when Quarter {{ $evaluation['opens_with'] }} is played.</flux:text>
+                            @else
+                                @php
+                                    $won = collect($evaluation['results'])->keyBy('target');
+                                    $previousTarget = null;
+                                @endphp
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm tabular-nums">
+                                        <thead>
+                                            <tr class="border-b border-zinc-200 text-left dark:border-white/10">
+                                                <th scope="col" class="py-2 pe-3 font-medium">For</th>
+                                                <th scope="col" class="px-3 py-2 font-medium whitespace-nowrap">Offer from</th>
+                                                <th scope="col" class="px-3 py-2 text-right font-medium">Amount</th>
+                                                @if ($evaluation['settled'])
+                                                    <th scope="col" class="ps-3 py-2 font-medium">Result</th>
+                                                @endif
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($evaluation['offers'] as $offer)
+                                                @php
+                                                    $result = $won[$offer['target']] ?? null;
+                                                    $isWinner = $result && $result['winner'] === $offer['bidder'];
+                                                @endphp
+                                                <tr class="{{ $previousTarget !== $offer['target'] ? 'border-t border-zinc-200 dark:border-white/10' : '' }}">
+                                                    <th scope="row" class="py-1.5 pe-3 text-left font-normal whitespace-nowrap">{{ $previousTarget !== $offer['target'] ? str_replace(' team', '', $offer['target_name']) : '' }}</th>
+                                                    <td class="px-3 py-1.5 whitespace-nowrap"><span class="font-medium {{ $ink[$offer['bidder']] }}">{{ str_replace(' team', '', $offer['bidder_name']) }}</span></td>
+                                                    <td class="px-3 py-1.5 text-right whitespace-nowrap">
+                                                        {{ $millions($offer['amount']) }}
+                                                        @if ($offer['capped'])
+                                                            <span class="block text-xs text-zinc-500">all it could fund</span>
+                                                        @endif
+                                                    </td>
+                                                    @if ($evaluation['settled'])
+                                                        <td class="min-w-44 ps-3 py-1.5">
+                                                            @if ($isWinner)
+                                                                Won, paid {{ $millions(abs($result['difference'])) }} {{ $result['difference'] >= 0 ? 'over' : 'under' }} true worth
+                                                            @else
+                                                                <span class="text-zinc-500">Outbid</span>
+                                                            @endif
+                                                        </td>
+                                                    @endif
+                                                </tr>
+                                                @php
+                                                    $previousTarget = $offer['target'];
+                                                @endphp
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endif
+                            <ul class="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                                @foreach ($teams as $team)
+                                    <li><span class="font-medium {{ $ink[$team] }}">{{ str_replace(' team', '', $names[$team]) }}</span> {{ lcfirst($bid_rules[$team]) }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+
+                    @if ($evaluation['settled'])
+                        <div class="space-y-1 border-t border-zinc-200 pt-3 dark:border-white/10" data-test="practice-reveal">
+                            <flux:heading level="3">The reveal</flux:heading>
+                            @foreach ($evaluation['results'] as $result)
+                                <flux:text>
+                                    @if ($result['winner'] === null)
+                                        Nobody offered for {{ $result['target_name'] }}.
+                                    @else
+                                        <span class="font-medium {{ $ink[$result['winner']] }}">{{ $result['winner_name'] }}</span> won {{ $result['target_name'] }} for {{ $millions($result['price']) }}, {{ $millions(abs($result['difference'])) }} {{ $result['difference'] >= 0 ? 'more' : 'less' }} than the stake was truly worth.
+                                    @endif
+                                </flux:text>
+                            @endforeach
+                        </div>
+                    @elseif ($evaluation['offers'] !== [])
+                        <flux:text size="sm">The offers stay sealed until the last quarter closes. Play to Quarter {{ $last }} to settle the auction and see who paid what against true worth.</flux:text>
+                    @endif
+                @endif
+            </flux:card>
+        @endif
     @endif
 </div>

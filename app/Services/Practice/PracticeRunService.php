@@ -2,6 +2,9 @@
 
 namespace App\Services\Practice;
 
+use App\Models\CfPlusAuctionEconomicsSnapshot;
+use App\Models\CfPlusAuctionResult;
+use App\Models\CfPlusOffer;
 use App\Models\Course;
 use App\Models\CourseQuarter;
 use App\Models\Faculty;
@@ -9,6 +12,10 @@ use App\Models\Firm;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\Accounting\FirmAccountingElectionService;
+use App\Services\CfPlus\CfPlusAuctionEconomicsSnapshotService;
+use App\Services\CfPlus\CfPlusAuctionSettlementService;
+use App\Services\CfPlus\CfPlusGate;
+use App\Services\CfPlus\CfPlusOfferService;
 use App\Services\Courses\CourseConfigurationService;
 use App\Services\Decisions\FirmDecisionService;
 use App\Services\Firms\FirmAssignmentService;
@@ -156,6 +163,7 @@ class PracticeRunService
                     foreach ($practice->firms()->with('memberships.student')->get() as $firm) {
                         $this->decide($firm, $quarter);
                     }
+                    $this->placeOffers($practice->fresh(), $quarter);
                     $this->quarters->queueClose($faculty, $quarter);
                 }
                 if ($quarter->fresh()->state !== CourseQuarter::CLOSED) {
@@ -163,11 +171,107 @@ class PracticeRunService
                 }
             }
             $this->openNext($faculty, $practice);
+            $this->settleIfFinished($faculty, $practice->fresh());
         });
 
         $practice->forceFill(['practice_last_played_at' => now()])->save();
 
         return $practice->fresh();
+    }
+
+    /** FF4: how each reference team bids for a rival's controlling stake. */
+    public const BID_RULES = [
+        'careful' => 'Offers 95% of what the stake is truly worth: it reads past reported income.',
+        'average' => 'Offers the consultant\'s value of the stake.',
+        'careless' => 'Offers 25% above the consultant\'s value of the stake.',
+    ];
+
+    /**
+     * In an offer quarter, every reference team places a sealed offer for each
+     * rival by its rule (FF4), capped at what it can fund. Offers are placed
+     * again each offer quarter, so they follow the funding the team has then.
+     */
+    private function placeOffers(Course $practice, CourseQuarter $quarter): void
+    {
+        if (! $practice->cf_plus_enabled) {
+            return;
+        }
+        $start = app(CfPlusGate::class)->evaluationStartQuarter($practice);
+        if ($quarter->quarter_number < $start || $quarter->quarter_number >= $start + (int) $practice->adversarial_quarters) {
+            return;
+        }
+        $economics = app(CfPlusAuctionEconomicsSnapshotService::class)->forCourse($practice)->economics()->get()->keyBy('firm_id');
+        $offers = app(CfPlusOfferService::class);
+        $firms = $practice->firms()->get();
+        foreach ($firms as $bidder) {
+            foreach ($firms->where('id', '!=', $bidder->id) as $target) {
+                $e = $economics->get($target->id);
+                if (! $e) {
+                    continue;
+                }
+                $wanted = match (strtolower((string) $bidder->code)) {
+                    'careful' => 0.95 * (float) $e->displayed_true_stake_worth,
+                    'average' => (float) $e->consultant_stake_value,
+                    'careless' => 1.25 * (float) $e->consultant_stake_value,
+                    default => 0.0,
+                };
+                $cap = (float) $offers->fundingContext($practice, $bidder, $target)['maximum_fundable_offer'];
+                $offers->submit($practice, $bidder, $target, max(0.0, floor(min($wanted, $cap) * 100) / 100));
+            }
+        }
+    }
+
+    /** After the last quarter closes, the run settles the evaluation stage, as the instructor would. */
+    private function settleIfFinished(Faculty $faculty, Course $practice): void
+    {
+        if ($practice->cf_plus_enabled && ! $practice->quarters()->where('quarter_number', '>=', 4)->where('state', '!=', CourseQuarter::CLOSED)->exists()
+            && ! CfPlusAuctionResult::query()->where('course_id', $practice->id)->exists()) {
+            app(CfPlusAuctionSettlementService::class)->settle($faculty, $practice);
+        }
+    }
+
+    /**
+     * The evaluation stage of a practice run, for the Practice run page:
+     * what each team is worth to the consultant and in truth, the offers the
+     * teams placed and why, and once settled, who won what at what price.
+     *
+     * @return array{opens_with: int, open: bool, settled: bool, firms: list<array<string, mixed>>, offers: list<array<string, mixed>>, results: list<array<string, mixed>>}|null
+     */
+    public function evaluation(Course $practice): ?array
+    {
+        if (! $practice->cf_plus_enabled) {
+            return null;
+        }
+        $start = app(CfPlusGate::class)->evaluationStartQuarter($practice);
+        $snapshot = CfPlusAuctionEconomicsSnapshot::query()->where('course_id', $practice->id)->first();
+        $names = $practice->firms()->get()->mapWithKeys(fn (Firm $f) => [$f->id => ReferenceTeams::NAMES[strtolower((string) $f->code)] ?? $f->name]);
+        $team = fn (string $firmId): string => strtolower((string) $practice->firms()->whereKey($firmId)->value('code'));
+        $out = ['opens_with' => $start, 'open' => $snapshot !== null, 'settled' => false, 'firms' => [], 'offers' => [], 'results' => []];
+        if (! $snapshot) {
+            return $out;
+        }
+        foreach ($snapshot->economics()->get() as $e) {
+            $out['firms'][] = ['team' => $team($e->firm_id), 'name' => $names[$e->firm_id], 'consultant' => (float) $e->full_consultant_value, 'true_worth' => (float) $e->displayed_full_true_worth,
+                'consultant_stake' => (float) $e->consultant_stake_value, 'true_stake' => (float) $e->displayed_true_stake_worth];
+        }
+        usort($out['firms'], fn ($a, $b) => array_search($a['team'], ReferenceTeams::TEAMS, true) <=> array_search($b['team'], ReferenceTeams::TEAMS, true));
+        foreach (CfPlusOffer::query()->where('course_id', $practice->id)->get() as $o) {
+            $out['offers'][] = ['bidder' => $team($o->bidder_firm_id), 'bidder_name' => $names[$o->bidder_firm_id], 'target' => $team($o->target_firm_id), 'target_name' => $names[$o->target_firm_id],
+                'amount' => (float) $o->offered_amount, 'capped' => (float) $o->offered_amount >= (float) $o->fundable_cap - 0.01];
+        }
+        $order = fn (string $team): int => (int) array_search($team, ReferenceTeams::TEAMS, true);
+        usort($out['offers'], fn ($a, $b) => [$order($a['target']), -$a['amount']] <=> [$order($b['target']), -$b['amount']]);
+        $results = CfPlusAuctionResult::query()->where('course_id', $practice->id)->get();
+        $out['settled'] = $results->isNotEmpty();
+        foreach ($results as $r) {
+            $out['results'][] = ['target' => $team($r->target_firm_id), 'target_name' => $names[$r->target_firm_id],
+                'winner' => $r->winning_bidder_firm_id ? $team($r->winning_bidder_firm_id) : null, 'winner_name' => $r->winning_bidder_firm_id ? $names[$r->winning_bidder_firm_id] : null,
+                'price' => $r->price_paid !== null ? (float) $r->price_paid : null, 'true_stake' => (float) $r->true_stake_worth,
+                'difference' => $r->price_paid !== null ? (float) $r->price_paid - (float) $r->true_stake_worth : null];
+        }
+        usort($out['results'], fn ($a, $b) => array_search($a['target'], ReferenceTeams::TEAMS, true) <=> array_search($b['target'], ReferenceTeams::TEAMS, true));
+
+        return $out;
     }
 
     /**

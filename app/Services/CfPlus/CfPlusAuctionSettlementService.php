@@ -29,7 +29,8 @@ final class CfPlusAuctionSettlementService
     {
         $this->authorizeFaculty($faculty, $course);
         $this->gate->assertEnabled($course);
-        if ($course->quarters()->where('state', '!=', CourseQuarter::CLOSED)->exists()) {
+        // Quarters 1 to 3 are the warm-up: they hold history and never open or close.
+        if ($course->quarters()->where('quarter_number', '>=', 4)->where('state', '!=', CourseQuarter::CLOSED)->exists()) {
             throw new DomainException('The sealed auction can settle only after every course quarter is closed.');
         }
 

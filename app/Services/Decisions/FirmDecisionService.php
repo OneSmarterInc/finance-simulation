@@ -67,6 +67,15 @@ class FirmDecisionService
         */
         if ($quarter->course->accounting_election_enabled) {
             unset($enabled['notes_elections']);
+        } elseif ($quarter->course->cf_plus_enabled && $quarter->quarter_number !== 4) {
+            /*
+             * On + courses without method-change requests, accounting
+             * methods are chosen once in Quarter 4 and locked. The setup
+             * matrix keeps the area switched on in later quarters (an area
+             * can't be switched off once opened), so it is closed here;
+             * the resolver supplies the locked methods.
+             */
+            unset($enabled['notes_elections']);
         }
 
         // Engine version 2 doesn't read attestation scope (item 76).
