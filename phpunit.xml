@@ -20,6 +20,8 @@
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="FLEXEE_REQUIRE_PAYMENT" value="false"/>
+        <!-- Older tests cover running version 1 courses; version 2 tests set the version themselves. -->
+        <env name="FLEXEE_ENGINE_VERSION" value="1"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>

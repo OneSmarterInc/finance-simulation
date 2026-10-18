@@ -138,6 +138,7 @@ class EngineV2ScreensTest extends TestCase
 
     public function test_quarter_4_requires_forecasting_and_sourcing_only_in_version_2(): void
     {
+        config(['flexee.engine_version_for_new_courses' => 1]);
         $this->assertSame(['forecasting', 'sourcing', 'production'], CourseConfigurationService::requiredQuarterFour(null));
         config(['flexee.engine_version_for_new_courses' => 2]);
         $this->assertSame(['forecasting', 'sourcing'], CourseConfigurationService::requiredQuarterFour(null));
