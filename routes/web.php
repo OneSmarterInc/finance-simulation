@@ -73,6 +73,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('faculty/courses/{course}/quarter-results', QuarterResults::class)
         ->name('faculty.courses.quarter-results');
 
+    Route::get('faculty/courses/{course}/quarter-results/download', \App\Http\Controllers\Faculty\ResultsDownloadController::class)
+        ->name('faculty.courses.quarter-results.download');
+
     Route::get('faculty/courses/{course}/practice', PracticeRun::class)
         ->name('faculty.courses.practice');
 

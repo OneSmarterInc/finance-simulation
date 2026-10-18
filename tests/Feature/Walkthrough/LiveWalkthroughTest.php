@@ -3,11 +3,13 @@
 namespace Tests\Feature\Walkthrough;
 
 use App\Livewire\Faculty\Courses\AccountingElectionRequests;
+use App\Livewire\Faculty\Courses\QuarterResults;
 use App\Models\Admin;
 use App\Models\Faculty;
 use App\Models\Firm;
 use App\Models\FirmAccountingElectionRequest;
 use App\Models\FirmQuarterClose;
+use App\Models\Student;
 use App\Models\User;
 use App\Services\Accounting\FirmAccountingElectionRequestService;
 use App\Services\Courses\CourseStatus;
@@ -15,6 +17,7 @@ use App\Services\Decisions\FirmDecisionService;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Quarters\FirmQuarterCloseService;
 use App\Services\Quarters\QuarterManagementService;
+use App\Services\Warmup\InheritedWarmupHistoryService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -191,5 +194,42 @@ class LiveWalkthroughTest extends TestCase
         $result = $firm->engineResults()->where('quarter_number', 4)->firstOrFail();
         $this->assertEqualsWithDelta((float) $result->intermediates['maximum_dividend'], (float) $result->intermediates['dividend'], 0.001);
         $this->assertLessThan(999999999999, (float) $result->intermediates['dividend']);
+    }
+
+    /** L16: "All firms, every quarter" for one measure with the best firm marked, and the .xlsx download. */
+    public function test_results_compare_every_firm_and_download_as_a_spreadsheet(): void
+    {
+        [$course, $firm] = $this->phase7bCourse('Course 02');
+        $other = Firm::factory()->create(['course_id' => $course->id, 'institution_id' => $course->institution_id, 'name' => 'Beta']);
+        app(InheritedWarmupHistoryService::class)->initialize($other);
+        $this->actingAs($this->faculty->user);
+
+        Livewire::test(QuarterResults::class, ['course' => $course])
+            ->call('showCompare')
+            ->assertSee('data-test="results-compare"', false)
+            ->assertSee('Value created (equity plus dividends paid from Quarter 4)')
+            ->assertSee('Best this quarter')
+            ->call('showCompare', 'units_in_stock')
+            ->assertSet('measure', 'units_in_stock')
+            ->assertSee('Fewer is better here');
+
+        $this->get(route('faculty.courses.quarter-results', $course))->assertOk()->assertSee('data-test="results-download"', false);
+        $response = $this->get(route('faculty.courses.quarter-results.download', $course))->assertOk();
+        $this->assertStringContainsString('Course-02-results-', $response->headers->get('content-disposition'));
+        $path = $response->getFile()->getPathname();
+        $zip = new \ZipArchive;
+        $this->assertTrue($zip->open($path) === true);
+        $workbook = $zip->getFromName('xl/workbook.xml');
+        foreach (['About', 'Summary', 'Income statement', 'Balance sheet', 'Cash flow statement', 'Revenue note', 'Inventory note'] as $sheet) {
+            $this->assertStringContainsString('name="'.$sheet.'"', $workbook);
+        }
+        $income = $zip->getFromName('xl/worksheets/sheet3.xml');
+        $this->assertStringContainsString(htmlspecialchars($firm->name, ENT_XML1 | ENT_QUOTES).' · Q1 · warm-up', $income);
+        $this->assertStringContainsString('Beta · Q3 · warm-up', $income);
+        $netIncome = (float) $firm->engineResults()->where('quarter_number', 3)->firstOrFail()->income_statement['net_income'];
+        $this->assertStringContainsString('<v>'.rtrim(rtrim(sprintf('%.10F', round($netIncome, 6)), '0'), '.').'</v>', $income, 'figures are numbers, not text');
+        $zip->close();
+
+        $this->actingAs(Student::query()->firstOrFail()->user)->get(route('faculty.courses.quarter-results.download', $course))->assertForbidden();
     }
 }
