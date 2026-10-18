@@ -25,7 +25,6 @@
 
             <flux:spacer />
 
-            <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
@@ -52,6 +51,7 @@
                                 <div class="grid flex-1 text-start text-sm leading-tight">
                                     <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
                                     <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
+                                    <flux:text class="truncate">{{ \App\Support\Navigation\PageTrail::for(request())['role'] }}</flux:text>
                                 </div>
                             </div>
                         </div>
