@@ -51,6 +51,11 @@ final class DeterministicDemandRandomizer implements DemandRandomizer
         return $demand;
     }
 
+    public function standardDeviation(): float
+    {
+        return $this->standardDeviation;
+    }
+
     public function growthFactor(string $courseSeedHash, string $firmIdentifier, int $quarter, string $field): float
     {
         if (! in_array($field, self::DEMAND_FIELDS, true)) {

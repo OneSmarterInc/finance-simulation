@@ -10,7 +10,7 @@ use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngine;
 use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngineInput;
 use App\Services\Engines\CorporateFinance\Contracts\OpeningFinancialPosition;
 use App\Services\Engines\CorporateFinance\FinancialPlausibilityValidator;
-use App\Services\Engines\CorporateFinance\ManufacturingCFEngine;
+use App\Services\Engines\CorporateFinance\VersionedManufacturingEngine;
 use App\Services\Warmup\Contracts\WarmupGenerationResult;
 use App\Services\Warmup\Contracts\WarmupQuarterResult;
 use App\Services\Warmup\Exceptions\WarmupGenerationException;
@@ -24,21 +24,25 @@ class CfManufacturingWarmupService
     public function __construct(
         private readonly ?DemandRandomizer $randomizer = null,
         private readonly CfManufacturingSimRulesService $simRules = new CfManufacturingSimRulesService,
-        private readonly ManufacturingEngine $engine = new ManufacturingCFEngine,
+        private readonly ManufacturingEngine $engine = new VersionedManufacturingEngine,
         private readonly AccountingIdentityValidator $accountingValidator = new AccountingIdentityValidator,
         private readonly FinancialPlausibilityValidator $plausibilityValidator = new FinancialPlausibilityValidator,
     ) {}
 
-    public function generate(string $courseInstanceToken, string $firmIdentifier, Scenario|string|null $scenario = null): WarmupGenerationResult
+    public function generate(string $courseInstanceToken, string $firmIdentifier, Scenario|string|null $scenario = null, int $engineVersion = 1): WarmupGenerationResult
     {
         if ($courseInstanceToken === '') {
             throw new RuntimeException('Course-instance token must not be empty.');
         }
 
-        return $this->generateFromSeedHash(hash('sha256', $courseInstanceToken), $firmIdentifier, $scenario);
+        return $this->generateFromSeedHash(hash('sha256', $courseInstanceToken), $firmIdentifier, $scenario, $engineVersion);
     }
 
-    public function generateFromSeedHash(string $courseSeedHash, string $firmIdentifier, Scenario|string|null $scenario = null): WarmupGenerationResult
+    /**
+     * Engine version 2 runs the same warm-up market through the version 2
+     * rules and engine; the warm-up still sells everything it makes.
+     */
+    public function generateFromSeedHash(string $courseSeedHash, string $firmIdentifier, Scenario|string|null $scenario = null, int $engineVersion = 1): WarmupGenerationResult
     {
         if (! preg_match('/^[a-f0-9]{64}$/', $courseSeedHash)) {
             throw new RuntimeException('Course seed hash must be a lowercase 64-character SHA-256 digest.');
@@ -80,16 +84,22 @@ class CfManufacturingWarmupService
                 }
                 $demand = $randomizer->compound($priorDemand, $courseSeedHash, $firmIdentifier, $quarter, (float) $parameters[$seasonalityKey]);
                 $this->validateRandomizedDemand($demand);
-                $decisions = array_merge($this->simRules->deriveCompleteDecisions($quarter, $demand, $parameters), [
-                    'notes_elections' => $this->lockedPayload($rows, $quarter, 'notes_elections'),
-                    'certification' => $this->lockedPayload($rows, $quarter, 'certification'),
-                ]);
+                $decisions = $engineVersion === 2
+                    ? array_merge($this->simRules->deriveCompleteDecisionsV2($quarter, $demand, $parameters, [], [], ['p1' => $opening->unitsOnHandP1, 'p2' => $opening->unitsOnHandP2]), [
+                        'notes_elections' => $this->lockedPayload($rows, $quarter, 'notes_elections'),
+                    ])
+                    : array_merge($this->simRules->deriveCompleteDecisions($quarter, $demand, $parameters), [
+                        'notes_elections' => $this->lockedPayload($rows, $quarter, 'notes_elections'),
+                        'certification' => $this->lockedPayload($rows, $quarter, 'certification'),
+                    ]);
                 $result = $this->engine->calculate(new ManufacturingEngineInput(
                     quarterNumber: $quarter,
                     decisions: $decisions,
                     parameters: $parameters,
                     openingPosition: $opening,
                     dividend: $this->simRules->deriveDividend($quarter),
+                    engineVersion: $engineVersion,
+                    market: $engineVersion === 2 ? $demand : null,
                 ));
                 $this->accountingValidator->validate($result->fields, $opening);
                 $this->plausibilityValidator->validate($result, $opening, $priorResult);

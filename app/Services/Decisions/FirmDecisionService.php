@@ -4,6 +4,7 @@ namespace App\Services\Decisions;
 
 use App\Models\CourseQuarter;
 use App\Models\Firm;
+use App\Models\FirmEngineResult;
 use App\Models\FirmMembership;
 use App\Models\FirmQuarterDecision;
 use App\Models\ScenarioDecisionCategory;
@@ -15,14 +16,20 @@ use App\Services\Engines\CorporateFinance\Contracts\DividendLimit;
 use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngineInput;
 use App\Services\Engines\CorporateFinance\Contracts\OpeningFinancialPosition;
 use App\Services\Engines\CorporateFinance\DividendDecisionValidator;
-use App\Services\Engines\CorporateFinance\ManufacturingCFEngine;
+use App\Services\Engines\CorporateFinance\MarketPath;
+use App\Services\Engines\CorporateFinance\VersionedManufacturingEngine;
+use App\Services\Quarters\QuarterScheduler;
 use App\Support\Scenario\CfManufacturingScenarioDefinition;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class FirmDecisionService
 {
+    /** @var array<string, array<string, int>> engine v2 market by firm and quarter */
+    private array $marketCache = [];
+
     public function authorize(Student $student, Firm $firm): void
     {
         $active = FirmMembership::query()
@@ -46,7 +53,7 @@ class FirmDecisionService
             ->with('category')
             ->get()
             ->mapWithKeys(
-                fn($row) => [$row->category->code => $row->category]
+                fn ($row) => [$row->category->code => $row->category]
             )
             ->all();
 
@@ -58,8 +65,13 @@ class FirmDecisionService
         * Accounting Elections workflow and must not appear as a
         * normal student decision category.
         */
-         if ( $quarter->course->accounting_election_enabled  ) { 
-            unset($enabled['notes_elections']); 
+        if ($quarter->course->accounting_election_enabled) {
+            unset($enabled['notes_elections']);
+        }
+
+        // Engine version 2 doesn't read attestation scope (item 76).
+        if ($quarter->course->engineVersion() === 2) {
+            unset($enabled['certification']);
         }
 
         return $enabled;
@@ -74,9 +86,9 @@ class FirmDecisionService
          * Accounting-election fields are student-selectable in Quarter 4
          * only when the course-level accounting-election control is enabled.
          */
-          if ( $quarter->course->cf_plus_enabled
-            && $quarter->quarter_number === 4
-            && $category->code === 'notes_elections'
+        if ($quarter->course->cf_plus_enabled
+          && $quarter->quarter_number === 4
+          && $category->code === 'notes_elections'
         ) {
             return app(LegacyFirmAccountingElectionService::class)
                 ->studentVisibleFields();
@@ -199,14 +211,8 @@ class FirmDecisionService
         $parameters = $this->parameters($firm);
         $opening = $this->opening($firm, $quarter);
 
-        $preview = (new ManufacturingCFEngine)->calculate(
-            new ManufacturingEngineInput(
-                $quarter->quarter_number,
-                $complete,
-                $parameters,
-                $opening,
-                0
-            )
+        $preview = (new VersionedManufacturingEngine)->calculate(
+            $this->engineInput($firm, $quarter, $complete, 0)
         );
 
         return (new DividendDecisionValidator)->validate(
@@ -220,7 +226,7 @@ class FirmDecisionService
     }
 
     /**
-     * @param array<string, array<string, mixed>> $submitted
+     * @param  array<string, array<string, mixed>>  $submitted
      * @return array<string, array<string, mixed>>
      */
     public function resolveCompleteDecisions(
@@ -250,20 +256,45 @@ class FirmDecisionService
             array_flip($operational)
         );
 
-        $demand = $studentOperational['forecasting']
-            ?? throw ValidationException::withMessages([
-                'forecasting' =>
-                'Forecasting must be submitted to supply the quarter demand context.',
-            ]);
+        $version = $firm->course->engineVersion();
 
-        $resolved = (new CfManufacturingSimRulesService)
-            ->deriveCompleteDecisions(
+        if ($version === 2) {
+            /*
+             * Engine version 2: demand comes from the market, so a closed
+             * forecast is planned from last quarter's orders, and closed
+             * production nets the stock on hand (ED1, ED2).
+             */
+            $rules = new CfManufacturingSimRulesService;
+            $parameters = $this->parameters($firm);
+            $opening = $this->opening($firm, $quarter);
+            $resolved = $rules->deriveCompleteDecisionsV2(
                 $quarter->quarter_number,
-                $demand,
-                $this->parameters($firm),
+                $rules->demandContextV2(
+                    $quarter->quarter_number,
+                    $this->market($firm, $quarter),
+                    $this->priorFields($firm, $quarter),
+                    $parameters
+                ),
+                $parameters,
                 $operational,
-                $studentOperational
+                $studentOperational,
+                ['p1' => $opening->unitsOnHandP1, 'p2' => $opening->unitsOnHandP2]
             );
+        } else {
+            $demand = $studentOperational['forecasting']
+                ?? throw ValidationException::withMessages([
+                    'forecasting' => 'Forecasting must be submitted to supply the quarter demand context.',
+                ]);
+
+            $resolved = (new CfManufacturingSimRulesService)
+                ->deriveCompleteDecisions(
+                    $quarter->quarter_number,
+                    $demand,
+                    $this->parameters($firm),
+                    $operational,
+                    $studentOperational
+                );
+        }
 
         if ($firm->course->accounting_election_enabled) {
             /*
@@ -290,23 +321,20 @@ class FirmDecisionService
                 )->validate(
                     $submitted['notes_elections']
                         ?? throw ValidationException::withMessages([
-                            'notes_elections' =>
-                            'Quarter 4 requires the firm accounting elections.',
+                            'notes_elections' => 'Quarter 4 requires the firm accounting elections.',
                         ])
                 );
             } else {
                 if (array_key_exists('notes_elections', $submitted)) {
                     throw ValidationException::withMessages([
-                        'notes_elections' =>
-                        'Accounting elections were locked in Quarter 4 and cannot be submitted again.',
+                        'notes_elections' => 'Accounting elections were locked in Quarter 4 and cannot be submitted again.',
                     ]);
                 }
 
                 $resolved['notes_elections'] =
                     $firm->accounting_elections
                     ?? throw ValidationException::withMessages([
-                        'notes_elections' =>
-                        'The firm has no locked Quarter 4 accounting elections.',
+                        'notes_elections' => 'The firm has no locked Quarter 4 accounting elections.',
                     ]);
             }
         } else {
@@ -318,8 +346,7 @@ class FirmDecisionService
                 ? (
                     $submitted['notes_elections']
                     ?? throw ValidationException::withMessages([
-                        'notes_elections' =>
-                        'notes_elections is enabled and requires a submitted decision.',
+                        'notes_elections' => 'notes_elections is enabled and requires a submitted decision.',
                     ])
                 )
                 : CfManufacturingScenarioDefinition::fixedWarmupPayload(
@@ -327,12 +354,16 @@ class FirmDecisionService
                 );
         }
 
+        if ($version === 2) {
+            // Version 2 doesn't read attestation scope (item 76).
+            return $resolved;
+        }
+
         $resolved['certification'] = isset($enabled['certification'])
             ? (
                 $submitted['certification']
                 ?? throw ValidationException::withMessages([
-                    'certification' =>
-                    'certification is enabled and requires a submitted decision.',
+                    'certification' => 'certification is enabled and requires a submitted decision.',
                 ])
             )
             : CfManufacturingScenarioDefinition::fixedWarmupPayload(
@@ -426,12 +457,44 @@ class FirmDecisionService
             ->parameters()
             ->get()
             ->mapWithKeys(
-                fn($row) => [
-                    $row->parameter_key =>
-                    $row->parameter_value['value'],
+                fn ($row) => [
+                    $row->parameter_key => $row->parameter_value['value'],
                 ]
             )
             ->all();
+    }
+
+    /**
+     * The engine input for a firm-quarter, in the course's engine version.
+     *
+     * @param  array<string, array<string, mixed>>  $resolved
+     */
+    public function engineInput(Firm $firm, CourseQuarter $quarter, array $resolved, mixed $dividend): ManufacturingEngineInput
+    {
+        $version = $firm->course->engineVersion();
+
+        return new ManufacturingEngineInput(
+            quarterNumber: $quarter->quarter_number,
+            decisions: $resolved,
+            parameters: $this->parameters($firm),
+            openingPosition: $this->opening($firm, $quarter),
+            dividend: $dividend,
+            engineVersion: $version,
+            market: $version === 2 ? $this->market($firm, $quarter) : null,
+        );
+    }
+
+    /** @return array<string, int> engine version 2: the market the firm faces this quarter */
+    public function market(Firm $firm, CourseQuarter $quarter): array
+    {
+        return $this->marketCache["{$firm->id}|{$quarter->quarter_number}"]
+            ??= MarketPath::forFirm($firm, $quarter->quarter_number, $this->parameters($firm));
+    }
+
+    /** @return array<string, float>|null */
+    private function priorFields(Firm $firm, CourseQuarter $quarter): ?array
+    {
+        return $firm->engineResults()->where('quarter_number', $quarter->quarter_number - 1)->first()?->fields;
     }
 
     public function opening(
@@ -444,6 +507,14 @@ class FirmDecisionService
                 $quarter->quarter_number - 1
             )
             ->firstOrFail();
+
+        // A course keeps one engine version (ED11): never open a quarter of
+        // one version from a result the other version stored.
+        $version = $firm->course->engineVersion();
+        if ($prior->engine_contract !== FirmEngineResult::contractFor($version)
+            && ($version === 2 || $prior->engine_contract === FirmEngineResult::ENGINE_CONTRACT_V2)) {
+            throw new RuntimeException("Quarter {$quarter->quarter_number} cannot open from a {$prior->engine_contract} result in an engine version {$version} course.");
+        }
 
         return OpeningFinancialPosition::fromPriorEngineResult(
             $prior->fields
@@ -463,13 +534,12 @@ class FirmDecisionService
             || $quarter->quarter_number < 4
         ) {
             throw ValidationException::withMessages([
-                'quarter' =>
-                'This quarter is not open for student decisions.',
+                'quarter' => 'This quarter is not open for student decisions.',
             ]);
         }
 
         if ($quarter->decision_deadline_at && $quarter->decision_deadline_at->lte(now())
-            && ! \App\Services\Quarters\QuarterScheduler::needsNewDeadline($quarter)) {
+            && ! QuarterScheduler::needsNewDeadline($quarter)) {
             throw ValidationException::withMessages([
                 'quarter' => 'The deadline for this quarter has passed.',
             ]);
@@ -484,8 +554,7 @@ class FirmDecisionService
 
         if ($decision->state === FirmQuarterDecision::LOCKED) {
             throw ValidationException::withMessages([
-                'quarter' =>
-                'This decision is locked and read-only.',
+                'quarter' => 'This decision is locked and read-only.',
             ]);
         }
 
@@ -493,7 +562,7 @@ class FirmDecisionService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      * @return array<string, array<string, mixed>>
      */
     private function validatePayload(
@@ -506,15 +575,13 @@ class FirmDecisionService
         foreach ($payload as $category => $values) {
             if (! isset($enabled[$category])) {
                 throw ValidationException::withMessages([
-                    $category =>
-                    "Decision category [{$category}] is not open.",
+                    $category => "Decision category [{$category}] is not open.",
                 ]);
             }
 
             if (! is_array($values)) {
                 throw ValidationException::withMessages([
-                    $category =>
-                    'Category payload must be an object.',
+                    $category => 'Category payload must be an object.',
                 ]);
             }
         }
@@ -527,8 +594,7 @@ class FirmDecisionService
             ) !== []
         ) {
             throw ValidationException::withMessages([
-                'decisions' =>
-                'Every open category requires a complete decision.',
+                'decisions' => 'Every open category requires a complete decision.',
             ]);
         }
 
@@ -547,8 +613,7 @@ class FirmDecisionService
                 ) !== []
             ) {
                 throw ValidationException::withMessages([
-                    $code =>
-                    "Unexpected field supplied for [{$code}].",
+                    $code => "Unexpected field supplied for [{$code}].",
                 ]);
             }
 
@@ -560,8 +625,7 @@ class FirmDecisionService
                     && ! array_key_exists($key, $values)
                 ) {
                     throw ValidationException::withMessages([
-                        "{$code}.{$key}" =>
-                        'This field is required.',
+                        "{$code}.{$key}" => 'This field is required.',
                     ]);
                 }
 
@@ -589,8 +653,7 @@ class FirmDecisionService
                         && ! is_numeric($value)
                     ) {
                         throw ValidationException::withMessages([
-                            "{$code}.{$key}" =>
-                            'This field must be numeric.',
+                            "{$code}.{$key}" => 'This field must be numeric.',
                         ]);
                     }
                 }
@@ -604,8 +667,7 @@ class FirmDecisionService
                     )
                 ) {
                     throw ValidationException::withMessages([
-                        "{$code}.{$key}" =>
-                        'This value is not allowed.',
+                        "{$code}.{$key}" => 'This value is not allowed.',
                     ]);
                 }
             }
@@ -621,8 +683,7 @@ class FirmDecisionService
             || (float) $dividend < 0
         ) {
             throw ValidationException::withMessages([
-                'dividend' =>
-                'Dividend must be a nonnegative monetary value.',
+                'dividend' => 'Dividend must be a nonnegative monetary value.',
             ]);
         }
     }

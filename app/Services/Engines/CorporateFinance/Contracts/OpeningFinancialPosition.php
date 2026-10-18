@@ -21,6 +21,17 @@ final readonly class OpeningFinancialPosition
         public float $serviceLevelAccrual = 0.0,
         public float $excisePayable = 0.0,
         public float $bankOverdraft = 0.0,
+        // Engine version 2 only: stock carried in by product, its value at
+        // cost before the LIFO reserve, the reserve, and accumulated
+        // depreciation by class. Version 1 results don't carry these.
+        public float $unitsOnHandP1 = 0.0,
+        public float $unitsOnHandP2 = 0.0,
+        public float $stockValueP1 = 0.0,
+        public float $stockValueP2 = 0.0,
+        public float $lifoReserve = 0.0,
+        public float $accumulatedManufacturing = 0.0,
+        public float $accumulatedTechnology = 0.0,
+        public float $accumulatedDistributionCenter = 0.0,
     ) {}
 
     /**
@@ -77,6 +88,14 @@ final readonly class OpeningFinancialPosition
             serviceLevelAccrual: self::number($priorResult, 'bs_sl_accrual'),
             excisePayable: self::number($priorResult, 'bs_excise'),
             bankOverdraft: self::number($priorResult, 'bs_bank_overdraft'),
+            unitsOnHandP1: self::number($priorResult, 'n3_units_p1'),
+            unitsOnHandP2: self::number($priorResult, 'n3_units_p2'),
+            stockValueP1: self::number($priorResult, 'n3_value_p1'),
+            stockValueP2: self::number($priorResult, 'n3_value_p2'),
+            lifoReserve: self::number($priorResult, 'n3_lifo_res'),
+            accumulatedManufacturing: self::number($priorResult, 'n4_mfg_accum'),
+            accumulatedTechnology: self::number($priorResult, 'n4_tech_accum'),
+            accumulatedDistributionCenter: self::number($priorResult, 'n4_dc_accum'),
         );
     }
 

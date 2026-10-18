@@ -35,7 +35,9 @@ final class FinancialPlausibilityValidator
             ),
 
             'payables_to_purchases_ratio' => $this->rangeEvaluation(
-                $this->ratio($fields['bs_ap'], $supplierPurchases),
+                // Engine v2 adds the payable for goods in transit (ED6); the
+                // 30% trade-credit rule applies to the rest.
+                $this->ratio($fields['bs_ap'] - (array_key_exists('n3_value_p1', $fields) ? (float) $fields['n3_in_transit'] : 0.0), $supplierPurchases),
                 0.0,
                 0.35
             ),
@@ -299,9 +301,7 @@ final class FinancialPlausibilityValidator
     }
 
     /**
-
      * @param  array<int, array<string, mixed>>  $violations
-
      */
     private function validateTurnoverMetrics(
 
@@ -418,9 +418,7 @@ final class FinancialPlausibilityValidator
         }
     }
 
-
     private function isZeroActivityQuarter(ManufacturingEngineResult $result): bool
-
     {
 
         $netRevenue = (float) $result->incomeStatement['net_revenue'];

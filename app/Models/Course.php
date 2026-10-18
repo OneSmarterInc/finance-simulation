@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use LogicException;
 
 class Course extends Model
 {
@@ -33,6 +34,7 @@ class Course extends Model
         'deployed_at',
         'registration_token',
         'registration_enabled',
+        'engine_version',
     ];
 
     protected function casts(): array
@@ -46,8 +48,27 @@ class Course extends Model
             'build_quarters' => 'integer',
             'adversarial_quarters' => 'integer',
             'post_bid_quarters' => 'integer',
+            'engine_version' => 'integer',
             'deployed_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // A course keeps the engine version it starts with to the end (ED11).
+        static::creating(function (Course $course): void {
+            $course->engine_version ??= (int) config('flexee.engine_version_for_new_courses', 1);
+        });
+        static::updating(function (Course $course): void {
+            if ($course->isDirty('engine_version') && FirmEngineResult::query()->where('course_id', $course->id)->exists()) {
+                throw new LogicException('A course keeps its engine version once any firm has results.');
+            }
+        });
+    }
+
+    public function engineVersion(): int
+    {
+        return (int) ($this->engine_version ?? 1);
     }
 
     /** @return BelongsTo<Institution, $this> */

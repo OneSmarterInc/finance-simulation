@@ -25,4 +25,11 @@ return [
 
     'require_payment' => (bool) env('FLEXEE_REQUIRE_PAYMENT', env('APP_ENV', 'production') === 'production'),
 
+    /*
+    | Engine version for courses created from now on. Running courses keep the
+    | version they started with (engine design note, ED11). Version 2 needs the
+    | screens from the next layer, so it stays off until that layer ships.
+    */
+    'engine_version_for_new_courses' => (int) env('FLEXEE_ENGINE_VERSION', 1),
+
 ];

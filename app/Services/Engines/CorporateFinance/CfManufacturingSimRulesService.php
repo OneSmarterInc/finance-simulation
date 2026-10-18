@@ -219,6 +219,150 @@ final class CfManufacturingSimRulesService
     }
 
     /**
+     * Engine version 2 (port of economics/cfmodel/rules.py). Two rules change:
+     * while production is closed the plant makes the forecast less the units
+     * already in stock (ED2 b), and the inputs version 2 doesn't read are
+     * neither required nor passed on.
+     *
+     * @param  array<string, mixed>  $demandContext  what closed forecasting plans from (demandContextV2)
+     * @param  array<string, mixed>  $parameters
+     * @param  array<int, string>  $studentControlledCategories
+     * @param  array<string, array<string, mixed>>  $studentDecisions
+     * @param  array{p1?: float, p2?: float}  $unitsOnHand
+     * @return array<string, array<string, mixed>>
+     */
+    public function deriveCompleteDecisionsV2(
+        int $quarterNumber,
+        array $demandContext,
+        array $parameters,
+        array $studentControlledCategories = [],
+        array $studentDecisions = [],
+        array $unitsOnHand = [],
+    ): array {
+        if ($quarterNumber < 1) {
+            throw new EngineCalculationException('Sim rules require Quarter 1 or later.');
+        }
+        $this->validateDemandContext($demandContext);
+        $controlled = array_values(array_unique($studentControlledCategories));
+        $team = [];
+        foreach ($controlled as $category) {
+            if (! in_array($category, self::OPERATIONAL_CATEGORIES, true)) {
+                throw new EngineCalculationException("Student-controlled category [{$category}] is not an operational sim-rule category.");
+            }
+            if (! array_key_exists($category, $studentDecisions)) {
+                throw new EngineCalculationException("Missing student-controlled decision payload [{$category}].");
+            }
+            $team[$category] = $this->validateCategoryPayloadV2($category, $studentDecisions[$category]);
+        }
+
+        $d = [];
+        $d['forecasting'] = $team['forecasting'] ?? array_intersect_key($demandContext, array_flip(self::DEMAND_FIELDS));
+        $d['pricing'] = $team['pricing'] ?? array_diff_key($this->derivePricing($parameters), ['discount_policy' => true]);
+        if (isset($team['production'])) {
+            $d['production'] = $team['production'];
+        } else {
+            $units = [];
+            foreach (['p1', 'p2'] as $product) {
+                $want = 0.0;
+                foreach (['r1', 'r2', 'r3'] as $region) {
+                    $want += (float) $d['forecasting']["forecast_{$product}_{$region}"];
+                }
+                $units[$product] = max(0.0, round($want - (float) ($unitsOnHand[$product] ?? 0.0)));
+            }
+            $d['production'] = [
+                'p1_production' => $units['p1'],
+                'p2_production' => $units['p2'],
+                'shifts' => $this->shiftsFor($units['p1'] + $units['p2'], $parameters),
+            ];
+        }
+        $d['marketing'] = $team['marketing'] ?? ['marketing_budget_pct' => 0.05];
+        $d['quality'] = $team['quality'] ?? $this->deriveQuality();
+        $d['logistics'] = $team['logistics'] ?? $this->deriveLogistics();
+        $d['sourcing'] = $team['sourcing'] ?? ['primary_supplier' => 'SUP001', 'primary_alloc' => 1.0, 'secondary_supplier' => 'NONE'];
+
+        $ordered = [];
+        foreach (self::OPERATIONAL_CATEGORIES as $category) {
+            $ordered[$category] = $d[$category];
+        }
+
+        return $ordered;
+    }
+
+    /**
+     * Engine version 2: what the rules plan from when forecasting is closed.
+     * In the warm-up it is the market itself; from Quarter 4 it is last
+     * quarter's orders adjusted for the season.
+     *
+     * @param  array<string, mixed>  $market  this quarter's market
+     * @param  array<string, mixed>|null  $priorFields  last quarter's engine fields
+     * @param  array<string, mixed>  $parameters
+     * @return array<string, int>
+     */
+    public function demandContextV2(int $quarterNumber, array $market, ?array $priorFields, array $parameters): array
+    {
+        if ($quarterNumber <= 3) {
+            return array_intersect_key($market, array_flip(self::DEMAND_FIELDS));
+        }
+        if ($priorFields === null) {
+            throw new EngineCalculationException('A closed forecast after Quarter 3 needs last quarter\'s orders.');
+        }
+        $ratio = MarketPath::season($parameters, $quarterNumber) / MarketPath::season($parameters, $quarterNumber - 1);
+        $context = [];
+        foreach (self::DEMAND_FIELDS as $field) {
+            [, $product, $region] = explode('_', $field);
+            $key = "n2_ord_{$region}_{$product}";
+            if (! array_key_exists($key, $priorFields)) {
+                throw new EngineCalculationException("A closed forecast needs last quarter's orders [{$key}]; the prior result is not from engine version 2.");
+            }
+            $context[$field] = (int) round((float) $priorFields[$key] * $ratio);
+        }
+
+        return $context;
+    }
+
+    public function shiftsFor(float $units, array $parameters): int
+    {
+        return min(3, max(1, (int) ceil($units / max(1.0, $this->requiredNumber($parameters, 'capacity_per_shift')))));
+    }
+
+    /**
+     * Version 2 accepts a payload with or without the inputs it no longer
+     * reads, and drops them.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function validateCategoryPayloadV2(string $category, array $payload): array
+    {
+        $unused = ManufacturingCFEngineV2::UNUSED_INPUTS[$category] ?? [];
+        $schema = CfManufacturingScenarioDefinition::inputFieldsForCategory($category)['fields'];
+        $known = [];
+        foreach ($schema as $field) {
+            $key = (string) $field['key'];
+            $known[] = $key;
+            if (in_array($key, $unused, true)) {
+                continue;
+            }
+            if (! array_key_exists($key, $payload)) {
+                throw new EngineCalculationException("Missing required decision field [{$category}.{$key}].");
+            }
+            if (($field['type'] ?? null) === 'number' && ! is_numeric($payload[$key])) {
+                throw new EngineCalculationException("Decision field [{$category}.{$key}] must be numeric.");
+            }
+            if (isset($field['allowed_values']) && ! in_array($payload[$key], $field['allowed_values'], true)) {
+                throw new EngineCalculationException("Decision field [{$category}.{$key}] has unsupported value [{$payload[$key]}].");
+            }
+        }
+        foreach (array_keys($payload) as $key) {
+            if (! in_array($key, $known, true)) {
+                throw new EngineCalculationException("Unexpected decision field [{$category}.{$key}].");
+            }
+        }
+
+        return array_diff_key($payload, array_flip($unused));
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     private function validateCategoryPayload(string $category, array $payload): void

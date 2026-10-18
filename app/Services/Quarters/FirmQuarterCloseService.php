@@ -11,12 +11,12 @@ use App\Services\CfPlus\FirmAccountingElectionService;
 use App\Services\Decisions\FirmDecisionService;
 use App\Services\Engines\CorporateFinance\AccountingIdentityValidator;
 use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngine;
-use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngineInput;
 use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngineResult;
 use App\Services\Engines\CorporateFinance\Exceptions\EngineCalculationException;
 use App\Services\Engines\CorporateFinance\Exceptions\PlausibilityValidationException;
 use App\Services\Engines\CorporateFinance\FinancialPlausibilityValidator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -54,10 +54,9 @@ class FirmQuarterCloseService
         try {
             $submitted = $decision->submitted_payload ?? [];
             $resolved = $this->decisions->resolveCompleteDecisions($firm, $quarter, $submitted);
-            $parameters = $this->decisions->parameters($firm);
             $opening = $this->decisions->opening($firm, $quarter);
             $this->decisions->dividendLimit($firm, $quarter, $submitted, $decision->dividend);
-            $result = $this->engine->calculate(new ManufacturingEngineInput($quarter->quarter_number, $resolved, $parameters, $opening, $decision->dividend));
+            $result = $this->engine->calculate($this->decisions->engineInput($firm, $quarter, $resolved, $decision->dividend));
 
             $this->accounting->validate($result->fields, $opening);
 
@@ -108,7 +107,7 @@ class FirmQuarterCloseService
 
                 ->filter(
 
-                    fn(array $evaluation): bool => ($evaluation['evaluated'] ?? false) === true
+                    fn (array $evaluation): bool => ($evaluation['evaluated'] ?? false) === true
 
                         && ($evaluation['passed'] ?? true) === false
 
@@ -116,7 +115,7 @@ class FirmQuarterCloseService
 
                 ->map(
 
-                    fn(array $evaluation, string $rule): array => [
+                    fn (array $evaluation, string $rule): array => [
 
                         'rule' => $rule,
 
@@ -162,7 +161,7 @@ class FirmQuarterCloseService
                 return;
             }
 
-            \Illuminate\Support\Facades\Log::warning('firm_close_failed', [
+            Log::warning('firm_close_failed', [
 
                 'firm_id' => $attempt->firm_id,
 
@@ -206,10 +205,10 @@ class FirmQuarterCloseService
             'cash_flow_statement' => $result->cashFlowStatement,
             'notes' => $result->notes,
             'intermediates' => $result->intermediates,
-            'engine_contract' => FirmEngineResult::ENGINE_CONTRACT,
+            'engine_contract' => FirmEngineResult::contractFor($firm->course->engineVersion()),
             'provenance' => FirmEngineResult::PROVENANCE_STUDENT_CLOSE,
             'immutable' => true,
-            'validated_at' => now()
+            'validated_at' => now(),
         ];
     }
 
