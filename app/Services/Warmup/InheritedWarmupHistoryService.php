@@ -37,7 +37,7 @@ class InheritedWarmupHistoryService
         try {
             $generated = $this->warmup->generateFromSeedHash(
                 FirmWarmupInitializationCoordinator::courseSeed($firm->course),
-                $firm->id,
+                FirmWarmupInitializationCoordinator::marketIdentifier($firm),
                 $firm->course->scenario,
                 $firm->course->engineVersion(),
                 $firm->course->startingElections(),

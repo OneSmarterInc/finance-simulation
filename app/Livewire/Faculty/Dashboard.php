@@ -15,7 +15,7 @@ class Dashboard extends Component
     {
         $faculty = $this->faculty();
 
-        $courses = Course::query()
+        $courses = Course::query()->real()
             ->where(function ($query) use ($faculty): void {
                 $query
                     ->where('faculty_id', $faculty->id)

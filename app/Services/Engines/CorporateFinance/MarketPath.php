@@ -89,7 +89,7 @@ final class MarketPath
         return self::forParameters($parameters)->path(
             self::q0Forecast($firm->course->scenario),
             FirmWarmupInitializationCoordinator::courseSeed($firm->course),
-            $firm->id,
+            FirmWarmupInitializationCoordinator::marketIdentifier($firm),
             $quarter,
             $parameters,
         )[$quarter];

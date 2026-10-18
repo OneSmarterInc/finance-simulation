@@ -48,7 +48,7 @@ class StudentCourseRegistrationService
              * Lock the course so its registration state cannot change
              * while this registration transaction is being processed.
              */
-            $course = Course::query()
+            $course = Course::query()->real()
                 ->lockForUpdate()
                 ->findOrFail($course->id);
 
@@ -79,8 +79,7 @@ class StudentCourseRegistrationService
                  */
                 if ($user->admin !== null) {
                     throw ValidationException::withMessages([
-                        'email' =>
-                        'This email address is already registered as an administrator account and cannot be enrolled as a student.',
+                        'email' => 'This email address is already registered as an administrator account and cannot be enrolled as a student.',
                     ]);
                 }
 
@@ -90,8 +89,7 @@ class StudentCourseRegistrationService
                  */
                 if ($user->faculty !== null) {
                     throw ValidationException::withMessages([
-                        'email' =>
-                        'This email address is already registered as a faculty account and cannot be enrolled as a student.',
+                        'email' => 'This email address is already registered as a faculty account and cannot be enrolled as a student.',
                     ]);
                 }
 
@@ -104,8 +102,7 @@ class StudentCourseRegistrationService
 
                 if (! $student) {
                     throw ValidationException::withMessages([
-                        'email' =>
-                        'An account already exists with this email address and cannot be registered as a student.',
+                        'email' => 'An account already exists with this email address and cannot be registered as a student.',
                     ]);
                 }
 
@@ -115,8 +112,7 @@ class StudentCourseRegistrationService
                  */
                 if ($student->institution_id !== $course->institution_id) {
                     throw ValidationException::withMessages([
-                        'email' =>
-                        'This student account belongs to another institution and cannot be enrolled in this course.',
+                        'email' => 'This student account belongs to another institution and cannot be enrolled in this course.',
                     ]);
                 }
 
@@ -129,8 +125,7 @@ class StudentCourseRegistrationService
                  */
                 if (! Hash::check($password, $user->password)) {
                     throw ValidationException::withMessages([
-                        'password' =>
-                        'The password is incorrect for this existing student account.',
+                        'password' => 'The password is incorrect for this existing student account.',
                     ]);
                 }
             } else {
@@ -221,15 +216,13 @@ class StudentCourseRegistrationService
     {
         if ($course->status !== Course::STATUS_DEPLOYED) {
             throw ValidationException::withMessages([
-                'registration' =>
-                'This course is not currently available for registration.',
+                'registration' => 'This course is not currently available for registration.',
             ]);
         }
 
         if (! $course->registration_enabled) {
             throw ValidationException::withMessages([
-                'registration' =>
-                'Registration for this course is currently closed.',
+                'registration' => 'Registration for this course is currently closed.',
             ]);
         }
 
@@ -238,8 +231,7 @@ class StudentCourseRegistrationService
             now()->startOfDay()->lt($course->starts_on->startOfDay())
         ) {
             throw ValidationException::withMessages([
-                'registration' =>
-                'Registration for this course has not opened yet.',
+                'registration' => 'Registration for this course has not opened yet.',
             ]);
         }
 
@@ -248,8 +240,7 @@ class StudentCourseRegistrationService
             now()->startOfDay()->gt($course->ends_on->endOfDay())
         ) {
             throw ValidationException::withMessages([
-                'registration' =>
-                'Registration for this course has closed.',
+                'registration' => 'Registration for this course has closed.',
             ]);
         }
     }

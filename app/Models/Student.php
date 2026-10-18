@@ -18,7 +18,14 @@ class Student extends Model
     protected $fillable = [
         'user_id',
         'institution_id',
+        'is_practice',
     ];
+
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return ['is_practice' => 'boolean'];
+    }
 
     /**
      * @return BelongsTo<User, $this>

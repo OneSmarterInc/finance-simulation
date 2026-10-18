@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\FacultyFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -55,11 +56,11 @@ class Faculty extends Model
     /**
      * Courses this faculty member owns or co-teaches, newest first.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, Course>
+     * @return Collection<int, Course>
      */
-    public function teachingCourses(): \Illuminate\Database\Eloquent\Collection
+    public function teachingCourses(): Collection
     {
-        return Course::query()
+        return Course::query()->real()
             ->where(function ($query): void {
                 $query->where('faculty_id', $this->id)
                     ->orWhereHas('facultyRoles', fn ($roles) => $roles->where('faculty_id', $this->id));
