@@ -12,13 +12,22 @@ use Livewire\Component;
 /**
  * The Ask Claude panel on faculty pages (U1). The page it sits on is fixed
  * when the page renders (Locked), so a question is always asked about the
- * course and page the faculty member is looking at. The conversation stays
+ * course and page the faculty member is looking at; on the dashboard they
+ * pick one of their own courses. The conversation stays
  * in the session per course, so it follows them from page to page.
  */
 class AskClaudePanel extends Component
 {
-    #[Locked]
+    /** The course asked about. Fixed by the page, except on the dashboard, where the faculty member picks one of theirs. */
     public string $courseId;
+
+    /** The page's own course; outside the dashboard the panel can't leave it. */
+    #[Locked]
+    public string $pageCourseId;
+
+    /** @var array<string, string> course id => name, on the dashboard only */
+    #[Locked]
+    public array $courseOptions = [];
 
     /** @var array{page: string, label: string, details?: array<string, string>} */
     #[Locked]
@@ -32,11 +41,21 @@ class AskClaudePanel extends Component
 
     public bool $showSeen = false;
 
-    public function mount(Course $course, array $context, array $suggestions = []): void
+    public function mount(Course $course, array $context, array $suggestions = [], array $courseOptions = []): void
     {
-        $this->courseId = $course->id;
+        $this->courseId = $this->pageCourseId = $course->id;
         $this->context = $context;
         $this->suggestions = $suggestions;
+        $this->courseOptions = $courseOptions;
+    }
+
+    public function updatedCourseId(): void
+    {
+        // Only the dashboard lets the course change, and only to one of the faculty member's own.
+        if (! array_key_exists($this->courseId, $this->courseOptions)) {
+            $this->courseId = (string) array_key_first($this->courseOptions);
+        }
+        $this->resetErrorBag();
     }
 
     public function ask(AskClaude $claude, ?string $suggested = null): void
@@ -58,6 +77,7 @@ class AskClaudePanel extends Component
             'dropped' => $result['dropped'],
             'checked' => $result['checked'],
             'names' => $result['names'],
+            'views' => $result['views'] ?? [],
         ];
         session()->put($this->key(), array_slice($turns, -8));
         $this->question = '';
@@ -89,6 +109,8 @@ class AskClaudePanel extends Component
 
     private function course(): Course
     {
+        $allowed = $this->courseOptions !== [] ? array_key_exists($this->courseId, $this->courseOptions) : $this->courseId === $this->pageCourseId;
+        abort_unless($allowed, 403);
         $course = Course::query()->findOrFail($this->courseId);
         $faculty = $this->faculty();
         abort_unless($course->faculty_id === $faculty->id || $course->facultyRoles()->where('faculty_id', $faculty->id)->exists(), 403);

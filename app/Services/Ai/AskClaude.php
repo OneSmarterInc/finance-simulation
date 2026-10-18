@@ -102,7 +102,7 @@ class AskClaude
             throw ValidationException::withMessages(['question' => 'Claude couldn\'t be reached just now. Please try again in a minute.']);
         }
 
-        return ['record' => $record, 'answer' => $check['answer'], 'dropped' => $check['dropped'], 'lookups' => $lookups, 'checked' => $check['checked'], 'names' => $tools->names()];
+        return ['record' => $record, 'answer' => $check['answer'], 'dropped' => $check['dropped'], 'lookups' => $lookups, 'checked' => $check['checked'], 'names' => $tools->names(), 'views' => $tools->views()];
     }
 
     /** Ask Claude is available on this course for this faculty member: the site switch, the key and the course switch. */
@@ -173,7 +173,8 @@ class AskClaude
 
         How to answer:
         - Answer the instructor's question in a few short, plain sentences. No headings, no bold, and no bullet lists unless they ask for a list.
-        - Use the lookups for anything about this course. Never guess a date, a deadline, a count, a status or any other figure: if a lookup or the guide didn't give it to you, don't state it. Any sentence with a figure that no lookup or the guide gave you is removed before the instructor sees it.
+        - Use the lookups for anything about this course. For results, read them with get_results; when figures matter to the answer, call show_table once so the instructor sees them beside it.
+        - Quote figures exactly as the lookups give them (for example "$21,613,457.97", "18.4%", "3.49x"); don't round, add up or work out new figures. Describe a change in words ("cash fell", "more than doubled") rather than computing it. Never guess a date, a deadline, a count, a status or any other figure: if a lookup or the guide didn't give it to you, don't state it. Any sentence with a figure that no lookup or the guide gave you is removed before the instructor sees it.
         - You can only read. If the instructor wants something done (extend a deadline, approve a request), say which page does it.
         - Students appear in lookups as Student 1, Student 2 and so on. Refer to them that way; the page shows their names.
         - Describe what happened and what the course will do. Don't tell the instructor how to grade, and don't suggest decisions for students.
@@ -217,7 +218,11 @@ class AskClaude
             'get_course_status' => ($result['open_quarter'] ?? null)
                 ? 'Quarter '.$result['open_quarter']['quarter'].' open, and the submission status of '.count($result['open_quarter']['firms']).' '.Str::plural('firm', count($result['open_quarter']['firms']))
                 : 'no quarter open; '.(($result['last_closed_quarter'] ?? null) ? 'last closed: Quarter '.$result['last_closed_quarter'] : 'warm-up only'),
-            default => 'nothing',
+            'get_results', 'show_table' => count($result['results'] ?? []).' '.Str::plural('firm', count($result['results'] ?? [])).'\' stored results'.($name === 'show_table' ? ', shown as a table' : ''),
+            'get_decisions' => is_array($result['decisions'] ?? null) ? ($result['firm'] ?? '').'\'s Quarter '.($result['quarter'] ?? '').' decisions' : 'no calculated decisions for that quarter',
+            'get_method_requests' => count($result['requests'] ?? []).' method '.Str::plural('request', count($result['requests'] ?? [])),
+            'get_practice_scoreboard' => isset($result['played_to_quarter']) ? 'the practice run, played to Quarter '.$result['played_to_quarter'] : 'no practice run',
+            default => $result['error'] ?? 'nothing',
         };
     }
 }
