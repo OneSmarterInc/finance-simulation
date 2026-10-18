@@ -6,8 +6,9 @@ draws, and the season multiplies the prior quarter's demand.
 
 Engine version 2 continues the market past Quarter 3 (ED1 b, "own slice,
 one economy"): each firm keeps its own market's size, but from Quarter 4 on
-every firm in the course grows and swings with the same draws, and the
-season is re-based so it no longer compounds.
+every firm in the course grows and swings with the same draws. In version 2
+the season applies to the market's level from Quarter 1 on, so it never
+compounds (ED16).
 """
 from __future__ import annotations
 
@@ -64,9 +65,12 @@ def market_path(version: int, q0: dict, seed: str, firm: str, last_quarter: int,
     prior = {k: float(q0[k]) for k in DEMAND_FIELDS}
     top = min(last_quarter, 3) if version == 1 else last_quarter
     for q in range(1, top + 1):
-        if q <= 3:
-            path[q] = {k: max(0, int(php_round(prior[k] * warmup_growth(seed, firm, q, k, sd) * season(p, q)))) for k in DEMAND_FIELDS}
+        growth = (lambda k: warmup_growth(seed, firm, q, k, sd)) if q <= 3 else (lambda k: class_growth(seed, q, k, sd))
+        if version == 1 or q == 1:
+            # Version 1 multiplies the season onto the prior quarter, so seasons compound.
+            path[q] = {k: max(0, int(php_round(prior[k] * growth(k) * season(p, q)))) for k in DEMAND_FIELDS}
         else:
-            path[q] = {k: max(0, int(php_round(prior[k] / season(p, q - 1) * class_growth(seed, q, k, sd) * season(p, q)))) for k in DEMAND_FIELDS}
+            # Version 2 (ED16): the season applies to the market's level, from Quarter 1 on.
+            path[q] = {k: max(0, int(php_round(prior[k] / season(p, q - 1) * growth(k) * season(p, q)))) for k in DEMAND_FIELDS}
         prior = {k: float(v) for k, v in path[q].items()}
     return path

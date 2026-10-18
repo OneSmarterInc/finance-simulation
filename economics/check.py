@@ -20,7 +20,8 @@ from cfmodel.course import ROOT, load_reference_course, load_scenario, play, val
 from cfmodel.engine import (  # noqa: E402
     CLASSES, PRODUCTS, REGIONS, V2_UNUSED_INPUTS, DividendTooLarge, Opening, calculate, fields_for, marketing_lift,
 )
-from cfmodel.market import DEMAND_FIELDS, class_growth, market_path, season  # noqa: E402
+from cfmodel.market import DEMAND_FIELDS, class_growth, market_path, season, warmup_growth  # noqa: E402
+from cfmodel.numbers import php_round  # noqa: E402
 
 TOL = 0.011  # a cent, as AccountingIdentityValidator allows
 results: list[tuple[str, bool, str]] = []
@@ -285,7 +286,7 @@ def _():
         purchases = f["n6_supplier"]
         if notes["shipping_terms"] == "fob_destination":
             return f["n3_in_transit"] == 0 and close(f["bs_ap"], purchases * 0.30)
-        return (f["n3_in_transit"] > 0 or purchases == 0) and close(f["bs_ap"], purchases * 0.30 + f["n3_in_transit"])
+        return close(f["bs_ap"], purchases * 0.30 + f["n3_in_transit"])
     detail = each([(l, r) for l, r in ALL_V2 if r["intermediates"]["total_production"] > 0], ok, "in-transit wrong")
     fobd = sum(1 for _, r in ALL_V2 if r["decisions"]["notes_elections"]["shipping_terms"] == "fob_destination")
     assert fobd > 0, "no firm-quarter uses FOB destination"
@@ -345,13 +346,19 @@ def _():
             assert a["fields"] == b["fields"], f"{t} Q{a['quarter']} differs"
 
 
-@check("Version 2 warm-up income statement equals the stored version 1 warm-up")
+@check("The market follows the season table from Quarter 1, without compounding")
 def _():
-    firm = next(f for f in V1["firms"] if f["code"] == COURSE["stored_v1_firm_code"])
-    for stored, row in zip(firm["quarters"][:3], RUNS["careful"][:3]):
-        for k, s in stored["income_statement"].items():
-            assert abs(row["income_statement"][k] - s) <= 1e-4, f"Q{stored['quarter']} {k}: v1 {s}, v2 {row['income_statement'][k]}"
-    return "the warm-up students see doesn't change; only the balance sheet gains goods in transit and the PPE note its accumulated depreciation"
+    sd = P["demand_growth_standard_deviation"]
+    path = market_path(2, SCEN["q0_forecast"], COURSE["seed"], COURSE["warmup_firm_id"], 11, P)
+    for q in range(2, 12):
+        for k in DEMAND_FIELDS:
+            g = warmup_growth(COURSE["seed"], COURSE["warmup_firm_id"], q, k, sd) if q <= 3 else class_growth(COURSE["seed"], q, k, sd)
+            want = round(path[q - 1][k] / season(P, q - 1) * g * season(P, q))
+            assert abs(path[q][k] - want) <= 1, f"Q{q} {k}"
+    level3 = sum(path[3].values()) / season(P, 3)
+    level0 = sum(SCEN["q0_forecast"].values())
+    assert level3 > level0, "the Quarter 3 market should sit above the Quarter 0 level after two quarters of growth"
+    return f"Quarter 3 market {sum(path[3].values()):,} units against {level0:,} at Quarter 0; peak {max(sum(v.values()) for v in path.values()):,}"
 
 
 @check("From Quarter 4 every firm's market moves with the same draws")
@@ -413,15 +420,58 @@ def _():
     assert len(d) == len(rows), "the charge should change as output changes"
 
 
-@check("Every accounting choice changes the statements, except weighted average (open item)")
+@check("Every accounting choice and variant changes the statements")
 def _():
     careful = {r["quarter"]: r["fields"] for r in RUNS["careful"]}
-    same = []
-    for name, rows in FIX["variants"].items():
-        if all(r["fields"] == careful[r["quarter"]] for r in rows):
-            same.append(name)
-    assert same == ["weighted_average"], f"choices with no effect: {same}"
-    return "weighted average still gives exactly the FIFO result, as in version 1"
+    same = [name for name, rows in FIX["variants"].items() if all(r["fields"] == careful[r["quarter"]] for r in rows)]
+    assert not same, f"variants with no effect: {same}"
+    return f"{len(FIX['variants'])} variants"
+
+
+@check("Inventory is first-in, first-out whatever method is submitted (ED12)")
+def _():
+    r = RUNS["careless"][5]
+    for method in ("lifo", "weighted_average"):
+        dec = json.loads(json.dumps(r["decisions"]))
+        dec["notes_elections"]["inventory_method"] = method
+        got = calculate(2, r["quarter"], dec, P, _op(r), r["dividend_declared"], r["market"])
+        assert got["fields"] == r["fields"], f"{method} changed a result"
+    return each(ALL_V2, lambda x: x["fields"]["n3_lifo_res"] == 0 and x["fields"]["is_lifo_adj"] == 0, "a LIFO reserve appeared")
+
+
+@check("Goods in transit follow each supplier's lead time (ED13)")
+def _():
+    def want(r):
+        if r["decisions"]["notes_elections"]["shipping_terms"] == "fob_destination":
+            return 0.0
+        src, made = r["decisions"]["sourcing"], r["intermediates"]["total_production"]
+        sec = src["secondary_supplier"]
+        share = 1.0 if sec == "NONE" else src["primary_alloc"]
+        sup = lambda code, attr: P[f"supplier_{code.lower()}_{attr}"]
+        value = made * share * sup(src["primary_supplier"], "cost") * sup(src["primary_supplier"], "lead_days") / 90
+        if sec != "NONE":
+            value += made * (1 - share) * sup(sec, "cost") * sup(sec, "lead_days") / 90
+        return value
+    detail = each(ALL_V2, lambda r: close(r["fields"]["n3_in_transit"], want(r)), "in-transit differs from lead time")
+    usa = FIX["variants"]["usa_supplier"]
+    assert all(r["fields"]["n3_in_transit"] == 0 for r in usa[1:]), "a supplier with no lead time leaves nothing in transit"
+    china = RUNS["average"][2]["fields"]
+    return f"{detail}; China, 45 days: ${china['n3_in_transit'] / 1e6:,.1f}M in transit in Quarter 3"
+
+
+@check("Warranty claims follow defects that get past inspection, and the reserve never goes below zero (ED14)")
+def _():
+    def ok(r):
+        d, m, f = r["decisions"], r["intermediates"], r["fields"]
+        catch = P["inspection_" + d["quality"]["inspection_level"].lower() + "_catch_rate"]
+        defect = P["supplier_" + d["sourcing"]["primary_supplier"].lower() + "_defect_rate"]
+        escaped = php_round(m["total_units_sold"] * defect * (1 - catch))
+        claims = escaped * (1 - P["returns_rate_on_defects"]) * P["warranty_cost_per_claim"]
+        return close(f["n6_war_paid"], claims) and f["bs_warranty_res"] >= 0
+    detail = each(ALL_V2, ok, "warranty claims wrong")
+    topped = [r["quarter"] for r in RUNS["careless"] if r["fields"]["n6_war_exp"] > r["income_statement"]["net_revenue"] * 0.004 + 0.01]
+    assert topped, "skipping inspection should push claims past the estimate"
+    return f"{detail}; the careless team, without inspection, tops up its reserve in Quarters {', '.join(map(str, topped))}"
 
 
 # --- version 2: the lesson ----------------------------------------------------

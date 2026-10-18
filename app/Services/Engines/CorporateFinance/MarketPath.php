@@ -12,11 +12,12 @@ use RuntimeException;
 /**
  * Where demand comes from in engine version 2 (ED1 b, "own slice, one economy").
  *
- * Quarters 1 to 3 are the warm-up market, exactly as DeterministicDemandRandomizer
- * makes it: each firm's market grows from the Quarter 0 forecast with its own
- * draws. From Quarter 4 each firm keeps its market's size, but every firm in
- * the course grows with the same draws (stream cf-market-v2|seed|quarter|field),
- * and the season is re-based so it no longer compounds.
+ * Quarters 1 to 3 are the warm-up market: each firm's market grows from the
+ * Quarter 0 forecast with its own draws (DeterministicDemandRandomizer). From
+ * Quarter 4 each firm keeps its market's size, but every firm in the course
+ * grows with the same draws (stream cf-market-v2|seed|quarter|field). The
+ * season applies to the market's level from Quarter 1 on, so it never
+ * compounds (ED16); version 1's warm-up compounds it.
  *
  * Port of economics/cfmodel/market.py. The values are units customers would
  * order at base price; the engine applies price and marketing.
@@ -49,13 +50,17 @@ final class MarketPath
         $prior = $q0;
         for ($q = 1; $q <= $lastQuarter; $q++) {
             $season = self::season($parameters, $q);
-            if ($q <= 3) {
+            if ($q === 1) {
                 $path[$q] = $this->randomizer->compound($prior, $courseSeed, $firmIdentifier, $q, $season);
             } else {
+                // ED16: the season applies to the market's level, so it never compounds.
                 $previous = self::season($parameters, $q - 1);
                 $path[$q] = [];
                 foreach (DeterministicDemandRandomizer::DEMAND_FIELDS as $field) {
-                    $path[$q][$field] = max(0, (int) round((float) $prior[$field] / $previous * $this->classGrowth($courseSeed, $q, $field) * $season));
+                    $growth = $q <= 3
+                        ? $this->randomizer->growthFactor($courseSeed, $firmIdentifier, $q, $field)
+                        : $this->classGrowth($courseSeed, $q, $field);
+                    $path[$q][$field] = max(0, (int) round((float) $prior[$field] / $previous * $growth * $season));
                 }
             }
             $prior = $path[$q];

@@ -10,6 +10,7 @@ use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngine;
 use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngineInput;
 use App\Services\Engines\CorporateFinance\Contracts\OpeningFinancialPosition;
 use App\Services\Engines\CorporateFinance\FinancialPlausibilityValidator;
+use App\Services\Engines\CorporateFinance\MarketPath;
 use App\Services\Engines\CorporateFinance\VersionedManufacturingEngine;
 use App\Services\Warmup\Contracts\WarmupGenerationResult;
 use App\Services\Warmup\Contracts\WarmupQuarterResult;
@@ -67,6 +68,9 @@ class CfManufacturingWarmupService
         }
 
         $priorDemand = $q0Rows->first()->payload;
+        $v2Market = $engineVersion === 2 && $randomizer instanceof DeterministicDemandRandomizer
+            ? (new MarketPath($randomizer))->path($priorDemand, $courseSeedHash, $firmIdentifier, 3, $parameters)
+            : [];
         $opening = OpeningFinancialPosition::fromScenarioParameters($parameters);
         $priorResult = null;
         $quarterResults = [];
@@ -82,7 +86,10 @@ class CfManufacturingWarmupService
                 foreach (DeterministicDemandRandomizer::DEMAND_FIELDS as $field) {
                     $growthTrace[$field] = $randomizer->growthFactor($courseSeedHash, $firmIdentifier, $quarter, $field);
                 }
-                $demand = $randomizer->compound($priorDemand, $courseSeedHash, $firmIdentifier, $quarter, (float) $parameters[$seasonalityKey]);
+                // Version 2 applies the season to the market's level (ED16); version 1 compounds it.
+                $demand = $engineVersion === 2 && isset($v2Market[$quarter])
+                    ? $v2Market[$quarter]
+                    : $randomizer->compound($priorDemand, $courseSeedHash, $firmIdentifier, $quarter, (float) $parameters[$seasonalityKey]);
                 $this->validateRandomizedDemand($demand);
                 $decisions = $engineVersion === 2
                     ? array_merge($this->simRules->deriveCompleteDecisionsV2($quarter, $demand, $parameters, [], [], ['p1' => $opening->unitsOnHandP1, 'p2' => $opening->unitsOnHandP2]), [
