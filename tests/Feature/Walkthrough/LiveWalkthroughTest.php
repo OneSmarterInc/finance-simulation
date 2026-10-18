@@ -232,4 +232,32 @@ class LiveWalkthroughTest extends TestCase
 
         $this->actingAs(Student::query()->firstOrFail()->user)->get(route('faculty.courses.quarter-results.download', $course))->assertForbidden();
     }
+
+    /** L20, L21, L22: the practice-run link on the evaluation stage, the last-member warning, and whether the course link works. */
+    public function test_small_faculty_fixes(): void
+    {
+        // Courses on the earlier engine can't be rehearsed, so they keep the description alone.
+        [$course, $firm, $student] = $this->phase7bCourse('Course 02');
+        $course->forceFill(['cf_plus_enabled' => true, 'build_quarters' => 1, 'adversarial_quarters' => 1, 'post_bid_quarters' => 1])->save();
+        $this->assertSame(1, $course->fresh()->engineVersion());
+        $this->actingAs($this->faculty->user)->get(route('faculty.courses.cf-plus-auction', $course))->assertOk()->assertDontSee('data-test="evaluation-practice-link"', false);
+
+        config(['flexee.engine_version_for_new_courses' => 2]);
+        $plus = $this->sourceCourse('Plus to rehearse', plus: true);
+        $plus->forceFill(['status' => 'deployed'])->save();
+        $this->get(route('faculty.courses.cf-plus-auction', $plus))->assertOk()
+            ->assertSee('data-test="evaluation-practice-link"', false)
+            ->assertSee(route('faculty.courses.practice', $plus), false);
+
+        $this->get(route('faculty.courses.firms', $course))->assertOk()
+            ->assertSee(e($firm->name).' will have no one left. Its last decisions will carry forward every quarter', false);
+
+        $course->forceFill(['registration_token' => 'tok-123', 'registration_enabled' => false])->save();
+        $this->get(route('faculty.courses.students', $course))->assertOk()
+            ->assertSee('Registration is closed: students who follow this link are turned away.')
+            ->assertSee('Open it on Review setup');
+        $course->forceFill(['registration_enabled' => true])->save();
+        $this->get(route('faculty.courses.students', $course))->assertOk()
+            ->assertSee('Registration is open: anyone with this link can join.');
+    }
 }
