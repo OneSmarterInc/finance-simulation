@@ -42,6 +42,13 @@ final class ManufacturingCFEngineV2 implements ManufacturingEngine
 
     public const MARKETING_REFERENCE_BUDGET = 0.05;
 
+    /**
+     * ED14: the warranty estimate under the percentage-of-sales method. 0.4% of
+     * net revenue is what version 1 paid out in claims, a little above the
+     * claims a firm buying from China with Basic inspection actually gets.
+     */
+    public const WARRANTY_ESTIMATE_RATE = 0.004;
+
     public const ELECTION_KEYS = ['inventory_method', 'depreciation_method', 'shipping_terms', 'bad_debt_method', 'warranty_method', 'excise_tax_treatment'];
 
     /** Inputs version 2 no longer reads (item 76, ED8, ED10). */
@@ -134,6 +141,10 @@ final class ManufacturingCFEngineV2 implements ManufacturingEngine
                 $notes[$key] = $elections[$key];
             }
         }
+        // ED12: inventory is first-in, first-out in version 2, whatever is submitted.
+        $notes['inventory_method'] = 'fifo';
+        $notes['inv_method'] = 'FIFO';
+        $notes['warranty_rate'] = self::WARRANTY_ESTIMATE_RATE;
 
         return $notes;
     }
@@ -229,7 +240,16 @@ final class ManufacturingCFEngineV2 implements ManufacturingEngine
         $carryExp = $capitalized > 0 ? 0.0 : $carrying;
         $rawInv = $endingUnits > 0 ? $endingUnits * $blended * $this->param($p, 'inventory_raw_mat_ratio') : 0.0;
         $wip = 0.0; // ED10: postponed production is ignored
-        $inTransit = $notes['proc_terms'] === 'FOB Shipping Point' ? $blended * $totalProd * $this->param($p, 'inventory_in_transit_ratio') : 0.0;
+        // ED13: goods still on the way are the purchases shipped within each
+        // supplier's lead time: units x share x unit cost x lead days / 90.
+        $inTransit = 0.0;
+        if ($notes['proc_terms'] === 'FOB Shipping Point') {
+            $primaryShare = $sec === 'NONE' ? 1.0 : $this->num($src, 'primary_alloc');
+            $inTransit = $totalProd * $primaryShare * $primaryCost * $this->supplier($p, (string) $src['primary_supplier'], 'lead_days') / 90;
+            if ($sec !== 'NONE') {
+                $inTransit += $totalProd * (1 - $this->num($src, 'primary_alloc')) * $this->supplier($p, $sec, 'cost') * $this->supplier($p, $sec, 'lead_days') / 90;
+            }
+        }
 
         // --- operating expenses
         $netRev = $p1Rev + $p2Rev - $returns - $rebates;
@@ -242,10 +262,17 @@ final class ManufacturingCFEngineV2 implements ManufacturingEngine
         $insp = $totalProd * $this->param($p, 'inspection_'.strtolower((string) $d['quality']['inspection_level']).'_cost');
         $periodDepr = $depr['mfg'] + $depr['tech'] + $depr['dc'];
         $admin = $this->param($p, 'admin_overhead') + $depr['tech'];
-        $warEcon = $netRev * $notes['warranty_rate'];
-        $warPaid = $warEcon * $this->param($p, 'warranty_claims_rate');
-        $warExp = ($notes['warranty_method'] ?? 'percentage_of_sales') === 'expense_as_incurred' ? $warPaid : $warEcon;
-        $war = $this->roll($o->warrantyReserve, $warExp, $o->warrantyReserve + $warPaid);
+        // ED14: every defect that gets past inspection comes back, either as a
+        // return (priced in returns above) or as a warranty claim at the
+        // scenario's cost per claim. The expense is the team's estimate; when
+        // claims outrun the reserve, the shortfall is expensed. The reserve
+        // carries from quarter to quarter.
+        $warPaid = $defective * (1 - $this->param($p, 'returns_rate_on_defects')) * $this->param($p, 'warranty_cost_per_claim');
+        $warEstimate = $netRev * $notes['warranty_rate'];
+        $warExp = ($notes['warranty_method'] ?? 'percentage_of_sales') === 'expense_as_incurred'
+            ? $warPaid
+            : $warEstimate + max(0.0, $warPaid - ($o->warrantyReserve + $warEstimate));
+        $war = $this->roll($o->warrantyReserve, $warExp, $warPaid);
         $sl = $this->roll($o->serviceLevelAccrual, $slPen, $o->serviceLevelAccrual + $slPen * $this->param($p, 'sl_payment_rate'));
         $exc = $this->roll($o->excisePayable, $excise, $o->excisePayable + $excise * $this->param($p, 'excise_payment_rate'));
         $excExp = ($notes['excise_tax_treatment'] ?? 'cogs_inclusion') === 'separate_operating_expense' ? $excise : 0.0;

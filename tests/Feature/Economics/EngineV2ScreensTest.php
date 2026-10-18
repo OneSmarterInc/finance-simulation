@@ -100,6 +100,8 @@ class EngineV2ScreensTest extends TestCase
         [$course, $firm, $student, $q4] = $this->phase7bCourse('Version 2 form');
         $this->setEnabled($q4, 'production', false);
         $this->setEnabled($q4, 'marketing', true);
+        $this->setEnabled($q4, 'quality', true);
+        $this->setEnabled($q4, 'notes_elections', true);
         app(QuarterManagementService::class)->open($course->faculty, $q4);
 
         Livewire::actingAs($student->user)->test(DecisionWorkspace::class, ['firm' => $firm, 'quarter' => $q4->fresh()])
@@ -109,6 +111,9 @@ class EngineV2ScreensTest extends TestCase
             ->assertDontSee('Segment shares')
             ->assertDontSee('Champions segment')
             ->assertDontSee('Postponed production')
+            ->assertDontSee('Inventory method')
+            ->assertSee('The lead time is how long goods take to arrive.')
+            ->assertSee('comes back as a return or a warranty claim at $150')
             ->call('submit')
             ->assertHasNoErrors();
     }

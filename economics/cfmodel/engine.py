@@ -80,6 +80,11 @@ MARKETING_LIFT_SLOPE = 0.06
 MARKETING_LIFT_OFFSET = 0.01
 MARKETING_REFERENCE_BUDGET = 0.05
 
+# ED14: the warranty estimate under the percentage-of-sales method. 0.4% of
+# net revenue is what version 1 paid out in claims, and is a little above the
+# claims a firm buying from China with Basic inspection actually gets.
+WARRANTY_ESTIMATE_RATE_V2 = 0.004
+
 # Inputs version 2 no longer reads (item 76, ED8, ED10).
 V2_UNUSED_INPUTS = {
     "forecasting": ("forecast_confidence",),
@@ -188,6 +193,11 @@ def adapt(decisions: dict, version: int = 1) -> dict:
         "allowance_pct": 0.02, "warranty_rate": 0.01,
     }
     base.update(n if version == 1 else {k: n[k] for k in ELECTION_KEYS if k in n})
+    if version >= 2:
+        # ED12: inventory is first-in, first-out in version 2, whatever is submitted.
+        base["inventory_method"] = "fifo"
+        base["inv_method"] = "FIFO"
+        base["warranty_rate"] = WARRANTY_ESTIMATE_RATE_V2
     d["notes_elections"] = base
     return d
 
@@ -244,6 +254,14 @@ def _credit_tier(score: float, p: dict) -> tuple[float, float]:
 
 def _supplier(p: dict, code: str, attr: str) -> float:
     return p[f"supplier_{code.lower()}_{attr}"]
+
+
+def src_share(src: dict, which: str) -> float:
+    """Share of materials from the main or second supplier."""
+    if str(src.get("secondary_supplier", "NONE")).upper() == "NONE":
+        return 1.0 if which == "primary" else 0.0
+    alloc = float(src["primary_alloc"])
+    return alloc if which == "primary" else 1 - alloc
 
 
 def calculate(version: int, quarter: int, decisions: dict, p: dict, o: Opening, dividend: float,
@@ -329,7 +347,16 @@ def calculate(version: int, quarter: int, decisions: dict, p: dict, o: Opening, 
     carry_exp = 0.0 if capitalized > 0 else carrying
     raw_inv = ending_units * blended * p["inventory_raw_mat_ratio"] if ending_units > 0 else 0.0
     wip = ending_units * unit_cost * p["inventory_wip_ratio"] if postponed else 0.0
-    in_transit = blended * total_prod * p["inventory_in_transit_ratio"] if notes["proc_terms"] == "FOB Shipping Point" else 0.0
+    if notes["proc_terms"] != "FOB Shipping Point":
+        in_transit = 0.0
+    elif v2:
+        # ED13: goods still on the way are the purchases shipped within each
+        # supplier's lead time: units x share x unit cost x lead days / 90.
+        in_transit = total_prod * src_share(src, "primary") * primary_cost * _supplier(p, src["primary_supplier"], "lead_days") / 90
+        if sec != "NONE":
+            in_transit += total_prod * src_share(src, "secondary") * _supplier(p, sec, "cost") * _supplier(p, sec, "lead_days") / 90
+    else:
+        in_transit = blended * total_prod * p["inventory_in_transit_ratio"]
 
     # --- operating expenses
     net_rev = p1_rev + p2_rev - returns - rebates
@@ -344,10 +371,25 @@ def calculate(version: int, quarter: int, decisions: dict, p: dict, o: Opening, 
     insp = total_prod * p["inspection_" + d["quality"]["inspection_level"].lower() + "_cost"]
     period_depr = depr["mfg"] + depr["tech"] + depr["dc"]
     admin = p["admin_overhead"] + depr["tech"]
-    war_econ = net_rev * notes["warranty_rate"]
-    war_paid = war_econ * p["warranty_claims_rate"]
-    war_exp = war_paid if notes.get("warranty_method", "percentage_of_sales") == "expense_as_incurred" else war_econ
-    war = _roll(o.warranty, war_exp, o.warranty + war_paid)
+    if v2:
+        # ED14: every defect that gets past inspection comes back, either as a
+        # return (a share of them, priced in returns above) or as a warranty
+        # claim at the scenario's cost per claim. The expense is the team's
+        # estimate; when claims outrun the reserve, the shortfall is expensed.
+        war_paid = defective * (1 - p["returns_rate_on_defects"]) * p["warranty_cost_per_claim"]
+        war_estimate = net_rev * notes["warranty_rate"]
+        if notes.get("warranty_method", "percentage_of_sales") == "expense_as_incurred":
+            war_exp = war_paid
+        else:
+            war_exp = war_estimate + max(0.0, war_paid - (o.warranty + war_estimate))
+        # The reserve carries from quarter to quarter: claims are paid from it.
+        war = _roll(o.warranty, war_exp, war_paid)
+    else:
+        war_econ = net_rev * notes["warranty_rate"]
+        war_paid = war_econ * p["warranty_claims_rate"]
+        war_exp = war_paid if notes.get("warranty_method", "percentage_of_sales") == "expense_as_incurred" else war_econ
+        # Version 1 pays out the whole opening reserve each quarter.
+        war = _roll(o.warranty, war_exp, o.warranty + war_paid)
     sl = _roll(o.sl_accrual, sl_pen, o.sl_accrual + sl_pen * p["sl_payment_rate"])
     exc = _roll(o.excise, excise, o.excise + excise * p["excise_payment_rate"])
     exc_exp = excise if notes.get("excise_tax_treatment", "cogs_inclusion") == "separate_operating_expense" else 0.0

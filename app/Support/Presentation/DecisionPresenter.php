@@ -179,6 +179,8 @@ final class DecisionPresenter
         'certification' => ['attestation_scope'],
         'marketing' => ['marketing_alloc_champions', 'marketing_alloc_growth', 'marketing_alloc_at_risk', 'marketing_alloc_other'],
         'production' => ['postponed_flag', 'postponed_pct'],
+        // ED12: inventory is first-in, first-out in version 2.
+        'notes_elections' => ['inventory_method'],
     ];
 
     public static function isInert(string $category, string $key, int $engineVersion = 1): bool

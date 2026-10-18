@@ -31,9 +31,8 @@ ROUNDING_OUT = ROOT / "fixtures" / "rounding_cases.json"
 
 # Each variant replays the careful team with one accounting method or input
 # changed, so every branch of the version 2 engine appears in a fixture.
+# There are no inventory-method variants: version 2 is FIFO only (ED12).
 VARIANTS = {
-    "lifo": {"notes_elections": {"inventory_method": "lifo"}},
-    "weighted_average": {"notes_elections": {"inventory_method": "weighted_average"}},
     "fob_destination": {"notes_elections": {"shipping_terms": "fob_destination"}},
     "declining_balance": {"notes_elections": {"depreciation_method": "double_declining_balance"}},
     "units_of_production": {"notes_elections": {"depreciation_method": "units_of_production"}},
@@ -41,11 +40,12 @@ VARIANTS = {
     "warranty_expense_as_incurred": {"notes_elections": {"warranty_method": "expense_as_incurred"}},
     "excise_separate_expense": {"notes_elections": {"excise_tax_treatment": "separate_operating_expense"}},
     "two_suppliers": {"sourcing": {"primary_supplier": "SUP006", "primary_alloc": 0.7, "secondary_supplier": "SUP005"}},
+    "usa_supplier": {"sourcing": {"primary_supplier": "SUP002", "primary_alloc": 1.0, "secondary_supplier": "NONE"}},
+    "germany_no_inspection": {"sourcing": {"primary_supplier": "SUP003", "primary_alloc": 1.0, "secondary_supplier": "NONE"}, "quality": {"inspection_level": "NONE"}},
     "no_marketing": {"marketing": {"marketing_budget_pct": 0.0}},
     "full_inspection_air": {"quality": {"inspection_level": "FULL"}, "logistics": {"logistics_mode": "AIR"}},
     "third_shift": {"production": lambda q, cur: {"p1_production": float(round(cur["p1_production"] * 2.6)), "shifts": 3}},
     "price_rise": {"pricing": lambda q, cur: {k: round(v * 1.15, 2) for k, v in cur.items()}},
-    "lifo_then_fifo": {"notes_elections": lambda q, cur: {"inventory_method": "lifo" if q <= 6 else "fifo"}},
     "no_production_q7": {"production": lambda q, cur: {"p1_production": 0.0, "p2_production": 0.0, "shifts": 1} if q == 7 else {}},
 }
 # Variants that change when areas open instead of what the team decides.

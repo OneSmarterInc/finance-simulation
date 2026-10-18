@@ -13,6 +13,8 @@
         'postponed_pct' => 'Only used when postponed production is on.',
     ];
     if ($engineVersion === 2) {
+        $unitsHint['primary_supplier'] = 'The lead time is how long goods take to arrive. Under FOB shipping point, goods on the way are already yours, so they sit in your inventory, with the bill in accounts payable.';
+        $unitsHint['inspection_level'] = 'None costs nothing and catches no defects. Basic costs $2 a unit and catches 70%. Full costs $5 a unit and catches 95%. Every defect that gets through comes back as a return or a warranty claim at $150.';
         $unitsHint['marketing_budget_pct'] = 'For example, 5 means 5% of revenue. 5% keeps orders where they are. Spending more brings more orders, but each extra point adds less: 10% adds about 4% and 20% about 7.5%. Spending nothing loses about 11% of orders.';
     }
     $areaNotes = $engineVersion === 2 ? [
