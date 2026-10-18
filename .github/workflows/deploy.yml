@@ -1,0 +1,137 @@
+name: Deploy Finance Flexee
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-flexee-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Verify Vite build
+        run: test -f public/build/manifest.json
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Verify production repository
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o IdentitiesOnly=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "cd '$APP_DIR' && \
+             git diff --quiet && \
+             git diff --cached --quiet && \
+             test -f .env && \
+             git status --short --branch"
+
+      - name: Deploy application code
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o IdentitiesOnly=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "cd '$APP_DIR' && \
+             git fetch origin main && \
+             test \"\$(git branch --show-current)\" = main && \
+             test \"\$(git rev-parse origin/main)\" = '$DEPLOY_SHA' && \
+             git merge-base --is-ancestor HEAD '$DEPLOY_SHA' && \
+             git merge --ff-only '$DEPLOY_SHA'"
+
+      - name: Install production Composer dependencies
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o IdentitiesOnly=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "cd '$APP_DIR' && \
+             /opt/cpanel/ea-php84/root/usr/bin/php \
+             -d extension=/opt/alt/php84/usr/lib64/php/modules/fileinfo.so \
+             /usr/local/lib/composer/composer.phar \
+             install --no-dev --prefer-dist --optimize-autoloader"
+
+      - name: Upload Vite build
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o IdentitiesOnly=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "mkdir -p '$APP_DIR/public/build'"
+
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes" \
+            public/build/ \
+            "$SSH_USER@$SSH_HOST:$APP_DIR/public/build/"
+
+      - name: Refresh Laravel caches
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o IdentitiesOnly=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "cd '$APP_DIR' && \
+             /opt/cpanel/ea-php84/root/usr/bin/php \
+             -d extension=/opt/alt/php84/usr/lib64/php/modules/fileinfo.so \
+             artisan config:clear && \
+             /opt/cpanel/ea-php84/root/usr/bin/php \
+             -d extension=/opt/alt/php84/usr/lib64/php/modules/fileinfo.so \
+             artisan view:clear && \
+             /opt/cpanel/ea-php84/root/usr/bin/php \
+             -d extension=/opt/alt/php84/usr/lib64/php/modules/fileinfo.so \
+             artisan config:cache && \
+             /opt/cpanel/ea-php84/root/usr/bin/php \
+             -d extension=/opt/alt/php84/usr/lib64/php/modules/fileinfo.so \
+             artisan view:cache"
