@@ -6,7 +6,7 @@
 @endphp
 <div class="flexee-page">
     <x-page-header :eyebrow="$firm->course->name" :title="$firm->name.' accounting methods'"
-        description="How your firm measures and reports its results. A change of method moves reported figures without moving cash, which is exactly what your statements will let you see." />
+        description="These are the methods your firm uses to measure and report its results. Changing one moves the reported figures but not the cash, and your statements will show you how." />
 
     @if (session('success'))
         <flux:callout variant="success" icon="check-circle" :heading="session('success')" role="status" />
@@ -39,8 +39,8 @@
             <flux:card class="space-y-3">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <flux:heading size="lg" level="2">Your team's request this quarter</flux:heading>
-                    <flux:badge :color="match ($request->status) { 'approved' => 'emerald', 'rejected' => 'red', default => 'amber' }">
-                        {{ match ($request->status) { 'approved' => 'Approved', 'rejected' => 'Declined', default => 'Waiting for your instructor' } }}
+                    <flux:badge :color="match ($request->status) { 'approved' => 'emerald', 'rejected' => 'red', 'returned' => 'sky', default => 'amber' }">
+                        {{ match ($request->status) { 'approved' => 'Approved', 'rejected' => 'Declined', 'returned' => 'Your instructor asked for your reason', default => 'Waiting for your instructor' } }}
                     </flux:badge>
                 </div>
                 <flux:text size="sm">Filed by {{ $request->student?->user?->name }} on {{ Dates::dateTime($request->created_at) }}.</flux:text>
@@ -54,6 +54,8 @@
                 </ul>
                 @if ($request->justification)
                     <p class="text-sm"><span class="font-medium">Your reason:</span> {{ $request->justification }}</p>
+                @else
+                    <p class="text-sm"><span class="font-medium">Your reason:</span> No reason given: filed before reasons were required.</p>
                 @endif
                 @if ($request->status === 'approved' && $request->effective_quarter_number)
                     <p class="text-sm">Applies from Quarter {{ $request->effective_quarter_number }}, and that quarter's notes disclose the change and your reason.</p>
@@ -67,11 +69,15 @@
                             Withdraw request
                         </flux:button>
                     </div>
+                @elseif ($request->status === 'returned' && $quarter->state === 'open')
+                    <flux:text size="sm">File the request again with your reason. Your team can do that this quarter.</flux:text>
                 @elseif ($quarter->state === 'open')
                     <flux:text size="sm">Your team can file another request next quarter.</flux:text>
                 @endif
             </flux:card>
-        @elseif ($canFile && ! $editing)
+        @endif
+
+        @if ($canFile && ! $editing)
             <flux:card class="space-y-3">
                 <flux:heading size="lg" level="2">Ask to change a method</flux:heading>
                 <flux:text>

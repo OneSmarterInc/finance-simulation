@@ -47,14 +47,20 @@ class AccountingElectionRequests extends Component
         session()->flash('success', "{$request->firm->name}'s request was declined. The team can see your note.");
     }
 
-    public function render(FirmAccountingElectionRequestService $service, FirmAccountingElectionService $elections): View
+    public function askForReason(string $requestId, FirmAccountingElectionRequestService $service): void
+    {
+        $request = $this->pendingRequest($requestId);
+        $service->askForReason($this->faculty(), $request, $this->currentMethods($request, $service));
+        session()->flash('success', "{$request->firm->name} has been asked for their reason and can file again this quarter.");
+    }
+
+    public function render(FirmAccountingElectionRequestService $service): View
     {
         $requests = $service->pending($this->faculty(), $this->course);
 
-        $rows = $requests->map(function (FirmAccountingElectionRequest $request) use ($service, $elections) {
+        $rows = $requests->map(function (FirmAccountingElectionRequest $request) use ($service) {
             $target = $request->status === 'pending' ? $service->effectiveQuarter($request) : null;
-            $current = $request->previous_elections
-                ?? ($target ? $elections->effective($request->firm, $target) : $elections->effective($request->firm, $request->courseQuarter));
+            $current = $this->currentMethods($request, $service);
 
             return [
                 'request' => $request,
@@ -68,6 +74,16 @@ class AccountingElectionRequests extends Component
             'pending' => $rows->where('request.status', 'pending')->values(),
             'decided' => $rows->where('request.status', '!=', 'pending')->values(),
         ]);
+    }
+
+    /** @return array<string, string> the methods the request would change */
+    private function currentMethods(FirmAccountingElectionRequest $request, FirmAccountingElectionRequestService $service): array
+    {
+        $elections = app(FirmAccountingElectionService::class);
+        $target = $request->status === 'pending' ? $service->effectiveQuarter($request) : null;
+
+        return $request->previous_elections
+            ?? ($target ? $elections->effective($request->firm, $target) : $elections->effective($request->firm, $request->courseQuarter));
     }
 
     private function pendingRequest(string $id): FirmAccountingElectionRequest

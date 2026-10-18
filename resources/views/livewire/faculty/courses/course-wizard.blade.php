@@ -116,7 +116,7 @@
                 <div class="border-b border-zinc-200 py-5 dark:border-zinc-700">
                     <div class="flex items-start gap-3">
                         <flux:checkbox wire:model.live="accounting_election_enabled"
-                            label="Enable student accounting-election control" />
+                            label="Let teams ask to change their accounting methods" />
                     </div>
 
                     <flux:text size="sm" class="mt-2">
@@ -127,7 +127,7 @@
 
                     @if ($accounting_election_enabled)
                         <flux:callout class="mt-4" variant="info" icon="information-circle"
-                            heading="Student accounting-election workflow enabled"
+                            heading="Teams can ask to change their methods"
                             text="Teams can keep the default accounting methods or ask to change them. Each request comes to you with the team's reason, and nothing changes until you approve it." />
                     @else
                         <flux:callout class="mt-4" variant="warning" icon="information-circle"
@@ -265,7 +265,7 @@
                                         </span>
                                     @elseif ($category->code === 'notes_elections')
                                         <span class="block text-xs font-normal text-zinc-500">
-                                            On the decision form only when student accounting-election control is off
+                                            On the decision form only when teams can't ask to change methods
                                         </span>
                                     @endif
                                 </th>
@@ -595,7 +595,7 @@
 
                         <div>
                             <flux:heading size="md">
-                                Student accounting-election control
+                                Method-change requests
                             </flux:heading>
 
                             <flux:text class="mt-1">

@@ -325,7 +325,12 @@ class AskClaudeTools
                 'filed_by' => $r->student_id ? $this->pseudonym((string) $r->student_id) : null,
                 'filed_on' => Dates::day($r->created_at),
                 'filed_in_quarter' => $r->courseQuarter?->quarter_number,
-                'status' => $r->status === 'pending' ? 'waiting for the instructor' : $r->status,
+                'status' => match ($r->status) {
+                    'pending' => 'waiting for the instructor',
+                    'rejected' => 'declined',
+                    'returned' => 'sent back to the team for its reason',
+                    default => $r->status,
+                },
                 'changes' => $changes,
                 'reason' => filled($r->justification) ? $r->justification : 'No reason given (filed before reasons were required).',
                 'applies_from_quarter' => $r->effective_quarter_number,

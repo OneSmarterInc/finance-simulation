@@ -117,10 +117,10 @@
             </div>
 
             <div class="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-700">
-                <flux:checkbox wire:model="accounting_election_enabled" label="Enable Accounting Elections" />
+                <flux:checkbox wire:model="accounting_election_enabled" label="Let teams ask to change their accounting methods" />
 
                 <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                    Allows students to participate in the Accounting Elections workflow.
+                    Each team can ask once a quarter, with a reason, and faculty approve or decline.
                 </p>
             </div>
         </div>
@@ -383,7 +383,7 @@
 
                 <flux:text class="mt-2">
                     This Faculty member will manage the course after deployment,
-                    including teams, quarters, accounting elections, decisions,
+                    including teams, quarters, accounting-method requests, decisions,
                     the evaluation stage, and other faculty operations.
                 </flux:text>
             </div>
@@ -496,7 +496,7 @@
 
                         <div>
                             <dt class="text-xs text-zinc-500">
-                                Accounting Elections
+                                Method-change requests
                             </dt>
                             <dd>
                                 <flux:badge :color="$accounting_election_enabled ? 'emerald' : 'zinc'">
@@ -511,8 +511,8 @@
             </flux:card>
 
             @if ($accounting_election_enabled)
-                <flux:callout variant="info" icon="calculator" heading="Student Accounting Election Control"
-                    text="Students may propose accounting-method changes beginning in Quarter 4. Faculty approval is required for submitted changes. Inventory Method remains fixed at FIFO." />
+                <flux:callout variant="info" icon="calculator" heading="Teams can ask to change their methods"
+                    text="Students may propose accounting-method changes beginning in Quarter 4. Faculty approval is required for submitted changes. Inventory stays first-in, first-out." />
             @endif
 
             @if ($course->status === 'deployed')

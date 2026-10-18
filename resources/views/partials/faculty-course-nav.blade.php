@@ -1,7 +1,7 @@
 {{--
     Course pages as a sidebar group (walkthrough item 18): the course name as
     the heading, a way to switch course, the current quarter's state beside
-    Quarters and a waiting count beside Accounting elections.
+    Quarters and a waiting count beside Accounting methods.
 --}}
 @php
     $navCourse = request()->route('course');
@@ -84,7 +84,7 @@
             <flux:sidebar.item icon="document-text" :href="route('faculty.courses.accounting-election-requests', $navCourse)"
                 :current="request()->routeIs('faculty.courses.accounting-election-requests')"
                 :badge="$navPending > 0 ? (string) $navPending : null" wire:navigate>
-                {{ __('Accounting elections') }}
+                {{ __('Accounting methods') }}
             </flux:sidebar.item>
         @endif
 

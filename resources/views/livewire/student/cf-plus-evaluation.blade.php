@@ -90,7 +90,7 @@
 
                             <div>
                                 <p class="flexee-section-label mb-2">
-                                    Accounting elections
+                                    Accounting methods
                                 </p>
 
                                 <x-financial-array

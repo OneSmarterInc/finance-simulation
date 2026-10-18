@@ -4,7 +4,7 @@
     use App\Support\Presentation\DecisionPresenter as Names;
 @endphp
 <div class="flexee-page">
-    <x-page-header :eyebrow="$course->name" title="Accounting elections"
+    <x-page-header :eyebrow="$course->name" title="Accounting method requests"
         description="Teams ask to change how their firm reports. Each request comes with the team's reason; nothing changes until you approve it." />
 
     @if (session('success'))
@@ -15,7 +15,7 @@
     @endif
 
     @if (! $course->accounting_election_enabled)
-        <flux:callout icon="information-circle" heading="Student accounting-election control is off for this course"
+        <flux:callout icon="information-circle" heading="Teams can't ask to change their accounting methods in this course"
             text="Every firm reports with the default methods, so there are no requests to review." />
     @else
         <flux:heading size="lg" level="2">Waiting for you ({{ $pending->count() }})</flux:heading>
@@ -60,7 +60,7 @@
 
                 <div class="rounded-md bg-zinc-50 p-3 text-sm dark:bg-white/5">
                     <p class="font-medium">The team's reason</p>
-                    <p class="mt-1">{{ $request->justification ?: 'No reason was given with this request.' }}</p>
+                    <p class="mt-1">{{ $request->justification ?: 'No reason given: filed before reasons were required.' }}</p>
                 </div>
 
                 <p class="text-sm">
@@ -92,6 +92,13 @@
                         Decline
                     </flux:button>
                 </div>
+                @unless ($request->justification)
+                    {{-- L17: approving would disclose the change with an empty reason. --}}
+                    <div class="flex flex-col gap-2 rounded-lg bg-zinc-50 p-3 text-sm sm:flex-row sm:items-center sm:justify-between dark:bg-white/5" data-test="ask-for-reason">
+                        <p>Approving would disclose the change in the notes with no reason. You can ask the team for one instead. They'll see: <span class="italic">"{{ \App\Services\Accounting\FirmAccountingElectionRequestService::reasonNote($request, $row['current']) }}"</span> and can file again this quarter.</p>
+                        <flux:button size="sm" icon="chat-bubble-left-ellipsis" class="shrink-0" wire:click="askForReason('{{ $request->id }}')">Ask the team for their reason</flux:button>
+                    </div>
+                @endunless
             </flux:card>
         @empty
             <flux:text>No requests are waiting.</flux:text>
@@ -105,7 +112,7 @@
                     <p class="text-sm">
                         <span class="font-medium">{{ $request->firm->name }}</span> ·
                         Quarter {{ $request->courseQuarter?->quarter_number }} ·
-                        {{ $request->status === 'approved' ? 'Approved'.($request->effective_quarter_number ? ', from Quarter '.$request->effective_quarter_number : '') : 'Declined' }}
+                        {{ match ($request->status) { 'approved' => 'Approved'.($request->effective_quarter_number ? ', from Quarter '.$request->effective_quarter_number : ''), 'returned' => 'Asked for their reason', default => 'Declined' } }}
                         {{ $request->reviewed_at ? '· '.Dates::day($request->reviewed_at) : '' }} ·
                         @foreach ($row['changes'] as $change)
                             {{ $change['label'] }} to {{ $change['to'] }}@if (! $loop->last), @endif

@@ -67,7 +67,7 @@
                         <flux:sidebar.item icon="document-text"
                             :href="route('student.accounting-election', ['firm' => $currentFirm, 'quarter' => $electionQuarter])"
                             :current="request()->routeIs('student.accounting-election')" wire:navigate>
-                            {{ __('Accounting elections') }}
+                            {{ __('Accounting methods') }}
                         </flux:sidebar.item>
                     @endif
 

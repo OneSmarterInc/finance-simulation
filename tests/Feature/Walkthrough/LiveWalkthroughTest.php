@@ -2,16 +2,19 @@
 
 namespace Tests\Feature\Walkthrough;
 
+use App\Livewire\Faculty\Courses\AccountingElectionRequests;
 use App\Models\Admin;
 use App\Models\Faculty;
 use App\Models\Firm;
 use App\Models\FirmAccountingElectionRequest;
 use App\Models\User;
+use App\Services\Accounting\FirmAccountingElectionRequestService;
 use App\Services\Courses\CourseStatus;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Quarters\QuarterManagementService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\Support\Phase7B\BuildsPhase7BCourse;
 use Tests\Support\Practice\BuildsPracticeSource;
 use Tests\TestCase;
@@ -117,5 +120,41 @@ class LiveWalkthroughTest extends TestCase
 
         $course->forceFill(['cf_plus_enabled' => true, 'build_quarters' => 1, 'adversarial_quarters' => 1, 'post_bid_quarters' => 1])->save();
         $this->assertSame("Opens with Quarter 5. Quarter 4's deadline has passed, so the stage opens as soon as Quarter 4 closes.", CourseStatus::for($course->fresh())->evaluationOpensText());
+    }
+
+    /** L9, L10, L11, L17: one name, a plainer opening line, and asking the team for a missing reason. */
+    public function test_accounting_methods_have_one_name_and_a_request_without_a_reason_can_go_back_for_one(): void
+    {
+        [$course, $firm, $student, $q4] = $this->phase7bCourse('Course 02');
+        app(QuarterManagementService::class)->open($course->faculty, $q4);
+        $course->forceFill(['accounting_election_enabled' => true])->save();
+        $request = FirmAccountingElectionRequest::query()->create([
+            'firm_id' => $firm->id, 'course_id' => $course->id, 'course_quarter_id' => $q4->id, 'student_id' => $student->id,
+            'proposed_elections' => ['depreciation_method' => 'double_declining_balance'], 'previous_elections' => ['depreciation_method' => 'straight_line'],
+            'status' => 'pending', 'effective_quarter_number' => 4,
+        ]);
+
+        $this->actingAs($student->user)->get(route('student.accounting-election', [$firm, $q4]))->assertOk()
+            ->assertSee('Accounting methods')->assertDontSee('Accounting elections')
+            ->assertSee('These are the methods your firm uses to measure and report its results. Changing one moves the reported figures but not the cash, and your statements will show you how.')
+            ->assertSee('No reason given: filed before reasons were required.');
+
+        $note = 'Please file again with your reason: why does double-declining balance describe your firm better than straight-line?';
+        $this->actingAs($this->faculty->user)->get(route('faculty.courses.accounting-election-requests', $course))->assertOk()
+            ->assertSee('Accounting method requests')->assertDontSee('Accounting elections')
+            ->assertSee('data-test="ask-for-reason"', false)
+            ->assertSee($note);
+        Livewire::test(AccountingElectionRequests::class, ['course' => $course])->call('askForReason', $request->id);
+        $this->assertSame(FirmAccountingElectionRequestService::RETURNED, $request->fresh()->status);
+        $this->assertSame($note, $request->fresh()->faculty_note);
+
+        $this->actingAs($student->user)->get(route('student.accounting-election', [$firm, $q4]))->assertOk()
+            ->assertSee('Your instructor asked for your reason')
+            ->assertSee($note)
+            ->assertSee('Start a request');
+        $again = app(FirmAccountingElectionRequestService::class)->submit($student, $firm, $q4,
+            ['depreciation_method' => 'double_declining_balance', 'shipping_terms' => 'fob_shipping_point', 'bad_debt_method' => 'percentage_of_receivables', 'warranty_method' => 'percentage_of_sales', 'excise_tax_treatment' => 'cogs_inclusion'],
+            'Our plant loses most of its productive value early, so double-declining balance matches how it wears.');
+        $this->assertSame('pending', $again->status, 'the team can file again in the same quarter');
     }
 }
