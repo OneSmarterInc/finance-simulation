@@ -62,15 +62,13 @@ Value created is ending equity plus dividends paid from Quarter 4. Careful leads
 
 The fixtures also replay the careful team with each accounting method and several inputs changed (sixteen variants, Quarters 4 to 9): every accounting method, two suppliers, no marketing, full inspection with air freight, a third shift, a price rise, LIFO switched back to FIFO, a quarter with no production, and forecasting left closed until Quarter 6. Two edge cases start from a crafted opening for what no course reaches in eleven quarters: a class at the end of its life, and a bill larger than cash plus the credit line (the bank overdraft).
 
-## What the PHP port (PR 2) must do
+## The PHP port (engine version 2)
 
-The PHP engine gains a version 2 path, selected by the course's engine version, and must reproduce every value in `fixtures/v2_reference.json` (relative 1e-6, absolute 1e-4), field by field, for every team, variant and quarter. Each fixture row carries its full opening position, decisions, market and declared dividend, so a quarter can be replayed on its own or chained. The port also needs:
+Version 2 lives in `app/Services/Engines/CorporateFinance/`. `ManufacturingCFEngineV2` is the engine, `MarketPath` the market, and `CfManufacturingSimRulesService::deriveCompleteDecisionsV2` and `demandContextV2` the rules. `VersionedManufacturingEngine` runs whichever version a course uses; version 1 (`ManufacturingCFEngine`) is untouched. `tests/Feature/Economics/EngineV2FixtureTest` holds the port to every value in `fixtures/v2_reference.json` (relative 1e-6, absolute 1e-4), and to the fixture market and rules. `EngineV2CourseTest` runs a version 2 course from warm-up through two closes.
 
-- `OpeningFinancialPosition` fields for units in stock by product (`n3_units_p1`, `n3_units_p2`), their value (`n3_value_p1`, `n3_value_p2`, before the LIFO reserve, not `bs_inventory`), the LIFO reserve (`n3_lifo_res`) and accumulated depreciation by class (`n4_*_accum`), with a migration;
-- the version 2 market in the demand randomizer, and the version 2 sim rules: production while closed nets the stock on hand (`units_on_hand` in each fixture row), and a closed forecast after Quarter 3 is last quarter's orders adjusted for the season;
-- a version switch in `validateDecisionFields` and the sim rules' payload check, both of which require the inputs version 2 removes (each fixture row's `student_payload` is what a team submitted);
-- PHP 8.4 or later on the server, which the rounding test enforces;
-- the `payables_to_purchases_ratio` diagnostic to leave out the in-transit payable. Otherwise it flags every FOB shipping point quarter, since the payable becomes 38% of purchases instead of 30%.
+A course's version is `courses.engine_version`. Existing courses are version 1. New courses take `config('flexee.engine_version_for_new_courses')` (env `FLEXEE_ENGINE_VERSION`), which stays at 1 until the screens for version 2 ship. A course can't change version once any firm has results, and a quarter refuses to open from a result stored by the other version.
+
+To change version 2: change the Python model, rebuild the fixtures with `build.py`, run `check.py`, then change the PHP to match and run the tests. Expressions in the PHP keep the model's order of operations, because floating-point results depend on it.
 
 ## Open items found while building
 

@@ -39,6 +39,7 @@ class InheritedWarmupHistoryService
                 FirmWarmupInitializationCoordinator::courseSeed($firm->course),
                 $firm->id,
                 $firm->course->scenario,
+                $firm->course->engineVersion(),
             );
             if (array_keys($generated->quarters) !== [1, 2, 3]) {
                 throw new RuntimeException('Warm-up must return exactly Quarters 1 through 3.');
@@ -137,7 +138,7 @@ class InheritedWarmupHistoryService
             'cash_flow_statement' => $quarter->statements->cashFlowStatement,
             'notes' => $quarter->statements->notes,
             'intermediates' => $quarter->statements->intermediates,
-            'engine_contract' => FirmEngineResult::ENGINE_CONTRACT,
+            'engine_contract' => FirmEngineResult::contractFor($firm->course->engineVersion()),
             'provenance' => FirmEngineResult::PROVENANCE_WARMUP,
             'immutable' => true,
             'validated_at' => now(),

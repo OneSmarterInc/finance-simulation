@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use App\Events\CourseDeploymentReachedWarmupBoundary;
+use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\EnsureStudentAccessConfirmed;
 use App\Listeners\DispatchFirmWarmups;
 use App\Notifications\Channels\MailjetChannel;
 use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngine;
-use App\Services\Engines\CorporateFinance\ManufacturingCFEngine;
+use App\Services\Engines\CorporateFinance\VersionedManufacturingEngine;
 use Carbon\CarbonImmutable;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Date;
@@ -14,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(
             ManufacturingEngine::class,
-            ManufacturingCFEngine::class
+            VersionedManufacturingEngine::class
         );
     }
 
@@ -48,9 +51,9 @@ class AppServiceProvider extends ServiceProvider
             );
 
         // Re-apply these on Livewire actions, not only on the first page load.
-        \Livewire\Livewire::addPersistentMiddleware([
-            \App\Http\Middleware\AdminMiddleware::class,
-            \App\Http\Middleware\EnsureStudentAccessConfirmed::class,
+        Livewire::addPersistentMiddleware([
+            AdminMiddleware::class,
+            EnsureStudentAccessConfirmed::class,
         ]);
 
         $this->configureDefaults();

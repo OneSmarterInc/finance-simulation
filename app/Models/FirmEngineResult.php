@@ -25,6 +25,13 @@ use LogicException;
 
     public const ENGINE_CONTRACT = 'manufacturing-cf-public-v1';
 
+    public const ENGINE_CONTRACT_V2 = 'manufacturing-cf-public-v2';
+
+    public static function contractFor(int $engineVersion): string
+    {
+        return $engineVersion === 2 ? self::ENGINE_CONTRACT_V2 : self::ENGINE_CONTRACT;
+    }
+
     protected $fillable = [
         'firm_id', 'course_id', 'institution_id', 'quarter_number', 'fields',
         'income_statement', 'balance_sheet', 'cash_flow_statement', 'notes',

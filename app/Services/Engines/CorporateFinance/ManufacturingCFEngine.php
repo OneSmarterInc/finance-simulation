@@ -31,7 +31,7 @@ final class ManufacturingCFEngine implements ManufacturingEngine
         'n6_sl_open', 'n6_sl_exp', 'n6_sl_paid', 'n6_sl_close', 'n6_exc_open', 'n6_exc_acc', 'n6_exc_paid', 'n6_exc_close',
     ];
 
-    private const NON_MONETARY_FIELD_KEYS = [
+    public const NON_MONETARY_FIELD_KEYS = [
         'n4_util_rate',
         'n5_rate',
         'n5_draw_rate',
