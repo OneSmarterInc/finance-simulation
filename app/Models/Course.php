@@ -57,6 +57,8 @@ class Course extends Model
             'engine_version' => 'integer',
             'starting_elections' => 'array',
             'is_practice' => 'boolean',
+            'ai_helper_enabled' => 'boolean',
+            'ai_questions_per_month' => 'integer',
             'practice_last_played_at' => 'datetime',
             'deployed_at' => 'datetime',
         ];

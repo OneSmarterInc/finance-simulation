@@ -34,4 +34,24 @@ return [
     */
     'engine_version_for_new_courses' => (int) env('FLEXEE_ENGINE_VERSION', 2),
 
+
+    /*
+    | Ask Claude on faculty pages (U1, design note AC1 to AC8). Off until the
+    | server has ANTHROPIC_API_KEY and can reach api.anthropic.com; then each
+    | course has its own switch, on by default (AC6). Students never see it.
+    | Prices are per million tokens, for the log and the spending ceiling.
+    */
+    'ai' => [
+        'enabled' => (bool) env('FLEXEE_AI_ENABLED', false),
+        'model' => env('FLEXEE_AI_MODEL', 'claude-sonnet-5-5'),
+        'questions_per_course_month' => (int) env('FLEXEE_AI_QUESTIONS_PER_MONTH', 100),
+        'monthly_spend_ceiling_usd' => (float) env('FLEXEE_AI_MONTHLY_CEILING_USD', 200),
+        'price_input_per_mtok' => (float) env('FLEXEE_AI_PRICE_INPUT', 2.0),
+        'price_output_per_mtok' => (float) env('FLEXEE_AI_PRICE_OUTPUT', 10.0),
+        'max_tokens' => 1500,
+        'max_lookup_rounds' => 4,
+        'timeout_seconds' => 55,
+        'keep_days' => 90,
+    ],
+
 ];

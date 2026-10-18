@@ -2,6 +2,13 @@
 
 return [
 
+    // Ask Claude (U1). One Smarter's key (AC8); the helper stays off without it.
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'url' => env('ANTHROPIC_API_URL', 'https://api.anthropic.com/v1/messages'),
+        'version' => '2023-06-01',
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services

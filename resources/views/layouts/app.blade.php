@@ -2,5 +2,6 @@
     <flux:main>
         @include('partials.practice-view-banner')
         {{ $slot }}
+        @include('partials.ask-claude')
     </flux:main>
 </x-layouts::app.sidebar>

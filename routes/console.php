@@ -51,3 +51,36 @@ Artisan::command('flexee:practice {course : the id of the course to rehearse} {-
 })->purpose('Rehearse a course with the three reference teams');
 
 Schedule::command('flexee:quarters')->everyMinute()->withoutOverlapping(10)->onOneServer();
+
+/*
+ * Ask Claude (U1): one tiny request to Anthropic, to check the key and that the
+ * server can reach api.anthropic.com before the helper is switched on (AC8).
+ */
+Artisan::command('flexee:ai-check', function () {
+    if (blank(config('services.anthropic.key'))) {
+        $this->error('ANTHROPIC_API_KEY is not set.');
+
+        return 1;
+    }
+    try {
+        $response = \Illuminate\Support\Facades\Http::withHeaders([
+            'x-api-key' => (string) config('services.anthropic.key'),
+            'anthropic-version' => (string) config('services.anthropic.version'),
+        ])->timeout(30)->acceptJson()->post((string) config('services.anthropic.url'), [
+            'model' => config('flexee.ai.model'),
+            'max_tokens' => 20,
+            'messages' => [['role' => 'user', 'content' => 'Reply with the single word: ready']],
+        ])->throw()->json();
+    } catch (\Throwable $e) {
+        $this->error('Anthropic could not be reached: '.$e->getMessage());
+
+        return 1;
+    }
+    $this->info('Anthropic answered with '.config('flexee.ai.model').': '.trim((string) ($response['content'][0]['text'] ?? '')));
+    $this->line(config('flexee.ai.enabled') ? 'Ask Claude is switched on (FLEXEE_AI_ENABLED=true).' : 'Ask Claude is still off. Set FLEXEE_AI_ENABLED=true to switch it on.');
+
+    return 0;
+})->purpose('Check the Anthropic key and connection for Ask Claude');
+
+// Ask Claude's question log is kept for 90 days (U1, AC7).
+Schedule::command('model:prune', ['--model' => [\App\Models\AiQuestion::class]])->daily()->onOneServer();
