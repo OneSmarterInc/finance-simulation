@@ -221,6 +221,7 @@ class AskClaude
             'get_results', 'show_table' => count($result['results'] ?? []).' '.Str::plural('firm', count($result['results'] ?? [])).'\' stored results'.($name === 'show_table' ? ', shown as a table' : ''),
             'get_decisions' => is_array($result['decisions'] ?? null) ? ($result['firm'] ?? '').'\'s Quarter '.($result['quarter'] ?? '').' decisions' : 'no calculated decisions for that quarter',
             'get_method_requests' => count($result['requests'] ?? []).' method '.Str::plural('request', count($result['requests'] ?? [])),
+            'get_evaluation_stage' => ($result['evaluation_stage'] ?? null) === 'none' ? 'no evaluation stage in this course' : 'the evaluation stage, '.(($result['settled'] ?? false) ? 'settled' : (($result['open'] ?? false) ? 'open' : 'not open yet')),
             'get_practice_scoreboard' => isset($result['played_to_quarter']) ? 'the practice run, played to Quarter '.$result['played_to_quarter'] : 'no practice run',
             default => $result['error'] ?? 'nothing',
         };

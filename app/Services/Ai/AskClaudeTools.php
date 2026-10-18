@@ -2,6 +2,9 @@
 
 namespace App\Services\Ai;
 
+use App\Models\CfPlusAuctionResult;
+use App\Models\CfPlusConsultantReport;
+use App\Models\CfPlusOffer;
 use App\Models\Course;
 use App\Models\CourseQuarter;
 use App\Models\Firm;
@@ -26,7 +29,9 @@ use Illuminate\Support\Collection;
  * Layer 1: the course's setup and where it stands. Layer 2: stored results,
  * the table shown beside an answer (Claude names the measures, firms and
  * quarters; the app fills in every number), decisions, method requests and
- * the practice run's scoreboard. The evaluation stage follows in layer 3.
+ * the practice run's scoreboard. Layer 3: the evaluation stage, shown as the
+ * faculty page shows it (offer counts, never amounts, until settlement; true
+ * worth only after it).
  */
 class AskClaudeTools
 {
@@ -78,6 +83,11 @@ class AskClaudeTools
                 ], 'required' => ['status']],
             ],
             [
+                'name' => 'get_evaluation_stage',
+                'description' => 'The evaluation stage of a Flexee Financial Accounting+ course: when it opens, whether it is open or settled, each firm\'s consultant value and how many offers it has received. Offer amounts and each firm\'s true worth are kept back until the instructor settles the stage; after that, who won each firm, the price paid, the true worth of the stake and how far the price was above or below it.',
+                'input_schema' => ['type' => 'object', 'properties' => new \stdClass],
+            ],
+            [
                 'name' => 'get_practice_scoreboard',
                 'description' => 'The instructor\'s practice run of this course, if there is one: value created, net income and cash for the Careful, Average and Careless reference teams in each quarter played, the leader in each quarter, and each team\'s rule.',
                 'input_schema' => ['type' => 'object', 'properties' => new \stdClass],
@@ -96,6 +106,7 @@ class AskClaudeTools
             'get_decisions' => $this->decisions($input),
             'get_method_requests' => $this->requests((string) ($input['status'] ?? 'waiting')),
             'get_practice_scoreboard' => $this->scoreboard(),
+            'get_evaluation_stage' => $this->evaluation(),
             default => ['error' => "There is no lookup called {$name}."],
         };
     }
@@ -351,6 +362,43 @@ class AskClaudeTools
             'team_rules' => collect(ReferenceTeams::RULES)->mapWithKeys(fn ($rule, $t) => [ReferenceTeams::NAMES[$t] => $rule])->all(),
             'results' => $out,
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function evaluation(): array
+    {
+        if (! $this->course->cf_plus_enabled) {
+            return ['evaluation_stage' => 'none', 'note' => 'This course has no evaluation stage (it is Flexee Financial Accounting, not the + version).'];
+        }
+        $status = CourseStatus::for($this->course);
+        $money = fn ($v) => $v === null ? null : ResultMeasures::format('cash', (float) $v);
+        $settled = CfPlusAuctionResult::query()->with(['targetFirm', 'winner'])->where('course_id', $this->course->id)->whereNotNull('settled_at')->get();
+        $reports = CfPlusConsultantReport::query()->where('course_id', $this->course->id)->latest('generated_at')->get()->unique('target_firm_id')->keyBy('target_firm_id');
+
+        $out = [
+            'opens_with_quarter' => $status->evaluationStart(),
+            'open' => $status->evaluationOpen(),
+            'settled' => $settled->isNotEmpty(),
+            'firms' => $this->course->firms()->orderBy('name')->get()->map(fn (Firm $firm): array => [
+                'firm' => $firm->name,
+                'consultant_value' => $money($reports->get($firm->id)?->consultant_value),
+                'offers_received' => CfPlusOffer::query()->where('course_id', $this->course->id)->where('target_firm_id', $firm->id)->count(),
+            ])->all(),
+        ];
+        if ($settled->isEmpty()) {
+            return $out + ['note' => 'Offer amounts and true worth stay hidden until the instructor settles the stage, as on the Evaluation stage page.'];
+        }
+
+        return $out + ['results' => $settled->map(fn (CfPlusAuctionResult $r): array => [
+            'target' => $r->targetFirm?->name,
+            'won_by' => $r->winner?->name ?? 'no winning offer',
+            'price_paid' => $money($r->price_paid),
+            'stake' => number_format((float) $r->stake * 100, 0).'%',
+            'consultant_value_of_stake' => $money($r->consultant_stake_value),
+            'true_worth_of_stake' => $money($r->true_stake_worth),
+            'paid_above_true_worth' => $r->price_paid !== null && $r->true_stake_worth !== null ? $money((float) $r->price_paid - (float) $r->true_stake_worth) : null,
+            'tie_settled_by_instructor' => (bool) $r->faculty_override,
+        ])->all()];
     }
 
     /**

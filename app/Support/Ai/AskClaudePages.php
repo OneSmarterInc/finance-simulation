@@ -24,7 +24,7 @@ final class AskClaudePages
         'faculty.courses.quarters' => ['Quarters', ['Who still has to submit this quarter?', 'What happens when the deadline passes?', 'When does the next quarter open?']],
         'faculty.courses.quarter-results' => ['Quarter results', ['Which firm is ahead on value created?', 'Compare cash across all firms for the last three quarters.', 'Why did net income and cash move differently last quarter?']],
         'faculty.courses.accounting-election-requests' => ['Accounting method requests', ['Summarise the requests waiting for me.', 'What happens if I approve a request?', 'How should I judge a request to change methods?']],
-        'faculty.courses.cf-plus-auction' => ['Evaluation stage', ['What will students see when the evaluation stage opens?', 'How is the consultant\'s valuation worked out?', 'When does the evaluation stage open?']],
+        'faculty.courses.cf-plus-auction' => ['Evaluation stage', ['How many offers has each firm received?', 'Who paid more than the stake was worth?', 'How is the consultant\'s valuation worked out?']],
         'faculty.courses.practice' => ['Practice run', ['Why is the Careless team\'s cash so low?', 'What do the three reference teams do differently?', 'Does the Careful team lead every quarter?']],
         'firms.dashboard' => ['Firm dashboard', ['How has this firm done quarter by quarter?', 'What did this firm decide last quarter?', 'Has this firm submitted this quarter?']],
         'firms.history' => ['Firm history', ['Where did this firm\'s cash go?', 'What are the warm-up quarters?']],
