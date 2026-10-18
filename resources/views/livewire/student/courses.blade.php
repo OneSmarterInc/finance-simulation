@@ -22,7 +22,11 @@
                             @if (! $item['paid'])
                                 Access opens once your registration is confirmed.
                             @elseif ($item['activeQuarter'] && $item['activeQuarter']->state === 'open')
-                                <p class="font-medium">Quarter {{ $item['activeQuarter']->quarter_number }} decisions due {{ Dates::dateTime($item['activeQuarter']->decision_deadline_at) }}</p>
+                                @if ($item['status']->isOverdue($item['activeQuarter']))
+                                    <p class="font-medium">Quarter {{ $item['activeQuarter']->quarter_number }}'s deadline ({{ Dates::dateTime($item['activeQuarter']->decision_deadline_at) }}) has passed. It's waiting to close.</p>
+                                @else
+                                    <p class="font-medium">Quarter {{ $item['activeQuarter']->quarter_number }} decisions due {{ Dates::dateTime($item['activeQuarter']->decision_deadline_at) }}</p>
+                                @endif
                                 <p @class(['mt-1', 'text-emerald-700 dark:text-emerald-300' => in_array($item['teamStatus']['state'], ['submitted', 'locked'], true), 'text-amber-700 dark:text-amber-300' => ! in_array($item['teamStatus']['state'], ['submitted', 'locked'], true)])>
                                     {{ $item['teamStatus']['label'] }}
                                 </p>

@@ -4,7 +4,10 @@ namespace Tests\Feature\Walkthrough;
 
 use App\Models\Admin;
 use App\Models\Faculty;
+use App\Models\Firm;
+use App\Models\FirmAccountingElectionRequest;
 use App\Models\User;
+use App\Services\Courses\CourseStatus;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Quarters\QuarterManagementService;
 use Database\Seeders\DatabaseSeeder;
@@ -74,5 +77,45 @@ class LiveWalkthroughTest extends TestCase
 
         $this->phase7bCourse('Has a course');
         $this->get(route('dashboard'))->assertOk()->assertSee('data-test="new-course"', false)->assertDontSee('Set up your first course');
+    }
+
+    /** L7, L12, L18: once a stated date has passed, the screens say so instead of naming it as if ahead. */
+    public function test_a_passed_deadline_is_worded_as_passed_and_the_form_turns_read_only(): void
+    {
+        [$course, $firm, $student, $q4, $q5] = $this->phase7bCourse('Course 02');
+        app(QuarterManagementService::class)->open($course->faculty, $q4);
+        $course->forceFill(['accounting_election_enabled' => true])->save();
+        $q4->forceFill(['opened_at' => now()->subDays(30), 'decision_deadline_at' => now()->subDays(14)])->save();
+        $q5->forceFill(['decision_deadline_at' => now()->subDays(10)])->save();
+        FirmAccountingElectionRequest::query()->create([
+            'firm_id' => $firm->id, 'course_id' => $course->id, 'course_quarter_id' => $q4->id, 'student_id' => $student->id,
+            'proposed_elections' => ['depreciation_method' => 'double_declining_balance'], 'previous_elections' => ['depreciation_method' => 'straight_line'],
+            'status' => 'pending', 'effective_quarter_number' => 4,
+        ]);
+
+        $this->actingAs($student->user)->get(route('firms.dashboard', $firm))->assertOk()
+            ->assertSee('Quarter 4 is waiting to close.')
+            ->assertSee("Your instructor will either close the quarter, using last quarter's decisions for any team that didn't submit, or set a new deadline.")
+            ->assertDontSee('Decisions are due');
+        $this->get(route('student.decisions.workspace', [$firm, $q4]))->assertOk()
+            ->assertSee("Quarter 4's deadline has passed, so decisions can't be changed.")
+            ->assertDontSee('Submit for the team')
+            ->assertDontSee('If nothing is submitted by the deadline');
+        $this->get(route('student.courses'))->assertOk()->assertSee("has passed. It's waiting to close.", false);
+
+        $this->actingAs($this->faculty->user)->get(route('dashboard'))->assertOk()
+            ->assertSee("Quarter 4's deadline passed 14 days ago and the quarter hasn't closed.");
+        $this->get(route('faculty.courses.quarters', $course))->assertOk()
+            ->assertSee('The deadline passed 14 days ago and the quarter hasn')
+            ->assertSee("Opens as soon as Quarter 4 closes. Quarter 4's deadline")
+            ->assertSee('so when it opens it waits for a new deadline');
+        $firm->forceFill(['warmup_status' => Firm::WARMUP_INITIALIZED])->save();
+        $this->get(route('faculty.courses.firms', $course))->assertOk()->assertSee('Q4: Deadline passed');
+        $this->get(route('faculty.courses.accounting-election-requests', $course))->assertOk()
+            ->assertSee('Quarter 4 was due to close on')
+            ->assertSee('and is still open');
+
+        $course->forceFill(['cf_plus_enabled' => true, 'build_quarters' => 1, 'adversarial_quarters' => 1, 'post_bid_quarters' => 1])->save();
+        $this->assertSame("Opens with Quarter 5. Quarter 4's deadline has passed, so the stage opens as soon as Quarter 4 closes.", CourseStatus::for($course->fresh())->evaluationOpensText());
     }
 }

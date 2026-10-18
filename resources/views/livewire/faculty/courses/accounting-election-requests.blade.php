@@ -65,7 +65,11 @@
 
                 <p class="text-sm">
                     @if ($row['target'] && $row['target']->quarter_number === $request->courseQuarter?->quarter_number)
-                        If you approve now, the change applies to Quarter {{ $row['target']->quarter_number }}'s results (it closes {{ Dates::dateTime($row['target']->decision_deadline_at) }}) and every quarter after.
+                        @if ($row['target']->decision_deadline_at?->isPast())
+                            If you approve now, the change applies to Quarter {{ $row['target']->quarter_number }}'s results and every quarter after. Quarter {{ $row['target']->quarter_number }} was due to close on {{ Dates::dateTime($row['target']->decision_deadline_at) }} and is still open.
+                        @else
+                            If you approve now, the change applies to Quarter {{ $row['target']->quarter_number }}'s results (it closes {{ Dates::dateTime($row['target']->decision_deadline_at) }}) and every quarter after.
+                        @endif
                     @elseif ($row['target'])
                         Quarter {{ $request->courseQuarter?->quarter_number }} has closed, so if you approve now the change applies from Quarter {{ $row['target']->quarter_number }}.
                     @else

@@ -49,7 +49,11 @@
                     <flux:text class="mt-1">
                         Offers stay sealed until you settle. You see how many each firm has received, never the amounts.
                         @if (($active = $status->active()) && $active->state === 'open')
-                            Quarter {{ $active->quarter_number }} closes {{ \App\Support\Dates::dateTime($active->decision_deadline_at) }} ({{ \App\Support\Dates::remaining($active->decision_deadline_at) }}).
+                            @if ($active->decision_deadline_at?->isPast())
+                                Quarter {{ $active->quarter_number }} was due to close on {{ \App\Support\Dates::dateTime($active->decision_deadline_at) }} and is still open.
+                            @else
+                                Quarter {{ $active->quarter_number }} closes {{ \App\Support\Dates::dateTime($active->decision_deadline_at) }} ({{ \App\Support\Dates::remaining($active->decision_deadline_at) }}).
+                            @endif
                         @endif
                     </flux:text>
                 </div>

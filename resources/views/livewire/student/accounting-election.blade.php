@@ -76,9 +76,15 @@
                 <flux:heading size="lg" level="2">Ask to change a method</flux:heading>
                 <flux:text>
                     Your team can file one request this quarter. Anyone on the team can file it, and everyone on the team sees it.
-                    You'll need to explain why the new method suits your firm better. If your instructor approves before
-                    Quarter {{ $quarter->quarter_number }} closes ({{ Dates::dateTime($quarter->decision_deadline_at) }}), the change applies to this quarter's results;
-                    after that, it applies from the next quarter.
+                    You'll need to explain why the new method suits your firm better.
+                    @if ($quarter->decision_deadline_at?->isPast())
+                        If your instructor approves before Quarter {{ $quarter->quarter_number }} closes, the change applies to this quarter's results; after that, it applies from the next quarter.
+                        Quarter {{ $quarter->quarter_number }} was due to close on {{ Dates::dateTime($quarter->decision_deadline_at) }} and is still open, so it may close at any time.
+                    @else
+                        If your instructor approves before
+                        Quarter {{ $quarter->quarter_number }} closes ({{ Dates::dateTime($quarter->decision_deadline_at) }}), the change applies to this quarter's results;
+                        after that, it applies from the next quarter.
+                    @endif
                 </flux:text>
                 <div><flux:button variant="primary" wire:click="startRequest" icon="pencil-square">Start a request</flux:button></div>
             </flux:card>

@@ -43,6 +43,10 @@
 
     @if ($quarter->quarter_number < 4)
         <flux:callout icon="lock-closed" heading="Quarters 1 to 3 were run for your firm before you took over." />
+    @elseif ($overdue)
+        <flux:callout variant="warning" icon="clock" :heading="'Quarter '.$quarter->quarter_number.'\'s deadline has passed, so decisions can\'t be changed.'" data-test="deadline-passed">
+            <flux:callout.text>{{ $overdueText }}</flux:callout.text>
+        </flux:callout>
     @elseif ($readOnly)
         <flux:callout icon="lock-closed" heading="This quarter's decisions are locked." text="Your results and the decisions behind them are on the History page." />
     @else

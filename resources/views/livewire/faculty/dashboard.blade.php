@@ -51,7 +51,10 @@
                                 @endif
                             </div>
                             <p class="mt-1 text-zinc-600 dark:text-zinc-400">
-                                @if ($current->state === 'open')
+                                @if ($current->state === 'open' && $status->isOverdue($current))
+                                    The deadline ({{ Dates::dateTime($current->decision_deadline_at) }}) has passed and the quarter hasn't closed.
+                                    {{ $status->submittedCount($current) }} of {{ $status->firms->count() }} firms submitted.
+                                @elseif ($current->state === 'open')
                                     Decisions due {{ Dates::dateTime($current->decision_deadline_at) }} ({{ Dates::remaining($current->decision_deadline_at) }}).
                                     {{ $status->submittedCount($current) }} of {{ $status->firms->count() }} firms submitted.
                                 @elseif ($current->state === 'processing')

@@ -127,7 +127,10 @@ class DecisionWorkspace extends Component
             'categoryFields' => $categoryFields,
             'record' => $record,
             'teamStatus' => $isStudentQuarter ? $status->firmStatus($this->firm, $this->quarter) : null,
-            'readOnly' => ! $isStudentQuarter || $this->quarter->state !== CourseQuarter::OPEN || $record?->state === FirmQuarterDecision::LOCKED,
+            // L12: past the deadline the form is read-only, under a plain explanation.
+            'readOnly' => ! $isStudentQuarter || $this->quarter->state !== CourseQuarter::OPEN || $record?->state === FirmQuarterDecision::LOCKED || $status->isOverdue($this->quarter),
+            'overdue' => $isStudentQuarter && $status->isOverdue($this->quarter),
+            'overdueText' => $status->overdueText($this->quarter),
             'previous' => $previous['payload'] ?? [],
             'lastResult' => $lastResult,
             'parameters' => $service->parameters($this->firm),
