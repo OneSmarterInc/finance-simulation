@@ -42,7 +42,7 @@ class CfManufacturingWarmupService
      * Engine version 2 runs the same warm-up market through the version 2
      * rules and engine; the warm-up still sells everything it makes.
      */
-    public function generateFromSeedHash(string $courseSeedHash, string $firmIdentifier, Scenario|string|null $scenario = null, int $engineVersion = 1): WarmupGenerationResult
+    public function generateFromSeedHash(string $courseSeedHash, string $firmIdentifier, Scenario|string|null $scenario = null, int $engineVersion = 1, ?array $startingElections = null): WarmupGenerationResult
     {
         if (! preg_match('/^[a-f0-9]{64}$/', $courseSeedHash)) {
             throw new RuntimeException('Course seed hash must be a lowercase 64-character SHA-256 digest.');
@@ -86,10 +86,10 @@ class CfManufacturingWarmupService
                 $this->validateRandomizedDemand($demand);
                 $decisions = $engineVersion === 2
                     ? array_merge($this->simRules->deriveCompleteDecisionsV2($quarter, $demand, $parameters, [], [], ['p1' => $opening->unitsOnHandP1, 'p2' => $opening->unitsOnHandP2]), [
-                        'notes_elections' => $this->lockedPayload($rows, $quarter, 'notes_elections'),
+                        'notes_elections' => $startingElections ?? $this->lockedPayload($rows, $quarter, 'notes_elections'),
                     ])
                     : array_merge($this->simRules->deriveCompleteDecisions($quarter, $demand, $parameters), [
-                        'notes_elections' => $this->lockedPayload($rows, $quarter, 'notes_elections'),
+                        'notes_elections' => $startingElections ?? $this->lockedPayload($rows, $quarter, 'notes_elections'),
                         'certification' => $this->lockedPayload($rows, $quarter, 'certification'),
                     ]);
                 $result = $this->engine->calculate(new ManufacturingEngineInput(

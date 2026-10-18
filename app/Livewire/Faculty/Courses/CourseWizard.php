@@ -56,6 +56,9 @@ class CourseWizard extends Component
 
     public bool $industry_acknowledged = false;
 
+    /** @var array<string, string> ED9: the methods every firm starts with */
+    public array $starting_elections = [];
+
     public bool $deployed = false;
 
     public function mount(?Course $course = null): void
@@ -80,6 +83,7 @@ class CourseWizard extends Component
             $this->ends_on = CarbonImmutable::parse($course->ends_on)->toDateString();
 
             $this->loadPersistedConfiguration();
+            $this->starting_elections = $course->startingElections();
 
             /*
              * Deployed courses are review-only.
@@ -98,6 +102,7 @@ class CourseWizard extends Component
                 ->first();
 
             $this->scenario_id = (string) $scenario?->id;
+            $this->starting_elections = (new Course)->startingElections();
         }
     }
 
@@ -223,9 +228,12 @@ class CourseWizard extends Component
         $this->step = 4;
     }
 
-    public function saveIndustry(): void
+    public function saveIndustry(CourseConfigurationService $service): void
     {
         $this->ensureEditable();
+
+        $this->course = $service->saveStartingElections($this->faculty(), $this->requiredCourse(), $this->starting_elections);
+        $this->starting_elections = $this->course->startingElections();
 
         $this->industry_acknowledged = true;
         $this->step = 5;

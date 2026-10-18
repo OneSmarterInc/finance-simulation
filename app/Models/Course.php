@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Scenario\CfManufacturingScenarioDefinition;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,6 +36,7 @@ class Course extends Model
         'registration_token',
         'registration_enabled',
         'engine_version',
+        'starting_elections',
     ];
 
     protected function casts(): array
@@ -49,6 +51,7 @@ class Course extends Model
             'adversarial_quarters' => 'integer',
             'post_bid_quarters' => 'integer',
             'engine_version' => 'integer',
+            'starting_elections' => 'array',
             'deployed_at' => 'datetime',
         ];
     }
@@ -69,6 +72,25 @@ class Course extends Model
     public function engineVersion(): int
     {
         return (int) ($this->engine_version ?? 1);
+    }
+
+    /**
+     * The accounting methods every firm starts with (ED9): the faculty's
+     * choice from the wizard, or the standard methods. Inventory stays FIFO.
+     *
+     * @return array<string, string>
+     */
+    public function startingElections(): array
+    {
+        $standard = CfManufacturingScenarioDefinition::fixedWarmupPayload('notes_elections');
+        $chosen = is_array($this->starting_elections) ? $this->starting_elections : [];
+        $elections = [];
+        foreach ($standard as $key => $value) {
+            $elections[$key] = $chosen[$key] ?? $value;
+        }
+        $elections['inventory_method'] = 'fifo';
+
+        return $elections;
     }
 
     /** @return BelongsTo<Institution, $this> */

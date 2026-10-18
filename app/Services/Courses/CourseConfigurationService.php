@@ -8,6 +8,7 @@ use App\Models\CourseDecisionEnablement;
 use App\Models\CourseFacultyRole;
 use App\Models\CourseQuarter;
 use App\Models\Faculty;
+use App\Services\CfPlus\FirmAccountingElectionService as LegacyFirmAccountingElectionService;
 use App\Support\Dates;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -210,6 +211,30 @@ class CourseConfigurationService
         event(CourseDeploymentReachedWarmupBoundary::fromCourse($deployed));
 
         return $deployed;
+    }
+
+    /**
+     * ED9: the accounting methods every firm starts with. Set before
+     * deployment only, because the warm-up is built from them.
+     *
+     * @param  array<string, mixed>  $elections  the five methods students can see (inventory stays FIFO)
+     */
+    public function saveStartingElections(Faculty $actor, Course $course, array $elections): Course
+    {
+        $this->authorize($actor, $course);
+        if ($course->status === Course::STATUS_DEPLOYED) {
+            throw ValidationException::withMessages(['starting_elections' => 'The starting methods are fixed once the course is running.']);
+        }
+        if (($elections['inventory_method'] ?? 'fifo') !== 'fifo') {
+            throw ValidationException::withMessages(['starting_elections' => 'Inventory is always first-in, first-out.']);
+        }
+        $ordered = [];
+        foreach (app(LegacyFirmAccountingElectionService::class)->studentVisibleFields() as $field) {
+            $ordered[$field['key']] = $elections[$field['key']] ?? $course->startingElections()[$field['key']];
+        }
+        $course->forceFill(['starting_elections' => app(LegacyFirmAccountingElectionService::class)->validate($ordered)])->save();
+
+        return $course->refresh();
     }
 
     public function authorize(Faculty $actor, Course $course): void

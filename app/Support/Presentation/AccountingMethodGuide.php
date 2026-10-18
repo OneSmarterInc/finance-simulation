@@ -19,7 +19,7 @@ final class AccountingMethodGuide
             'units_of_production' => 'Ties depreciation to how much the plant produces, so the expense rises and falls with output.',
         ],
         'shipping_terms' => [
-            'fob_shipping_point' => 'Your firm owns purchased goods from the moment the supplier ships them, so goods in transit are yours and the note reports them.',
+            'fob_shipping_point' => 'Your firm owns purchased goods from the moment the supplier ships them, so goods still in transit are yours.',
             'fob_destination' => 'Your firm owns purchased goods only when they arrive, so goods still in transit stay with the supplier.',
         ],
         'bad_debt_method' => [

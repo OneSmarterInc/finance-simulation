@@ -40,6 +40,7 @@ class InheritedWarmupHistoryService
                 $firm->id,
                 $firm->course->scenario,
                 $firm->course->engineVersion(),
+                $firm->course->startingElections(),
             );
             if (array_keys($generated->quarters) !== [1, 2, 3]) {
                 throw new RuntimeException('Warm-up must return exactly Quarters 1 through 3.');
