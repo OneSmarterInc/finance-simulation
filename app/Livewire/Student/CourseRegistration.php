@@ -33,7 +33,7 @@ class CourseRegistration extends Component
     {
         $this->token = $token;
 
-        $this->course = Course::query()
+        $this->course = Course::query()->real()
             ->with([
                 'institution',
                 'faculty.user',

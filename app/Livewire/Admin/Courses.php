@@ -13,7 +13,7 @@ class Courses extends Component
     public function render(): View
     {
         return view('livewire.admin.courses', [
-            'courses' => Course::query()
+            'courses' => Course::query()->real()
                 ->with(['institution', 'faculty.user', 'scenario'])
                 ->withCount(['quarters', 'firms'])
                 ->orderBy('name')

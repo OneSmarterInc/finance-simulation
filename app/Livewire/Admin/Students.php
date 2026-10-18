@@ -68,11 +68,12 @@ class Students extends Component
     {
         return view('livewire.admin.students', [
             'students' => StudentModel::query()
+                ->where('is_practice', false)
                 ->with(['user', 'institution', 'enrollments.course', 'firmMemberships.firm'])
                 ->get()
                 ->sortBy(fn ($s) => [$s->enrollments->isNotEmpty() ? 1 : 0, strtolower((string) $s->user?->name)])
                 ->values(),
-            'courses' => Course::query()->orderBy('name')->get(),
+            'courses' => Course::query()->real()->orderBy('name')->get(),
             'paymentRequired' => StudentAccess::required(),
         ]);
     }

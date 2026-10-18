@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\Scenario\CfManufacturingScenarioDefinition;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -37,6 +38,9 @@ class Course extends Model
         'registration_enabled',
         'engine_version',
         'starting_elections',
+        'is_practice',
+        'practice_source_course_id',
+        'practice_last_played_at',
     ];
 
     protected function casts(): array
@@ -52,6 +56,8 @@ class Course extends Model
             'post_bid_quarters' => 'integer',
             'engine_version' => 'integer',
             'starting_elections' => 'array',
+            'is_practice' => 'boolean',
+            'practice_last_played_at' => 'datetime',
             'deployed_at' => 'datetime',
         ];
     }
@@ -67,6 +73,17 @@ class Course extends Model
                 throw new LogicException('A course keeps its engine version once any firm has results.');
             }
         });
+    }
+
+    /**
+     * Courses with real students: practice runs (U9) are kept out of every
+     * list, report, count and the scheduler.
+     *
+     * @param  Builder<Course>  $query
+     */
+    public function scopeReal($query): void
+    {
+        $query->where('is_practice', false);
     }
 
     public function engineVersion(): int

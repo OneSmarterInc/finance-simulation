@@ -2,7 +2,6 @@
 
 namespace App\Services\Quarters;
 
-use App\Jobs\Quarters\CloseCourseQuarter;
 use App\Jobs\Quarters\CloseFirmQuarter;
 use App\Models\Course;
 use App\Models\CourseQuarter;
@@ -29,7 +28,8 @@ class QuarterScheduler
     {
         $log = [];
 
-        Course::query()->where('status', Course::STATUS_DEPLOYED)->each(function (Course $course) use (&$log): void {
+        // Practice runs (U9) are played on demand, never by the clock.
+        Course::query()->real()->where('status', Course::STATUS_DEPLOYED)->each(function (Course $course) use (&$log): void {
             try {
                 if ($line = $this->tickCourse($course)) {
                     $log[] = $course->name.': '.$line;

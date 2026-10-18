@@ -57,8 +57,30 @@ class FirmWarmupInitializationCoordinator
         });
     }
 
+    /**
+     * The seed of a course's market. A practice run (U9) takes the seed of
+     * the course it rehearses, so from Quarter 4 its market moves with the
+     * same draws the class will see.
+     */
     public static function courseSeed(Course $course): string
     {
-        return hash('sha256', "cf-course-instance-v1|{$course->id}|{$course->scenario_id}");
+        $id = $course->is_practice && $course->practice_source_course_id ? $course->practice_source_course_id : $course->id;
+
+        return hash('sha256', "cf-course-instance-v1|{$id}|{$course->scenario_id}");
+    }
+
+    /**
+     * The name a firm's own market draws are taken under: its id. The three
+     * reference teams of a practice run (U9) share one name, so they face the
+     * same market and differ only by their rules, as in the golden fixtures,
+     * and every run of the same course plays out the same way.
+     */
+    public static function marketIdentifier(Firm $firm): string
+    {
+        $course = $firm->course;
+
+        return $course?->is_practice && $course->practice_source_course_id
+            ? "practice|{$course->practice_source_course_id}"
+            : (string) $firm->id;
     }
 }

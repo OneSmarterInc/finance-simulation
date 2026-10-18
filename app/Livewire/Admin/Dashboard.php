@@ -19,9 +19,9 @@ class Dashboard extends Component
         return view('livewire.admin.dashboard', [
             'institutionCount' => Institution::query()->count(),
             'facultyCount' => Faculty::query()->count(),
-            'studentCount' => Student::query()->count(),
-            'courseCount' => Course::query()->count(),
-            'courses' => Course::query()->with(['institution', 'faculty.user'])->withCount(['firms', 'enrollments'])
+            'studentCount' => Student::query()->where('is_practice', false)->count(),
+            'courseCount' => Course::query()->real()->count(),
+            'courses' => Course::query()->real()->with(['institution', 'faculty.user'])->withCount(['firms', 'enrollments'])
                 ->orderByDesc('created_at')->get(),
         ]);
     }
