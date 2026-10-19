@@ -67,7 +67,7 @@
                         <flux:sidebar.item icon="document-text"
                             :href="route('student.accounting-election', ['firm' => $currentFirm, 'quarter' => $electionQuarter])"
                             :current="request()->routeIs('student.accounting-election')" wire:navigate>
-                            {{ __('Accounting elections') }}
+                            {{ __('Accounting methods') }}
                         </flux:sidebar.item>
                     @endif
 
@@ -97,7 +97,6 @@
 
         <flux:spacer />
 
-        <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
     </flux:sidebar>
 
     {{-- Mobile User Menu --}}
@@ -125,6 +124,7 @@
                                 <flux:text class="truncate">
                                     {{ auth()->user()->email }}
                                 </flux:text>
+                                    <flux:text class="truncate">{{ \App\Support\Navigation\PageTrail::for(request())['role'] }}</flux:text>
                             </div>
 
                         </div>

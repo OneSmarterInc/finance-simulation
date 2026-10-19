@@ -47,8 +47,10 @@
                         <div class="flex items-center justify-between gap-2 py-1 text-sm" wire:key="member-{{ $membership->id }}">
                             <span>{{ $membership->student?->user?->name }} <span class="text-zinc-500">{{ $membership->student?->user?->email }}</span></span>
                             @unless ($status->evaluationOpen())
+                                {{-- L21: removing the last member leaves a firm nobody runs. --}}
+                                @php($removeWarning = $firm->memberships->count() === 1 ? $firm->name.' will have no one left. Its last decisions will carry forward every quarter, and '.$membership->student?->user?->name.' can\'t join another firm once this firm has history. Remove anyway?' : 'Remove '.$membership->student?->user?->name.' from '.$firm->name.'? They keep their account but lose access to the firm. A student can\'t move to another firm once this firm has history.')
                                 <flux:button size="xs" variant="ghost" icon="x-mark" wire:click="removeMember('{{ $membership->student_id }}')"
-                                    wire:confirm="Remove {{ $membership->student?->user?->name }} from {{ $firm->name }}? They keep their account but lose access to the firm. A student can't move to another firm once this firm has history.">
+                                    wire:confirm="{{ $removeWarning }}">
                                     Remove
                                 </flux:button>
                             @endunless

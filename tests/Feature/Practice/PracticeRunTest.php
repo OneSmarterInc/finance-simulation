@@ -100,8 +100,10 @@ class PracticeRunTest extends TestCase
         $this->assertSame('SUP006', $resolved('careful')['sourcing']['primary_supplier']);
         $this->assertSame('SUP004', $resolved('careless')['sourcing']['primary_supplier']);
 
-        // Careless pays the largest dividend allowed, Average none.
-        $this->assertGreaterThan(0, (float) $firms['careless']->quarterDecisions()->where('course_quarter_id', $q6->id)->value('dividend'));
+        // Careless declares the largest dividend allowed, Average none. Under ED17 the limit comes from the
+        // opening position, and by Quarter 6 Careless has paid out everything it had, so look at Quarter 4.
+        $q4 = $practice->quarters()->where('quarter_number', 4)->firstOrFail();
+        $this->assertGreaterThan(0, (float) $firms['careless']->quarterDecisions()->where('course_quarter_id', $q4->id)->value('dividend'));
         $this->assertEquals(0, (float) $firms['average']->quarterDecisions()->where('course_quarter_id', $q6->id)->value('dividend'));
 
         // Playing to the end, then asking again, does nothing more.
@@ -195,7 +197,7 @@ class PracticeRunTest extends TestCase
 
         $second = $runs->startAgain($this->faculty, $first);
 
-        $this->assertSoftDeleted('courses', ['id' => $first->id]);
+        $this->assertDatabaseMissing('courses', ['id' => $first->id]);
         $this->assertNotSame($first->id, $second->id);
         $this->assertSame($second->id, $runs->current($source)?->id);
         $this->assertSame(3, $runs->playedTo($second));

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class FirmAccountingElectionRequest extends Model
 {
@@ -76,5 +77,11 @@ class FirmAccountingElectionRequest extends Model
             Faculty::class,
             'reviewed_by_faculty_id'
         );
+    }
+
+    /** U12: Claude's review of this request (faculty only). @return HasOne<AccountingRequestReview, $this> */
+    public function claudeReview(): HasOne
+    {
+        return $this->hasOne(AccountingRequestReview::class, 'request_id');
     }
 }

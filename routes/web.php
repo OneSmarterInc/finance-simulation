@@ -21,6 +21,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
 
+// Live walkthrough L8: the public tour for faculty thinking of adopting Flexee.
+Route::get('tour/{step?}', \App\Http\Controllers\TourController::class)
+    ->whereNumber('step')->name('tour');
+
  Route::get('register/course/{token}', CourseRegistration::class)
     ->name('student.course-registration');
 
@@ -72,6 +76,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('faculty/courses/{course}/quarter-results', QuarterResults::class)
         ->name('faculty.courses.quarter-results');
+
+    Route::get('faculty/courses/{course}/quarter-results/download', \App\Http\Controllers\Faculty\ResultsDownloadController::class)
+        ->name('faculty.courses.quarter-results.download');
+
+    // U11: the teams' explanations of each quarter.
+    Route::get('faculty/courses/{course}/explanations', \App\Livewire\Faculty\Courses\TeamExplanations::class)
+        ->name('faculty.courses.explanations');
+
+    Route::get('faculty/courses/{course}/explanations/download', \App\Http\Controllers\Faculty\ExplanationsDownloadController::class)
+        ->name('faculty.courses.explanations.download');
 
     Route::get('faculty/courses/{course}/practice', PracticeRun::class)
         ->name('faculty.courses.practice');

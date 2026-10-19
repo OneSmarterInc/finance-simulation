@@ -2,9 +2,11 @@
 
 namespace App\Services\Ai;
 
+use App\Models\AccountingRequestReview;
 use App\Models\AiQuestion;
 use App\Models\Course;
 use App\Models\Faculty;
+use App\Models\FirmQuarterReading;
 use App\Support\Product;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -66,7 +68,7 @@ class AskClaude
                 foreach ($uses as $use) {
                     $result = $tools->run((string) $use['name'], (array) ($use['input'] ?? []));
                     $json = json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-                    $sources[] = $json;
+                    $sources[] = json_encode(AskClaudeTools::factual((string) $use['name'], $result), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
                     $lookups[] = ['name' => (string) $use['name'], 'summary' => $this->summary((string) $use['name'], $result)];
                     $results[] = ['type' => 'tool_result', 'tool_use_id' => $use['id'], 'content' => $json];
                 }
@@ -77,7 +79,7 @@ class AskClaude
         }
 
         $check = $status === AiQuestion::ANSWERED && $answer !== ''
-            ? FigureCheck::apply($answer, $sources)
+            ? FigureCheck::apply($answer, $sources, $tools->quotable())
             : ['answer' => '', 'dropped' => [], 'checked' => 0];
         if ($status === AiQuestion::ANSWERED && $check['answer'] === '') {
             $check['answer'] = 'Every sentence of this answer quoted a figure the lookups did not return, so none of it is shown. Try asking in a different way.';
@@ -119,6 +121,16 @@ class AskClaude
             ->where('created_at', '>=', now()->startOfMonth())->where('status', AiQuestion::ANSWERED)->count());
     }
 
+    /** The whole site's AI spending this month: questions, the quarter readings (L15) and the request reviews (U12) together. */
+    public static function spentThisMonth(): float
+    {
+        $since = now()->startOfMonth();
+
+        return (float) AiQuestion::query()->where('created_at', '>=', $since)->sum('cost_usd')
+            + (float) FirmQuarterReading::query()->where('written_at', '>=', $since)->sum('cost_usd')
+            + (float) AccountingRequestReview::query()->where('written_at', '>=', $since)->sum('cost_usd');
+    }
+
     private function guard(Faculty $faculty, Course $course, string $question): void
     {
         $teaches = $course->faculty_id === $faculty->id || $course->facultyRoles()->where('faculty_id', $faculty->id)->exists();
@@ -135,8 +147,7 @@ class AskClaude
         if ($this->questionsLeft($course) === 0) {
             throw ValidationException::withMessages(['question' => 'This course has used all its questions for this month. They start again on the 1st.']);
         }
-        $spent = (float) AiQuestion::query()->where('created_at', '>=', now()->startOfMonth())->sum('cost_usd');
-        if ($spent >= (float) config('flexee.ai.monthly_spend_ceiling_usd')) {
+        if (self::spentThisMonth() >= (float) config('flexee.ai.monthly_spend_ceiling_usd')) {
             throw ValidationException::withMessages(['question' => 'Ask Claude has reached this month\'s limit for the whole site. It will be back on the 1st.']);
         }
     }
@@ -178,6 +189,7 @@ class AskClaude
         - You can only read. If the instructor wants something done (extend a deadline, approve a request), say which page does it.
         - Students appear in lookups as Student 1, Student 2 and so on. Refer to them that way; the page shows their names.
         - Describe what happened and what the course will do. Don't tell the instructor how to grade, and don't suggest decisions for students.
+        - Teams' explanations (get_team_explanations) and rival analyses (get_rival_analyses), including a team's own figure for a stake, are the students' own words. You may compare a team's explanation with its stored results and say where a claim doesn't match, quoting the team's words in quotation marks and giving the stored figure from get_results. Never state a figure from an explanation as fact, never suggest a grade or mark, and never rank the teams' explanations against each other.
         - If the guide and the lookups don't answer the question, say so plainly.
 
         The guide for instructors:
@@ -222,6 +234,12 @@ class AskClaude
             'get_decisions' => is_array($result['decisions'] ?? null) ? ($result['firm'] ?? '').'\'s Quarter '.($result['quarter'] ?? '').' decisions' : 'no calculated decisions for that quarter',
             'get_method_requests' => count($result['requests'] ?? []).' method '.Str::plural('request', count($result['requests'] ?? [])),
             'get_evaluation_stage' => ($result['evaluation_stage'] ?? null) === 'none' ? 'no evaluation stage in this course' : 'the evaluation stage, '.(($result['settled'] ?? false) ? 'settled' : (($result['open'] ?? false) ? 'open' : 'not open yet')),
+            'get_team_explanations' => isset($result['quarter'])
+                ? 'the teams\' explanations of Quarter '.$result['quarter'].', '.collect($result['firms'] ?? [])->filter(fn ($f) => str_starts_with((string) $f['status'], 'submitted'))->count().' of '.count($result['firms'] ?? []).' submitted'
+                : 'no explanations yet',
+            'get_rival_analyses' => isset($result['analyses'])
+                ? count($result['analyses']).' rival '.Str::plural('analysis', count($result['analyses'])).(($result['settled'] ?? false) ? '' : ', still sealed')
+                : 'no evaluation stage in this course',
             'get_practice_scoreboard' => isset($result['played_to_quarter']) ? 'the practice run, played to Quarter '.$result['played_to_quarter'] : 'no practice run',
             default => $result['error'] ?? 'nothing',
         };

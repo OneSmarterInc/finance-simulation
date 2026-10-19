@@ -18,6 +18,17 @@
                 <flux:input readonly :value="$registrationUrl" class="max-w-xl" />
                 <flux:button size="sm" icon="clipboard" x-on:click="navigator.clipboard.writeText(@js($registrationUrl))">Copy</flux:button>
             </div>
+            {{-- L22: say whether the link works right now. --}}
+            @if ($course->registration_enabled)
+                <p class="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400" data-test="registration-state">
+                    <flux:icon.check-circle variant="mini" /> Registration is open: anyone with this link can join.
+                </p>
+            @else
+                <p class="flex flex-wrap items-center gap-x-2 text-sm text-amber-700 dark:text-amber-400" data-test="registration-state">
+                    <flux:icon.exclamation-triangle variant="mini" /> Registration is closed: students who follow this link are turned away.
+                    <flux:link :href="route('faculty.courses.wizard', $course)" wire:navigate>Open it on Review setup</flux:link>
+                </p>
+            @endif
         </flux:card>
     @endif
 

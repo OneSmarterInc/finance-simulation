@@ -11,6 +11,7 @@ use App\Models\Student;
 use App\Services\Courses\CourseConfigurationService;
 use App\Services\Decisions\FirmDecisionService;
 use App\Services\Firms\FirmAssignmentService;
+use App\Services\Interpretations\InterpretationService;
 use App\Services\Quarters\QuarterManagementService;
 use App\Support\Scenario\CfManufacturingScenarioDefinition;
 use Illuminate\Database\Seeder;
@@ -73,6 +74,10 @@ class Phase8OverdraftDemoSeeder extends Seeder
             $course = $courses->deploy($faculty, $course);
             $quarter = $course->quarters()->where('quarter_number', 4)->firstOrFail();
             $quarters->open($faculty, $quarter);
+            // U11: the team explains the quarter before last before it submits.
+            if (app(InterpretationService::class)->explainedQuarter($firm, $quarter)) {
+                app(InterpretationService::class)->submit($student, $firm, $quarter, Phase8DemoSeeder::DEMO_EXPLANATION);
+            }
             $decisions->submit($student, $firm, $quarter, $this->legalAggressiveDecisions(), 0);
             $quarters->queueClose($faculty, $quarter);
             $this->assertComplete($course->fresh());

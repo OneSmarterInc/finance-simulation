@@ -93,7 +93,7 @@ class AccountingElection extends Component
                 ->latest('created_at')->get(),
             'canFile' => $this->firm->course->accounting_election_enabled
                 && $this->quarter->state === CourseQuarter::OPEN
-                && $request === null,
+                && ($request === null || $request->status === FirmAccountingElectionRequestService::RETURNED),
         ]);
     }
 

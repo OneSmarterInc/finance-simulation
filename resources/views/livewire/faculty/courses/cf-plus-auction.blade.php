@@ -34,6 +34,13 @@
                 Each team then sees, for every rival, the statements, a consultant's valuation and the most it could fund, and saves a sealed offer for a controlling stake.
                 You'll see here how many offers each firm has received, never the amounts.
             </flux:text>
+            {{-- L20: courses that can be rehearsed can see the stage played out. --}}
+            @if ($course->engineVersion() === 2 && ! $course->is_practice)
+                <flux:text data-test="evaluation-practice-link">
+                    See it played out: the practice run takes three reference teams through this stage, offers and reveal included.
+                    <flux:link :href="route('faculty.courses.practice', $course)" wire:navigate>Open the practice run</flux:link>
+                </flux:text>
+            @endif
         </flux:card>
 
     @elseif($settled->isEmpty())
@@ -49,7 +56,11 @@
                     <flux:text class="mt-1">
                         Offers stay sealed until you settle. You see how many each firm has received, never the amounts.
                         @if (($active = $status->active()) && $active->state === 'open')
-                            Quarter {{ $active->quarter_number }} closes {{ \App\Support\Dates::dateTime($active->decision_deadline_at) }} ({{ \App\Support\Dates::remaining($active->decision_deadline_at) }}).
+                            @if ($active->decision_deadline_at?->isPast())
+                                Quarter {{ $active->quarter_number }} was due to close on {{ \App\Support\Dates::dateTime($active->decision_deadline_at) }} and is still open.
+                            @else
+                                Quarter {{ $active->quarter_number }} closes {{ \App\Support\Dates::dateTime($active->decision_deadline_at) }} ({{ \App\Support\Dates::remaining($active->decision_deadline_at) }}).
+                            @endif
                         @endif
                     </flux:text>
                 </div>

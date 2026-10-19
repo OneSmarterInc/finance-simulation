@@ -8,6 +8,7 @@ use App\Models\Firm;
 use App\Models\FirmAccountingElectionRequest;
 use App\Models\FirmQuarterClose;
 use App\Models\FirmQuarterDecision;
+use App\Services\Quarters\QuarterScheduler;
 use App\Support\Dates;
 use Illuminate\Support\Collection;
 
@@ -93,6 +94,41 @@ final class CourseStatus
         };
     }
 
+    /**
+     * Live walkthrough L12: the quarter is open, its deadline has passed and
+     * it hasn't closed. Submissions are refused from the deadline on, so the
+     * screens stop talking as if the deadline were ahead. (A quarter that
+     * opened after its own deadline is different: it waits for a new one.)
+     */
+    public function isOverdue(CourseQuarter $quarter): bool
+    {
+        return $quarter->state === CourseQuarter::OPEN
+            && $quarter->decision_deadline_at !== null
+            && $quarter->decision_deadline_at->isPast()
+            && ! QuarterScheduler::needsNewDeadline($quarter);
+    }
+
+    /** What students read once their quarter's deadline has passed (L12). */
+    public function overdueText(CourseQuarter $quarter): string
+    {
+        return 'Quarter '.$quarter->quarter_number.'\'s deadline ('.Dates::dateTime($quarter->decision_deadline_at).') has passed. '
+            .'Your instructor will either close the quarter, using last quarter\'s decisions for any team that didn\'t submit, or set a new deadline.';
+    }
+
+    /** "14 days ago", "3 hours ago" or "a few minutes ago". */
+    public static function ago(\DateTimeInterface $moment): string
+    {
+        $minutes = (int) floor((now()->getTimestamp() - $moment->getTimestamp()) / 60);
+        $days = intdiv($minutes, 1440);
+        $hours = intdiv($minutes, 60);
+
+        return match (true) {
+            $days >= 1 => $days.' '.str('day')->plural($days).' ago',
+            $hours >= 1 => $hours.' '.str('hour')->plural($hours).' ago',
+            default => 'a few minutes ago',
+        };
+    }
+
     /** When a quarter that is not open yet will open, in words. */
     public function opensWhen(CourseQuarter $quarter): string
     {
@@ -106,10 +142,18 @@ final class CourseStatus
         if ($previous?->state === CourseQuarter::CLOSED) {
             return 'Quarter '.$previous->quarter_number.' has closed, so this quarter opens at the next scheduled check (within a minute).';
         }
+        if (! $previous) {
+            return 'Opens automatically when the previous quarter closes.';
+        }
+        // L7: once the dates stated here have passed, say what happens instead of naming them as if ahead.
+        $ownPassed = $quarter->decision_deadline_at?->isPast()
+            ? ' Its own deadline ('.Dates::dateTime($quarter->decision_deadline_at).') has passed too, so when it opens it waits for a new deadline.'
+            : '';
+        if ($previous->decision_deadline_at?->isPast()) {
+            return 'Opens as soon as Quarter '.$previous->quarter_number.' closes. Quarter '.$previous->quarter_number.'\'s deadline ('.Dates::dateTime($previous->decision_deadline_at).') has passed.'.$ownPassed;
+        }
 
-        return $previous
-            ? 'Opens automatically when Quarter '.$previous->quarter_number.' closes after its deadline, '.Dates::dateTime($previous->decision_deadline_at).'.'
-            : 'Opens automatically when the previous quarter closes.';
+        return 'Opens automatically when Quarter '.$previous->quarter_number.' closes after its deadline, '.Dates::dateTime($previous->decision_deadline_at).'.';
     }
 
     // ---- evaluation stage (Flexee Financial Accounting+) ------------------
@@ -152,6 +196,9 @@ final class CourseStatus
         }
         $previous = $this->quarters->firstWhere('quarter_number', $quarter->quarter_number - 1);
         $when = $previous?->decision_deadline_at ?? $quarter->starts_on;
+        if ($previous && $when?->isPast()) {
+            return 'Opens with Quarter '.$quarter->quarter_number.'. Quarter '.$previous->quarter_number.'\'s deadline has passed, so the stage opens as soon as Quarter '.$previous->quarter_number.' closes.';
+        }
 
         return 'Opens with Quarter '.$quarter->quarter_number.', after '.Dates::dateTime($when).'.';
     }
@@ -178,8 +225,9 @@ final class CourseStatus
     {
         $decision = $this->decisions($quarter)->get($firm->id);
 
+        $overdue = $this->isOverdue($quarter);
         if (! $decision) {
-            return ['state' => 'none', 'label' => 'Not submitted yet', 'decision' => null];
+            return ['state' => 'none', 'label' => $overdue ? 'Deadline passed, nothing submitted' : 'Not submitted yet', 'decision' => null];
         }
 
         return match ($decision->state) {
@@ -193,7 +241,7 @@ final class CourseStatus
                 'label' => $decision->carried_forward ? 'Carried forward, no submission' : 'Submitted',
                 'decision' => $decision,
             ],
-            default => ['state' => 'draft', 'label' => 'Draft saved, not submitted', 'decision' => $decision],
+            default => ['state' => 'draft', 'label' => $overdue ? 'Deadline passed, draft not submitted' : 'Draft saved, not submitted', 'decision' => $decision],
         };
     }
 
@@ -250,7 +298,14 @@ final class CourseStatus
                 'route' => route('faculty.courses.firms', $this->course),
             ];
         }
-        if ($active && \App\Services\Quarters\QuarterScheduler::needsNewDeadline($active)) {
+        // L12: the deadline passed but the quarter didn't close, usually because the quarter clock isn't running.
+        if ($active && $this->isOverdue($active) && $active->decision_deadline_at->lt(now()->subMinutes(15))) {
+            $items[] = [
+                'text' => 'Quarter '.$active->quarter_number.'\'s deadline passed '.self::ago($active->decision_deadline_at).' and the quarter hasn\'t closed. Extend the deadline, or ask support to check the quarter clock',
+                'route' => route('faculty.courses.quarters', $this->course),
+            ];
+        }
+        if ($active && QuarterScheduler::needsNewDeadline($active)) {
             $items[] = [
                 'text' => 'Quarter '.$active->quarter_number.' opened after its deadline. Set a new deadline so students have time to decide',
                 'route' => route('faculty.courses.quarters', $this->course),

@@ -9,6 +9,7 @@ use App\Services\Accounting\AccountingChangeDisclosures;
 use App\Services\Courses\CourseStatus;
 use App\Services\Decisions\FirmDecisionHistory;
 use App\Services\Decisions\FirmDecisionService;
+use App\Services\Interpretations\InterpretationService;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
@@ -57,6 +58,9 @@ class FirmDashboard extends Component
             'status' => $status,
             'active' => $active,
             'teamStatus' => $active ? $status->firmStatus($this->firm, $active) : null,
+            // U11: the quarter the team still has to explain before it can submit, if any.
+            'toExplain' => $active && ! app(InterpretationService::class)->satisfied($this->firm, $active)
+                ? app(InterpretationService::class)->explainedQuarter($this->firm, $active) : null,
             'results' => $results,
             'columns' => $columns,
             'decisionColumns' => $decisionColumns,

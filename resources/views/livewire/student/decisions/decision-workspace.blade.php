@@ -43,6 +43,10 @@
 
     @if ($quarter->quarter_number < 4)
         <flux:callout icon="lock-closed" heading="Quarters 1 to 3 were run for your firm before you took over." />
+    @elseif ($overdue)
+        <flux:callout variant="warning" icon="clock" :heading="'Quarter '.$quarter->quarter_number.'\'s deadline has passed, so decisions can\'t be changed.'" data-test="deadline-passed">
+            <flux:callout.text>{{ $overdueText }}</flux:callout.text>
+        </flux:callout>
     @elseif ($readOnly)
         <flux:callout icon="lock-closed" heading="This quarter's decisions are locked." text="Your results and the decisions behind them are on the History page." />
     @else
@@ -54,6 +58,67 @@
                 Anyone on the team can save a draft or submit. If nothing is submitted by the deadline, last quarter's decisions are used again.
             </flux:callout.text>
         </flux:callout>
+    @endif
+
+    {{-- U11 (IN1, IN2): the team explains last quarter before it submits this quarter's decisions. --}}
+    @if ($explainedQuarter)
+        <flux:card class="space-y-4" data-test="explanation">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+                <div class="space-y-1">
+                    <flux:heading size="lg" level="2">Explain Quarter {{ $explainedQuarter->quarter_number }} before you decide</flux:heading>
+                    <flux:text class="max-w-3xl">
+                        Before your team submits Quarter {{ $quarter->quarter_number }}'s decisions, write what Quarter {{ $explainedQuarter->quarter_number }}'s statements show.
+                        Your instructor reads it. Anyone on the team can write it, and everyone sees the same draft.
+                    </flux:text>
+                </div>
+                @if ($explanationRecord?->isSubmitted())
+                    <flux:badge color="emerald">Submitted</flux:badge>
+                @elseif ($explanationRecord)
+                    <flux:badge color="amber">Draft saved</flux:badge>
+                @else
+                    <flux:badge color="amber">Not started</flux:badge>
+                @endif
+            </div>
+
+            @foreach ([
+                'changed' => ['What changed?', 'Name two or three lines on the statements that moved most since the quarter before, and say by how much. For example: net income rose from $9.1 million to $14.2 million.'],
+                'why' => ['Why did it change?', 'For each line, say what caused the move: one of your team\'s decisions, customers\' orders, or an accounting method.'],
+                'notes' => ['What do the notes show?', 'Name one thing in the notes that the three statements don\'t show on their own. For example, goods still on their way from the supplier, or orders you couldn\'t fill.'],
+            ] as $key => [$label, $hint])
+                <flux:textarea wire:model="explanation.{{ $key }}" rows="3" :label="$label" :description="$hint"
+                    :disabled="! $explanationEditable" wire:key="explanation-{{ $key }}" />
+            @endforeach
+            @error('interpretation')
+                <flux:callout variant="danger" icon="exclamation-triangle" :heading="$message" />
+            @enderror
+
+            @if ($explanationRecord?->isSubmitted())
+                <flux:text size="sm">
+                    Submitted by {{ $explanationRecord->submittedBy?->user?->name ?? 'your team' }} on {{ Dates::dateTime($explanationRecord->submitted_at) }}.
+                    @if ($explanationEditable)
+                        You can change it and submit again until the deadline.
+                    @endif
+                </flux:text>
+            @endif
+            @if ($explanationRecord?->faculty_comment)
+                <div class="rounded-lg bg-zinc-50 p-3 text-sm dark:bg-white/5" data-test="explanation-comment">
+                    <p class="font-medium">Your instructor's comment</p>
+                    <p class="mt-1 whitespace-pre-line">{{ $explanationRecord->faculty_comment }}</p>
+                </div>
+            @endif
+
+            @if ($explanationEditable)
+                <div class="flex flex-wrap items-center gap-3">
+                    <flux:button wire:click="saveExplanation" icon="document-check">Save draft</flux:button>
+                    <flux:button wire:click="submitExplanation" variant="primary" icon="paper-airplane">
+                        {{ $explanationRecord?->isSubmitted() ? 'Submit the changes' : 'Submit the explanation' }}
+                    </flux:button>
+                    @if ($explanationMessage)
+                        <flux:text size="sm" role="status">{{ $explanationMessage }}</flux:text>
+                    @endif
+                </div>
+            @endif
+        </flux:card>
     @endif
 
     {{-- Last quarter at a glance (item 79) --}}
@@ -114,9 +179,8 @@
                                 @endforeach
                             </flux:select>
                         @else
-                            <flux:input type="number" step="any" min="0"
-                                wire:model.live.debounce.500ms="decisions.{{ $code }}.{{ $key }}"
-                                :disabled="$readOnly" :label="Names::fieldLabel($key, $engineVersion).($isPercent ? ' (%)' : '')" />
+                            <x-number-box :model="'decisions.'.$code.'.'.$key" :disabled="$readOnly"
+                                :label="Names::fieldLabel($key, $engineVersion).($isPercent ? ' (%)' : '')" />
                         @endif
 
                         @if ($last !== null)
@@ -145,17 +209,28 @@
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <flux:heading size="lg" level="2">Dividend</flux:heading>
                 <flux:badge color="emerald">
-                    Most you can pay now:
-                    {{ $maximumDividend === null ? 'fill in the decisions above to see' : '$'.number_format($maximumDividend, 2) }}
+                    Most you can declare:
+                    {{ $maximumDividend === null ? 'not available yet' : '$'.number_format($maximumDividend, 2) }}
                 </flux:badge>
             </div>
-            <flux:input class="max-w-sm" type="number" min="0" step="0.01" wire:model="dividend" :disabled="$readOnly" label="Dividend to declare ($)" />
+            {{-- L14, ED17 a: the limit comes from the opening position, so it can't be used to preview the quarter. --}}
+            <flux:text size="sm" class="max-w-3xl" data-test="dividend-rule">
+                This is the smaller of your firm's retained earnings and its cash above the minimum buffer at the start of the quarter, so it stays the same whatever you decide above. If the quarter's results can't fund the dividend you declare, it's cut to what they can when the quarter closes.
+            </flux:text>
+            <div class="max-w-sm">
+                <x-number-box model="dividend" :disabled="$readOnly" label="Dividend to declare ($)" />
+            </div>
         </flux:card>
     @endif
 
     @unless ($readOnly)
         <div class="flex flex-wrap items-center gap-3">
-            @if (($teamStatus['state'] ?? null) === 'submitted')
+            @if ($explainedQuarter && ! $explanationRecord?->isSubmitted())
+                {{-- U11 (IN1): Submit unlocks once the explanation is in. Drafts can still be saved. --}}
+                <flux:button wire:click="saveDraft" wire:loading.attr="disabled" icon="document-check">Save draft</flux:button>
+                <flux:button icon="lock-closed" variant="primary" disabled data-test="decisions-locked">Submit for the team</flux:button>
+                <flux:text size="sm">Submit your team's explanation of Quarter {{ $explainedQuarter->quarter_number }} first. Then you can submit Quarter {{ $quarter->quarter_number }}'s decisions.</flux:text>
+            @elseif (($teamStatus['state'] ?? null) === 'submitted')
                 <flux:button wire:click="submit" wire:loading.attr="disabled" icon="paper-airplane" variant="primary">Submit changes for the team</flux:button>
                 <flux:text size="sm">Your team has submitted. Submitting again replaces it.</flux:text>
             @else

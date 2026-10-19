@@ -7,7 +7,7 @@ Nothing here runs in production. Python is only needed to rebuild fixtures and r
 ## Running it
 
 ```
-python3 economics/check.py           # 36 named checks; exits non-zero on any failure
+python3 economics/check.py           # 37 named checks; exits non-zero on any failure
 python3 economics/build.py           # rebuilds the fixtures
 python3 economics/build.py --check   # fails if the fixtures are out of date
 php artisan test tests/Feature/Economics
@@ -56,11 +56,11 @@ All three teams share one warm-up and then play Quarters 4 to 11. Forecasting an
 
 | Team | Value created by Q11 | Profit Q4–Q11 | Dividends | Cash at Q11 | Units in stock at Q11 | Orders not filled |
 |---|---|---|---|---|---|---|
-| Careful | $222.9M | $96.7M | $87.0M | $48.7M | 7,606 | 3,351 |
+| Careful | $222.9M | $96.7M | $76.0M | $59.7M | 7,606 | 3,351 |
 | Average | $189.7M | $63.5M | $0 | $102.1M | 0 | 282,249 |
-| Careless | $143.2M | $17.1M | $50.8M | $1.0M | 318,978 | 765 |
+| Careless | $144.3M | $18.2M | $51.0M | $1.0M | 318,978 | 765 |
 
-Value created is ending equity plus dividends paid from Quarter 4. Careful leads in every quarter. Average misses the high seasons it doesn't plan for. Careless reports a profit while its cash sits at the $1M floor and up to $72M is tied up in inventory, which is the lesson the course promises. It also stops inspecting in Quarter 8, and its warranty claims run past its estimate from then on.
+Value created is ending equity plus dividends paid from Quarter 4. Dividends follow ED17 (decided 18 October 2026): a team's limit is the smaller of its opening retained earnings and its opening cash above the minimum buffer, known when the quarter opens, and at the close a dividend the quarter can't fund is cut to what it can. Each team row records `dividend_declared` and `dividend_paid`. Careful leads in every quarter. Average misses the high seasons it doesn't plan for. Careless reports a profit while its cash sits at the $1M floor and up to $72M is tied up in inventory, which is the lesson the course promises. It also stops inspecting in Quarter 8, and its warranty claims run past its estimate from then on.
 
 The fixtures also replay the careful team with each accounting method and several inputs changed (fifteen variants, Quarters 4 to 9): every accounting method except inventory, which is FIFO only, two suppliers, a USA supplier with no lead time, a German supplier without inspection, no marketing, full inspection with air freight, a third shift, a price rise, a quarter with no production, and forecasting left closed until Quarter 6. Two edge cases start from a crafted opening for what no course reaches in eleven quarters: a class at the end of its life, and a bill larger than cash plus the credit line (the bank overdraft).
 

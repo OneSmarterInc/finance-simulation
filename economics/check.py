@@ -304,6 +304,23 @@ def _():
     raise AssertionError("an oversized dividend was accepted")
 
 
+@check("ED17: the dividend limit is known when the quarter opens, and the close cuts what it can't fund")
+def _():
+    from cfmodel.course import opening_dividend_limit
+    cut = 0
+    for team, rows in RUNS.items():
+        for r in rows:
+            if r["quarter"] < 4:
+                continue
+            limit = opening_dividend_limit(_op(r), P)
+            assert r["dividend_declared"] <= limit + 0.005, f"{team} Q{r['quarter']} declared above the opening limit"
+            assert close(r["dividend_paid"], min(r["dividend_declared"], r["intermediates"]["maximum_dividend"])), f"{team} Q{r['quarter']} paid wrong"
+            assert close(r["intermediates"]["dividend"], r["dividend_paid"]), f"{team} Q{r['quarter']} engine paid a different amount"
+            cut += r["dividend_paid"] < r["dividend_declared"] - 0.005
+    assert cut > 0, "no quarter shows the cut at the close"
+    return f"{cut} firm-quarter(s) cut at the close"
+
+
 @check("Postponed production and the other unused inputs change nothing")
 def _():
     r = RUNS["careful"][6]
@@ -314,7 +331,7 @@ def _():
     dec["marketing"].update(marketing_alloc_champions=1.0, marketing_alloc_growth=0, marketing_alloc_at_risk=0, marketing_alloc_other=0)
     dec["certification"] = {"attestation_scope": "not_attested"}
     dec["notes_elections"]["carry_cost_treat"] = "Product Cost (Capitalize)"
-    got = calculate(2, r["quarter"], dec, P, _op(r), r["dividend_declared"], r["market"])
+    got = calculate(2, r["quarter"], dec, P, _op(r), r.get("dividend_paid", r["dividend_declared"]), r["market"])
     assert got["fields"] == r["fields"], "an unused input changed a result"
     clean = each(ALL_V2, lambda x: all(k not in x["decisions"].get(c, {}) for c, ks in V2_UNUSED_INPUTS.items() for k in ks)
                  and "certification" not in x["decisions"], "fixture decisions carry an unused input")
@@ -434,7 +451,7 @@ def _():
     for method in ("lifo", "weighted_average"):
         dec = json.loads(json.dumps(r["decisions"]))
         dec["notes_elections"]["inventory_method"] = method
-        got = calculate(2, r["quarter"], dec, P, _op(r), r["dividend_declared"], r["market"])
+        got = calculate(2, r["quarter"], dec, P, _op(r), r.get("dividend_paid", r["dividend_declared"]), r["market"])
         assert got["fields"] == r["fields"], f"{method} changed a result"
     return each(ALL_V2, lambda x: x["fields"]["n3_lifo_res"] == 0 and x["fields"]["is_lifo_adj"] == 0, "a LIFO reserve appeared")
 

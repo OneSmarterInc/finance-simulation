@@ -1,11 +1,17 @@
 <?php
 
+use App\Models\AiQuestion;
 use App\Models\Course;
+use App\Models\Faculty;
+use App\Services\Ai\QuarterReadings;
+use App\Services\Ai\RequestReviews;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
 use App\Services\Quarters\QuarterScheduler;
+use App\Services\Tour\TourFigures;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -53,6 +59,31 @@ Artisan::command('flexee:practice {course : the id of the course to rehearse} {-
 Schedule::command('flexee:quarters')->everyMinute()->withoutOverlapping(10)->onOneServer();
 
 /*
+ * U9 layer 6 (FF6): remove practice runs not played for 30 days, and any
+ * copies an earlier Start again left hidden.
+ */
+Artisan::command('flexee:practice-tidy', function (PracticeRunService $runs) {
+    $this->info('Practice runs removed: '.$runs->tidy());
+})->purpose('Remove practice runs not played for 30 days');
+
+/*
+ * Live walkthrough L8: the adopter tour's figures. Plays a reference
+ * Flexee Financial Accounting+ course on a throwaway copy, writes
+ * resources/tour/figures.json and removes everything it made. Run in
+ * development and commit the file; the tour pages only read it.
+ */
+Artisan::command('flexee:tour-figures {--faculty= : email of the faculty account to play it as (default: the first)}', function (TourFigures $tour) {
+    $faculty = $this->option('faculty')
+        ? Faculty::query()->whereHas('user', fn ($q) => $q->where('email', $this->option('faculty')))->firstOrFail()
+        : Faculty::query()->orderBy('created_at')->firstOrFail();
+    $figures = $tour->generate($faculty);
+    TourFigures::write($figures);
+    $this->info('Wrote '.TourFigures::PATH.'. Careful created $'.number_format($figures['value_created']['careful'][11] / 1e6, 1).'M by Quarter 11.');
+})->purpose('Write the adopter tour figures from a reference practice run');
+
+Schedule::command('flexee:practice-tidy')->dailyAt('03:17')->withoutOverlapping(30)->onOneServer();
+
+/*
  * Ask Claude (U1): one tiny request to Anthropic, to check the key and that the
  * server can reach api.anthropic.com before the helper is switched on (AC8).
  */
@@ -63,7 +94,7 @@ Artisan::command('flexee:ai-check', function () {
         return 1;
     }
     try {
-        $response = \Illuminate\Support\Facades\Http::withHeaders([
+        $response = Http::withHeaders([
             'x-api-key' => (string) config('services.anthropic.key'),
             'anthropic-version' => (string) config('services.anthropic.version'),
         ])->timeout(30)->acceptJson()->post((string) config('services.anthropic.url'), [
@@ -71,7 +102,7 @@ Artisan::command('flexee:ai-check', function () {
             'max_tokens' => 20,
             'messages' => [['role' => 'user', 'content' => 'Reply with the single word: ready']],
         ])->throw()->json();
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $this->error('Anthropic could not be reached: '.$e->getMessage());
 
         return 1;
@@ -82,5 +113,26 @@ Artisan::command('flexee:ai-check', function () {
     return 0;
 })->purpose('Check the Anthropic key and connection for Ask Claude');
 
+/*
+ * Live walkthrough L15 (U11 layer 2): Claude's reading of each closed
+ * quarter, written by the clock and never inside the close, a few at a time,
+ * for courses with "Show to me" or "Show to students" on.
+ */
+Artisan::command('flexee:readings {--limit= : how many to write this run}', function (QuarterReadings $readings) {
+    $this->info('Readings written: '.$readings->tick($this->option('limit') !== null ? (int) $this->option('limit') : null));
+})->purpose('Write Claude\'s reading of quarters that have closed');
+
+Schedule::command('flexee:readings')->everyMinute()->withoutOverlapping(5)->onOneServer();
+
+/*
+ * U12: Claude's review of each accounting-method request, written by the
+ * clock once the request is filed, for courses with the review switched on.
+ */
+Artisan::command('flexee:request-reviews {--limit= : how many to write this run}', function (RequestReviews $reviews) {
+    $this->info('Request reviews written: '.$reviews->tick($this->option('limit') !== null ? (int) $this->option('limit') : null));
+})->purpose('Write Claude\'s review of accounting-method requests waiting for faculty');
+
+Schedule::command('flexee:request-reviews')->everyMinute()->withoutOverlapping(5)->onOneServer();
+
 // Ask Claude's question log is kept for 90 days (U1, AC7).
-Schedule::command('model:prune', ['--model' => [\App\Models\AiQuestion::class]])->daily()->onOneServer();
+Schedule::command('model:prune', ['--model' => [AiQuestion::class]])->daily()->onOneServer();

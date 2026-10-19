@@ -141,7 +141,7 @@ class SharedDraftAndClosedHistoryTest extends TestCase
         $quarters->open($course->faculty, $q4);
         $component = Livewire::actingAs($student->user)->test(DecisionWorkspace::class, ['firm' => $firm, 'quarter' => $q4])
             ->assertSee($firm->name)->assertSee('Quarter 4')->assertSee('Forecasting')->assertSee('Sourcing')->assertSee('Production')
-            ->assertSee('Dividend')->assertSee('Most you can pay now:')->assertSee('Save draft')->assertSee('Submit for the team')
+            ->assertSee('Dividend')->assertSee('Most you can declare:')->assertSee('Save draft')->assertSee('Submit for the team')
             // Prefilled from the Quarter 3 warm-up decisions (walkthrough item 73), shares shown as percentages (item 75).
             ->assertSee('Last quarter:')->assertSet('decisions.sourcing.primary_alloc', 100.0);
         $display = $this->completePayload();

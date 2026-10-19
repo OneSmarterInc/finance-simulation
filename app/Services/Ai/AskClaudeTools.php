@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai;
 
+use App\Models\AccountingRequestReview;
 use App\Models\CfPlusAuctionResult;
 use App\Models\CfPlusConsultantReport;
 use App\Models\CfPlusOffer;
@@ -10,9 +11,12 @@ use App\Models\CourseQuarter;
 use App\Models\Firm;
 use App\Models\FirmAccountingElectionRequest;
 use App\Models\FirmEngineResult;
+use App\Models\FirmRivalAnalysis;
 use App\Models\Student;
 use App\Services\Courses\CourseStatus;
 use App\Services\Decisions\FirmDecisionService;
+use App\Services\Interpretations\InterpretationService;
+use App\Services\Interpretations\RivalAnalysisService;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
 use App\Support\Dates;
@@ -31,7 +35,9 @@ use Illuminate\Support\Collection;
  * quarters; the app fills in every number), decisions, method requests and
  * the practice run's scoreboard. Layer 3: the evaluation stage, shown as the
  * faculty page shows it (offer counts, never amounts, until settlement; true
- * worth only after it).
+ * worth only after it). U11 layer 2: the teams' explanations, with the
+ * students' own words kept apart so the figure check lets Claude quote them
+ * but never state them as fact (AE1).
  */
 class AskClaudeTools
 {
@@ -40,6 +46,9 @@ class AskClaudeTools
 
     /** @var list<array{title: string, columns: list<string>, rows: list<array{label: string, cells: list<array{text: string, source: string}>}>}> tables to show beside the answer */
     private array $views = [];
+
+    /** @var list<string> students' and the instructor's own words, which Claude may quote but not state as fact */
+    private array $quotable = [];
 
     public function __construct(private readonly Course $course) {}
 
@@ -88,6 +97,18 @@ class AskClaudeTools
                 'input_schema' => ['type' => 'object', 'properties' => new \stdClass],
             ],
             [
+                'name' => 'get_team_explanations',
+                'description' => 'The teams\' written explanations of one quarter\'s statements (what changed, why it changed, what the notes show), with who submitted each (as Student n), when, whether it is a draft, and the instructor\'s comment. A team explains a quarter before it submits the next quarter\'s decisions. The answers are the students\' own words: any figure in them is what the team wrote, not a stored result, so check it with get_results before saying whether it matches. Leave quarter out for the latest quarter explained.',
+                'input_schema' => ['type' => 'object', 'properties' => [
+                    'quarter' => ['type' => 'integer', 'minimum' => 3, 'description' => 'The quarter the teams explained.'],
+                ]],
+            ],
+            [
+                'name' => 'get_rival_analyses',
+                'description' => 'Flexee Financial Accounting+ courses: each team\'s written analysis of a rival it bid on in the evaluation stage, with its own figure for 51% of the rival. Before the instructor settles the stage, only who has analysed whom (the text stays sealed, like the offers). After settlement, the answers and figures, the team\'s offer, the price paid and the true worth. The answers and the team\'s figure are the students\' own words, not stored results.',
+                'input_schema' => ['type' => 'object', 'properties' => new \stdClass],
+            ],
+            [
                 'name' => 'get_practice_scoreboard',
                 'description' => 'The instructor\'s practice run of this course, if there is one: value created, net income and cash for the Careful, Average and Careless reference teams in each quarter played, the leader in each quarter, and each team\'s rule.',
                 'input_schema' => ['type' => 'object', 'properties' => new \stdClass],
@@ -107,6 +128,8 @@ class AskClaudeTools
             'get_method_requests' => $this->requests((string) ($input['status'] ?? 'waiting')),
             'get_practice_scoreboard' => $this->scoreboard(),
             'get_evaluation_stage' => $this->evaluation(),
+            'get_team_explanations' => $this->explanations($input),
+            'get_rival_analyses' => $this->rivalAnalyses(),
             default => ['error' => "There is no lookup called {$name}."],
         };
     }
@@ -197,7 +220,7 @@ class AskClaudeTools
             'evaluation_stage_open' => $this->course->cf_plus_enabled ? $status->evaluationOpen() : null,
             'practice_run' => $practice ? [
                 'played_to_quarter' => app(PracticeRunService::class)->playedTo($practice),
-                'team_rules' => ReferenceTeams::RULES,
+                'team_rules' => app(PracticeRunService::class)->rules($practice),
             ] : 'none',
         ];
     }
@@ -304,7 +327,7 @@ class AskClaudeTools
         if (! $this->course->accounting_election_enabled) {
             return ['requests' => [], 'note' => 'Teams can\'t ask to change methods in this course.'];
         }
-        $query = FirmAccountingElectionRequest::query()->with(['firm', 'courseQuarter'])->where('course_id', $this->course->id)->latest();
+        $query = FirmAccountingElectionRequest::query()->with(['firm', 'courseQuarter', 'claudeReview'])->where('course_id', $this->course->id)->latest();
         match ($status) {
             'waiting' => $query->where('status', 'pending'),
             'decided' => $query->where('status', '!=', 'pending'),
@@ -325,11 +348,21 @@ class AskClaudeTools
                 'filed_by' => $r->student_id ? $this->pseudonym((string) $r->student_id) : null,
                 'filed_on' => Dates::day($r->created_at),
                 'filed_in_quarter' => $r->courseQuarter?->quarter_number,
-                'status' => $r->status === 'pending' ? 'waiting for the instructor' : $r->status,
+                'status' => match ($r->status) {
+                    'pending' => 'waiting for the instructor',
+                    'rejected' => 'declined',
+                    'returned' => 'sent back to the team for its reason',
+                    default => $r->status,
+                },
                 'changes' => $changes,
                 'reason' => filled($r->justification) ? $r->justification : 'No reason given (filed before reasons were required).',
                 'applies_from_quarter' => $r->effective_quarter_number,
                 'instructor_note' => $r->faculty_note,
+                // U12: Claude's stored review, when the course has it switched on.
+                'claude_review' => RequestReviews::enabled($this->course) && $r->claudeReview?->isWritten() ? [
+                    'suggests' => AccountingRequestReview::RECOMMENDATIONS[$r->claudeReview->recommendation] ?? $r->claudeReview->recommendation,
+                    'reasons' => (array) $r->claudeReview->reasons,
+                ] : null,
             ];
         })->all()];
     }
@@ -359,7 +392,8 @@ class AskClaudeTools
         return [
             'played_to_quarter' => $runs->playedTo($practice),
             'leader_by_quarter' => collect($runs->leaders($practice))->mapWithKeys(fn ($t, $q) => ['Quarter '.$q => ReferenceTeams::NAMES[$t]])->all(),
-            'team_rules' => collect(ReferenceTeams::RULES)->mapWithKeys(fn ($rule, $t) => [ReferenceTeams::NAMES[$t] => $rule])->all(),
+            'team_rules' => collect($runs->rules($practice))->mapWithKeys(fn ($rule, $t) => [ReferenceTeams::NAMES[$t] => $rule])->all(),
+            'teams_on_custom_settings' => array_map(fn ($t) => ReferenceTeams::NAMES[$t], $runs->customTeams($practice)),
             'results' => $out,
         ];
     }
@@ -399,6 +433,134 @@ class AskClaudeTools
             'paid_above_true_worth' => $r->price_paid !== null && $r->true_stake_worth !== null ? $money((float) $r->price_paid - (float) $r->true_stake_worth) : null,
             'tie_settled_by_instructor' => (bool) $r->faculty_override,
         ])->all()];
+    }
+
+    /** @param array<string, mixed> $input @return array<string, mixed> */
+    private function explanations(array $input): array
+    {
+        $interpretations = app(InterpretationService::class);
+        $all = $interpretations->forCourse($this->course);
+        $explained = $all->map(fn ($row) => $row->courseQuarter?->quarter_number)->filter()->unique()->sort()->values();
+        $number = isset($input['quarter']) ? (int) $input['quarter'] : ($explained->last() ?? CourseStatus::for($this->course)->lastClosed()?->quarter_number);
+        $out = [
+            'course_asks_for_explanations' => $interpretations->required($this->course),
+            'quarters_with_explanations' => $explained->map(fn ($q) => 'Quarter '.$q)->all(),
+        ];
+        $quarter = $number ? $this->course->quarters()->where('quarter_number', $number)->first() : null;
+        if (! $quarter) {
+            return $out + ['note' => 'No quarter has been explained yet. Teams first explain Quarter 3 before they submit Quarter 4\'s decisions.'];
+        }
+        $next = $this->course->quarters()->where('quarter_number', $quarter->quarter_number + 1)->first();
+        $rows = $all->where('course_quarter_id', $quarter->id)->keyBy('firm_id');
+
+        return $out + [
+            'quarter' => $quarter->quarter_number,
+            'due' => $next?->decision_deadline_at ? Dates::dateTime($next->decision_deadline_at).', with Quarter '.$next->quarter_number.'\'s decisions' : null,
+            'firms' => $this->course->firms()->orderBy('name')->get()->map(function (Firm $firm) use ($rows): array {
+                $row = $rows->get($firm->id);
+                if (! $row) {
+                    return ['firm' => $firm->name, 'status' => 'nothing written'];
+                }
+                $answers = [];
+                foreach (['changed' => 'What changed?', 'why' => 'Why did it change?', 'notes' => 'What do the notes show?'] as $key => $prompt) {
+                    $text = trim((string) ($row->answers[$key] ?? ''));
+                    $answers[$prompt] = $text === '' ? 'Not written.' : $text;
+                    $this->quotable[] = $text;
+                }
+                if ($row->faculty_comment) {
+                    $this->quotable[] = (string) $row->faculty_comment;
+                }
+
+                return [
+                    'firm' => $firm->name,
+                    'status' => $row->isSubmitted()
+                        ? 'submitted by '.($row->submitted_by_student_id ? $this->pseudonym((string) $row->submitted_by_student_id) : 'the team').' on '.Dates::day($row->submitted_at)
+                        : 'draft only, not submitted',
+                    'answers' => $answers,
+                    'instructor_comment' => $row->faculty_comment,
+                ];
+            })->all(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function rivalAnalyses(): array
+    {
+        if (! $this->course->cf_plus_enabled) {
+            return ['rival_analyses' => 'none', 'note' => 'This course has no evaluation stage.'];
+        }
+        $service = app(RivalAnalysisService::class);
+        $settled = $service->settled($this->course);
+        $results = CfPlusAuctionResult::query()->where('course_id', $this->course->id)->with('winner')->get()->keyBy('target_firm_id');
+        $offers = CfPlusOffer::query()->where('course_id', $this->course->id)->get()->keyBy(fn ($o) => $o->bidder_firm_id.'|'.$o->target_firm_id);
+        $money = fn ($v) => $v === null ? null : ResultMeasures::format('cash', (float) $v);
+
+        $rows = $service->forCourse($this->course)->map(function ($row) use ($settled, $results, $offers, $money): array {
+            $out = [
+                'team' => $row->bidder?->name,
+                'rival' => $row->target?->name,
+                'status' => $row->isSubmitted()
+                    ? 'submitted by '.($row->submitted_by_student_id ? $this->pseudonym((string) $row->submitted_by_student_id) : 'the team').' on '.Dates::day($row->submitted_at)
+                    : 'draft only, not submitted',
+            ];
+            if (! $settled) {
+                return $out;
+            }
+            $answers = [];
+            foreach (FirmRivalAnalysis::PROMPTS as $key => $prompt) {
+                $text = trim((string) ($row->answers[$key] ?? ''));
+                $answers[$prompt] = $text === '' ? 'Not written.' : $text;
+                $this->quotable[] = $text;
+            }
+            $figure = $money($row->estimated_stake_value);
+            $this->quotable[] = (string) $figure;
+            if ($row->faculty_comment) {
+                $this->quotable[] = (string) $row->faculty_comment;
+            }
+            $result = $results->get($row->target_firm_id);
+            $offer = $offers->get($row->bidder_firm_id.'|'.$row->target_firm_id);
+
+            return $out + [
+                'answers' => $answers,
+                'teams_figure_for_51_percent' => $figure,
+                'teams_offer' => $offer ? $money($offer->offered_amount) : null,
+                'price_paid' => $result?->price_paid === null ? 'not sold' : $money($result->price_paid),
+                'won_by' => $result?->winner?->name,
+                'true_worth_of_51_percent' => $result ? $money($result->true_stake_worth) : null,
+                'instructor_comment' => $row->faculty_comment,
+            ];
+        })->all();
+
+        return [
+            'settled' => $settled,
+            'analyses' => $rows,
+        ] + ($settled ? [] : ['note' => 'The text and figures stay sealed until the instructor settles the evaluation stage, like the offers.']);
+    }
+
+    /** @return list<string> the students' and instructor's own words from this answer's lookups */
+    public function quotable(): array
+    {
+        return array_values(array_filter($this->quotable));
+    }
+
+    /**
+     * What the figure check may treat as fact from a lookup: everything but the students' and
+     * the instructor's own words, which go in quotable() instead (AE1).
+     *
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    public static function factual(string $name, array $result): array
+    {
+        $own = ['answers' => true, 'instructor_comment' => true, 'teams_figure_for_51_percent' => true];
+        if ($name === 'get_team_explanations' && isset($result['firms'])) {
+            $result['firms'] = array_map(fn ($firm) => array_diff_key($firm, $own), $result['firms']);
+        }
+        if ($name === 'get_rival_analyses' && isset($result['analyses'])) {
+            $result['analyses'] = array_map(fn ($row) => array_diff_key($row, $own), $result['analyses']);
+        }
+
+        return $result;
     }
 
     /**

@@ -1,12 +1,21 @@
 @php use App\Support\Dates; use App\Support\Product; use App\Services\Courses\CourseStatus; @endphp
 <div class="flexee-page">
     <x-page-header :eyebrow="Product::NAME" :title="'Welcome, '.auth()->user()->name"
-        description="Your courses, where each one stands, and what needs you." />
+        description="Your courses, where each one stands, and what needs you.">
+        @unless ($courses->isEmpty())
+            <x-slot:actions>
+                <flux:button variant="primary" icon="plus" :href="route('faculty.courses.create')" wire:navigate data-test="new-course">New course</flux:button>
+            </x-slot:actions>
+        @endunless
+    </x-page-header>
 
     @if ($courses->isEmpty())
         <flux:card class="space-y-4">
             <flux:heading size="lg">No courses yet</flux:heading>
-            <flux:text>Courses are prepared and assigned by an administrator.</flux:text>
+            <flux:text class="max-w-2xl">Set up your first course: its name, schedule, the decision areas that open each quarter and the starting accounting methods. You can rehearse it with a practice run before any student joins.</flux:text>
+            <div>
+                <flux:button variant="primary" icon="plus" :href="route('faculty.courses.create')" wire:navigate data-test="new-course">New course</flux:button>
+            </div>
         </flux:card>
     @else
         <div class="grid gap-4 lg:grid-cols-2">
@@ -42,7 +51,10 @@
                                 @endif
                             </div>
                             <p class="mt-1 text-zinc-600 dark:text-zinc-400">
-                                @if ($current->state === 'open')
+                                @if ($current->state === 'open' && $status->isOverdue($current))
+                                    The deadline ({{ Dates::dateTime($current->decision_deadline_at) }}) has passed and the quarter hasn't closed.
+                                    {{ $status->submittedCount($current) }} of {{ $status->firms->count() }} firms submitted.
+                                @elseif ($current->state === 'open')
                                     Decisions due {{ Dates::dateTime($current->decision_deadline_at) }} ({{ Dates::remaining($current->decision_deadline_at) }}).
                                     {{ $status->submittedCount($current) }} of {{ $status->firms->count() }} firms submitted.
                                 @elseif ($current->state === 'processing')

@@ -81,7 +81,7 @@ class EngineV2FixtureTest extends TestCase
                 decisions: $row['decisions'],
                 parameters: $parameters,
                 openingPosition: self::opening($row['opening']),
-                dividend: $row['dividend_declared'],
+                dividend: $row['dividend_paid'] ?? $row['dividend_declared'],
                 engineVersion: 2,
                 market: $row['market'],
             ));

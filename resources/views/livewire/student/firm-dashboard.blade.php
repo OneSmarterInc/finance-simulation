@@ -8,7 +8,24 @@
     </x-page-header>
 
     {{-- What to do now (item 70) --}}
-    @if ($active && $active->state === \App\Models\CourseQuarter::OPEN)
+    @if ($active && $status->isOverdue($active))
+        {{-- L12: the deadline has passed and the quarter hasn't closed yet. --}}
+        <flux:callout variant="warning" icon="clock" :heading="'Quarter '.$active->quarter_number.' is waiting to close.'" data-test="deadline-passed">
+            <flux:callout.text>
+                {{ $status->overdueText($active) }}
+                @if (in_array($teamStatus['state'], ['submitted', 'locked'], true))
+                    Your team submitted, so its decisions are the ones that will be used.
+                @endif
+            </flux:callout.text>
+            @unless ($facultyView)
+                <x-slot name="actions">
+                    <flux:button :href="route('student.decisions.workspace', ['firm' => $firm, 'quarter' => $active])" icon="eye" wire:navigate>
+                        See your decisions
+                    </flux:button>
+                </x-slot>
+            @endunless
+        </flux:callout>
+    @elseif ($active && $active->state === \App\Models\CourseQuarter::OPEN)
         <flux:callout :variant="in_array($teamStatus['state'], ['submitted', 'locked'], true) ? 'success' : 'warning'" icon="pencil-square"
             :heading="'Quarter '.$active->quarter_number.' is open. Decisions are due '.Dates::dateTime($active->decision_deadline_at).'.'">
             <flux:callout.text>
@@ -22,6 +39,9 @@
                     @default
                         Your team hasn't submitted yet. If nothing is submitted by the deadline, last quarter's decisions are used again.
                 @endswitch
+                @if ($toExplain)
+                    <span class="mt-1 block font-medium" data-test="explain-first">First, explain Quarter {{ $toExplain->quarter_number }}: your team submits its explanation of that quarter's statements, then its decisions. Both are on the decisions page.</span>
+                @endif
             </flux:callout.text>
             @unless ($facultyView)
                 <x-slot name="actions">

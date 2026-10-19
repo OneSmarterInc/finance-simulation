@@ -36,6 +36,9 @@ class FirmAccountingElectionRequestService
 
     public const WITHDRAWN = 'withdrawn';
 
+    /** L17: declined only to ask for the team's reason, so the team can file again in the same quarter. */
+    public const RETURNED = 'returned';
+
     public const MIN_JUSTIFICATION = 30;
 
     public function authorize(Faculty $faculty, Course $course): void
@@ -99,7 +102,7 @@ class FirmAccountingElectionRequestService
 
         return DB::transaction(function () use ($student, $firm, $quarter, $validated, $justification): FirmAccountingElectionRequest {
             Firm::query()->whereKey($firm->id)->lockForUpdate()->first();
-            if ($existing = $this->teamRequest($firm, $quarter)) {
+            if (($existing = $this->teamRequest($firm, $quarter)) && $existing->status !== self::RETURNED) {
                 throw ValidationException::withMessages(['election' => $existing->status === self::PENDING
                     ? 'Your team already has a request waiting for your instructor. Withdraw it first to file a different one.'
                     : 'Your team has already had a request decided this quarter. You can file again next quarter.']);
@@ -217,6 +220,70 @@ class FirmAccountingElectionRequestService
         }
 
         return $request->refresh();
+    }
+
+    /**
+     * L17: a request filed without a reason (before reasons were required)
+     * goes back to the team with a ready-made note asking for one. The team
+     * can file again in the same quarter.
+     */
+    /** @param array<string, string>|null $current the methods the request would change, for the note */
+    public function askForReason(Faculty $faculty, FirmAccountingElectionRequest $request, ?array $current = null): FirmAccountingElectionRequest
+    {
+        $course = $request->course()->firstOrFail();
+        $this->authorize($faculty, $course);
+
+        $updated = FirmAccountingElectionRequest::query()->whereKey($request->id)->where('status', self::PENDING)->update([
+            'status' => self::RETURNED,
+            'reviewed_by_faculty_id' => $faculty->id,
+            'reviewed_at' => now(),
+            'faculty_note' => self::reasonNote($request, $current),
+            'updated_at' => now(),
+        ]);
+        if ($updated === 0) {
+            throw ValidationException::withMessages(['request' => 'This request has already been decided.']);
+        }
+
+        return $request->refresh();
+    }
+
+    /**
+     * U12: send any request back to the team with the instructor's note (often Claude's
+     * draft, edited). The team sees the note and can file again in the same quarter.
+     */
+    public function sendBack(Faculty $faculty, FirmAccountingElectionRequest $request, ?string $note): FirmAccountingElectionRequest
+    {
+        $course = $request->course()->firstOrFail();
+        $this->authorize($faculty, $course);
+        if (blank($note)) {
+            throw ValidationException::withMessages(['request' => 'Write a note so the team knows what to add before it files again.']);
+        }
+
+        $updated = FirmAccountingElectionRequest::query()->whereKey($request->id)->where('status', self::PENDING)->update([
+            'status' => self::RETURNED,
+            'reviewed_by_faculty_id' => $faculty->id,
+            'reviewed_at' => now(),
+            'faculty_note' => trim((string) $note),
+            'updated_at' => now(),
+        ]);
+        if ($updated === 0) {
+            throw ValidationException::withMessages(['request' => 'This request has already been decided.']);
+        }
+
+        return $request->refresh();
+    }
+
+    /** "Please file again with your reason: why does double-declining balance describe your firm better than straight-line?" */
+    /** @param array<string, string>|null $current */
+    public static function reasonNote(FirmAccountingElectionRequest $request, ?array $current = null): string
+    {
+        $changes = AccountingChangeDisclosures::changes($current ?? $request->previous_elections ?? [], $request->proposed_elections ?? []);
+        $plain = fn (string $label): string => str_starts_with($label, 'FOB') ? $label : lcfirst($label);
+        if (count($changes) === 1 && $changes[0]['from'] !== '') {
+            return 'Please file again with your reason: why does '.$plain($changes[0]['to']).' describe your firm better than '.$plain($changes[0]['from']).'?';
+        }
+
+        return 'Please file again with your reason: why do the new methods describe your firm better than the ones it uses now?';
     }
 
     private function assertMember(Student $student, Firm $firm): void
