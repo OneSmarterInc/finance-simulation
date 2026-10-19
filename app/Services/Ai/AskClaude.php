@@ -58,7 +58,7 @@ class AskClaude
                 $response = $this->send($this->system($course, $guide), $this->page($course, $context), $tools->definitions(), $messages);
                 $inputTokens += (int) ($response['usage']['input_tokens'] ?? 0) + (int) ($response['usage']['cache_read_input_tokens'] ?? 0) + (int) ($response['usage']['cache_creation_input_tokens'] ?? 0);
                 $outputTokens += (int) ($response['usage']['output_tokens'] ?? 0);
-                $content = $response['content'] ?? [];
+                $content = self::replayable($response['content'] ?? []);
                 $stop = (string) ($response['stop_reason'] ?? '');
                 $uses = array_values(array_filter($content, fn ($block) => ($block['type'] ?? '') === 'tool_use'));
                 $text = trim(implode("\n\n", array_map(fn ($b) => $b['text'], array_filter($content, fn ($b) => ($b['type'] ?? '') === 'text'))));
@@ -125,6 +125,24 @@ class AskClaude
         }
 
         return ['record' => $record, 'answer' => $check['answer'], 'dropped' => $check['dropped'], 'lookups' => $lookups, 'checked' => $check['checked'], 'names' => $tools->names(), 'views' => $tools->views()];
+    }
+
+    /**
+     * Claude's turn as it must be sent back. PHP decodes a lookup's empty input {} as an empty
+     * list, which would go back as [] and be refused (live, 19 October 2026); it goes back as {}.
+     *
+     * @param  list<array<string, mixed>>  $content
+     * @return list<array<string, mixed>>
+     */
+    public static function replayable(array $content): array
+    {
+        return array_map(function (array $block): array {
+            if (($block['type'] ?? '') === 'tool_use') {
+                $block['input'] = (object) ($block['input'] ?? []);
+            }
+
+            return $block;
+        }, $content);
     }
 
     /** A reply that only says what Claude is about to look up ("I'll look at ...", "Let me check ..."), not an answer. */
