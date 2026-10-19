@@ -33,6 +33,8 @@
                     @else
                         <a href="{{ route('login') }}" class="rounded-md bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800">Sign in</a>
                     @endauth
+                    {{-- Live walkthrough L8: a tour for faculty thinking of adopting Flexee, no sign-in needed. --}}
+                    <a href="{{ route('tour') }}" class="rounded-md border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-100 dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:bg-white/10" data-test="see-how-it-works">See how it works</a>
                 </div>
 
                 <p class="max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">

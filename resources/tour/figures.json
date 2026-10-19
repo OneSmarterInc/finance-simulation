@@ -1,0 +1,151 @@
+{
+    "about": "A practice run of a reference Flexee Financial Accounting+ course, played by the same engine a class uses. Written by php artisan flexee:tour-figures.",
+    "generated_on": "2026-10-19",
+    "engine_version": 2,
+    "quarters": 11,
+    "evaluation_opens_with": 7,
+    "careful": {
+        "1": {
+            "revenue": 46901557.07,
+            "gross_profit": 16050325.47,
+            "net_income": 6659393.82,
+            "cash": 5347503.06,
+            "inventory": 9748260
+        },
+        "2": {
+            "revenue": 57055599.99,
+            "gross_profit": 20009073.19,
+            "net_income": 8714677.79,
+            "cash": 15027328,
+            "inventory": 11857440
+        },
+        "3": {
+            "revenue": 59455621.19,
+            "gross_profit": 21001884.99,
+            "net_income": 9240586.71,
+            "cash": 25736235.55,
+            "inventory": 12338700
+        },
+        "4": {
+            "revenue": 74768048.08,
+            "gross_profit": 29515576.24,
+            "net_income": 14242033.21,
+            "cash": 33371264.78,
+            "inventory": 14925808.27,
+            "ordered": 262557,
+            "sold": 259123,
+            "stock": 3075,
+            "dividend": 6153664.58,
+            "in_transit": 14420890,
+            "inventory_change": 2587108.27,
+            "receivables_change": 3001235.67,
+            "payables_change": 3331504,
+            "depreciation": 2415000
+        }
+    },
+    "decisions": {
+        "forecast": [
+            {
+                "label": "Product 1, Northeast",
+                "value": 45506,
+                "last_orders": 35691
+            },
+            {
+                "label": "Product 1, Central",
+                "value": 52098,
+                "last_orders": 40861
+            },
+            {
+                "label": "Product 2, Northeast",
+                "value": 34946,
+                "last_orders": 27409
+            },
+            {
+                "label": "Product 2, Central",
+                "value": 27951,
+                "last_orders": 21922
+            }
+        ],
+        "supplier": "India: $110 a unit, 2.8% defects, 45-day lead time",
+        "previous_supplier": "China: $120 a unit, 3.0% defects, 45-day lead time"
+    },
+    "careless_depreciation": {
+        "before": 2438750,
+        "after": 4224843.75,
+        "after_tax_effect": 1339570.31
+    },
+    "value_created": {
+        "careful": {
+            "4": 138956691.53,
+            "5": 147743764.66,
+            "6": 158175012.09,
+            "7": 168765404.01,
+            "8": 185032744.48,
+            "9": 195480038.62,
+            "10": 208298307.72,
+            "11": 221783704.57
+        },
+        "average": {
+            "4": 134106374.72,
+            "5": 141728621.42,
+            "6": 149357299,
+            "7": 157010423.24,
+            "8": 164650784.73,
+            "9": 172298141.92,
+            "10": 179921747.51,
+            "11": 187562749.2
+        },
+        "careless": {
+            "4": 137843147.81,
+            "5": 143245032.09,
+            "6": 145600660.51,
+            "7": 148343025.15,
+            "8": 148483455.58,
+            "9": 146617978.58,
+            "10": 144150465.85,
+            "11": 140210124
+        }
+    },
+    "evaluation": {
+        "firms": [
+            {
+                "team": "careful",
+                "consultant": 435252987.2,
+                "true_worth": 403502226.45
+            },
+            {
+                "team": "average",
+                "consultant": 318313291.57,
+                "true_worth": 307635031.18
+            },
+            {
+                "team": "careless",
+                "consultant": 225398379.58,
+                "true_worth": 245368028.53
+            }
+        ],
+        "results": [
+            {
+                "target": "careful",
+                "winner": "careless",
+                "price": 277473779.33,
+                "true_stake": 205786135.49,
+                "difference": 71687643.83999997
+            },
+            {
+                "target": "average",
+                "winner": "careless",
+                "price": 202924723.37,
+                "true_stake": 156893865.9,
+                "difference": 46030857.47
+            },
+            {
+                "target": "careless",
+                "winner": "careful",
+                "price": 118880809.82,
+                "true_stake": 125137694.55,
+                "difference": -6256884.730000004
+            }
+        ]
+    }
+}

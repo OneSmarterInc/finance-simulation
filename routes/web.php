@@ -21,6 +21,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
 
+// Live walkthrough L8: the public tour for faculty thinking of adopting Flexee.
+Route::get('tour/{step?}', \App\Http\Controllers\TourController::class)
+    ->whereNumber('step')->name('tour');
+
  Route::get('register/course/{token}', CourseRegistration::class)
     ->name('student.course-registration');
 

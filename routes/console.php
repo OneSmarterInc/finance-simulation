@@ -2,9 +2,11 @@
 
 use App\Models\AiQuestion;
 use App\Models\Course;
+use App\Models\Faculty;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
 use App\Services\Quarters\QuarterScheduler;
+use App\Services\Tour\TourFigures;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
@@ -61,6 +63,21 @@ Schedule::command('flexee:quarters')->everyMinute()->withoutOverlapping(10)->onO
 Artisan::command('flexee:practice-tidy', function (PracticeRunService $runs) {
     $this->info('Practice runs removed: '.$runs->tidy());
 })->purpose('Remove practice runs not played for 30 days');
+
+/*
+ * Live walkthrough L8: the adopter tour's figures. Plays a reference
+ * Flexee Financial Accounting+ course on a throwaway copy, writes
+ * resources/tour/figures.json and removes everything it made. Run in
+ * development and commit the file; the tour pages only read it.
+ */
+Artisan::command('flexee:tour-figures {--faculty= : email of the faculty account to play it as (default: the first)}', function (TourFigures $tour) {
+    $faculty = $this->option('faculty')
+        ? Faculty::query()->whereHas('user', fn ($q) => $q->where('email', $this->option('faculty')))->firstOrFail()
+        : Faculty::query()->orderBy('created_at')->firstOrFail();
+    $figures = $tour->generate($faculty);
+    TourFigures::write($figures);
+    $this->info('Wrote '.TourFigures::PATH.'. Careful created $'.number_format($figures['value_created']['careful'][11] / 1e6, 1).'M by Quarter 11.');
+})->purpose('Write the adopter tour figures from a reference practice run');
 
 Schedule::command('flexee:practice-tidy')->dailyAt('03:17')->withoutOverlapping(30)->onOneServer();
 
