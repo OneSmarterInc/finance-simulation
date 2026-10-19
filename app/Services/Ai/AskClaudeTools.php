@@ -13,6 +13,7 @@ use App\Models\FirmEngineResult;
 use App\Models\Student;
 use App\Services\Courses\CourseStatus;
 use App\Services\Decisions\FirmDecisionService;
+use App\Services\Interpretations\InterpretationService;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
 use App\Support\Dates;
@@ -31,7 +32,9 @@ use Illuminate\Support\Collection;
  * quarters; the app fills in every number), decisions, method requests and
  * the practice run's scoreboard. Layer 3: the evaluation stage, shown as the
  * faculty page shows it (offer counts, never amounts, until settlement; true
- * worth only after it).
+ * worth only after it). U11 layer 2: the teams' explanations, with the
+ * students' own words kept apart so the figure check lets Claude quote them
+ * but never state them as fact (AE1).
  */
 class AskClaudeTools
 {
@@ -40,6 +43,9 @@ class AskClaudeTools
 
     /** @var list<array{title: string, columns: list<string>, rows: list<array{label: string, cells: list<array{text: string, source: string}>}>}> tables to show beside the answer */
     private array $views = [];
+
+    /** @var list<string> students' and the instructor's own words, which Claude may quote but not state as fact */
+    private array $quotable = [];
 
     public function __construct(private readonly Course $course) {}
 
@@ -88,6 +94,13 @@ class AskClaudeTools
                 'input_schema' => ['type' => 'object', 'properties' => new \stdClass],
             ],
             [
+                'name' => 'get_team_explanations',
+                'description' => 'The teams\' written explanations of one quarter\'s statements (what changed, why it changed, what the notes show), with who submitted each (as Student n), when, whether it is a draft, and the instructor\'s comment. A team explains a quarter before it submits the next quarter\'s decisions. The answers are the students\' own words: any figure in them is what the team wrote, not a stored result, so check it with get_results before saying whether it matches. Leave quarter out for the latest quarter explained.',
+                'input_schema' => ['type' => 'object', 'properties' => [
+                    'quarter' => ['type' => 'integer', 'minimum' => 3, 'description' => 'The quarter the teams explained.'],
+                ]],
+            ],
+            [
                 'name' => 'get_practice_scoreboard',
                 'description' => 'The instructor\'s practice run of this course, if there is one: value created, net income and cash for the Careful, Average and Careless reference teams in each quarter played, the leader in each quarter, and each team\'s rule.',
                 'input_schema' => ['type' => 'object', 'properties' => new \stdClass],
@@ -107,6 +120,7 @@ class AskClaudeTools
             'get_method_requests' => $this->requests((string) ($input['status'] ?? 'waiting')),
             'get_practice_scoreboard' => $this->scoreboard(),
             'get_evaluation_stage' => $this->evaluation(),
+            'get_team_explanations' => $this->explanations($input),
             default => ['error' => "There is no lookup called {$name}."],
         };
     }
@@ -405,6 +419,77 @@ class AskClaudeTools
             'paid_above_true_worth' => $r->price_paid !== null && $r->true_stake_worth !== null ? $money((float) $r->price_paid - (float) $r->true_stake_worth) : null,
             'tie_settled_by_instructor' => (bool) $r->faculty_override,
         ])->all()];
+    }
+
+    /** @param array<string, mixed> $input @return array<string, mixed> */
+    private function explanations(array $input): array
+    {
+        $interpretations = app(InterpretationService::class);
+        $all = $interpretations->forCourse($this->course);
+        $explained = $all->map(fn ($row) => $row->courseQuarter?->quarter_number)->filter()->unique()->sort()->values();
+        $number = isset($input['quarter']) ? (int) $input['quarter'] : ($explained->last() ?? CourseStatus::for($this->course)->lastClosed()?->quarter_number);
+        $out = [
+            'course_asks_for_explanations' => $interpretations->required($this->course),
+            'quarters_with_explanations' => $explained->map(fn ($q) => 'Quarter '.$q)->all(),
+        ];
+        $quarter = $number ? $this->course->quarters()->where('quarter_number', $number)->first() : null;
+        if (! $quarter) {
+            return $out + ['note' => 'No quarter has been explained yet. Teams first explain Quarter 3 before they submit Quarter 4\'s decisions.'];
+        }
+        $next = $this->course->quarters()->where('quarter_number', $quarter->quarter_number + 1)->first();
+        $rows = $all->where('course_quarter_id', $quarter->id)->keyBy('firm_id');
+
+        return $out + [
+            'quarter' => $quarter->quarter_number,
+            'due' => $next?->decision_deadline_at ? Dates::dateTime($next->decision_deadline_at).', with Quarter '.$next->quarter_number.'\'s decisions' : null,
+            'firms' => $this->course->firms()->orderBy('name')->get()->map(function (Firm $firm) use ($rows): array {
+                $row = $rows->get($firm->id);
+                if (! $row) {
+                    return ['firm' => $firm->name, 'status' => 'nothing written'];
+                }
+                $answers = [];
+                foreach (['changed' => 'What changed?', 'why' => 'Why did it change?', 'notes' => 'What do the notes show?'] as $key => $prompt) {
+                    $text = trim((string) ($row->answers[$key] ?? ''));
+                    $answers[$prompt] = $text === '' ? 'Not written.' : $text;
+                    $this->quotable[] = $text;
+                }
+                if ($row->faculty_comment) {
+                    $this->quotable[] = (string) $row->faculty_comment;
+                }
+
+                return [
+                    'firm' => $firm->name,
+                    'status' => $row->isSubmitted()
+                        ? 'submitted by '.($row->submitted_by_student_id ? $this->pseudonym((string) $row->submitted_by_student_id) : 'the team').' on '.Dates::day($row->submitted_at)
+                        : 'draft only, not submitted',
+                    'answers' => $answers,
+                    'instructor_comment' => $row->faculty_comment,
+                ];
+            })->all(),
+        ];
+    }
+
+    /** @return list<string> the students' and instructor's own words from this answer's lookups */
+    public function quotable(): array
+    {
+        return array_values(array_filter($this->quotable));
+    }
+
+    /**
+     * What the figure check may treat as fact from a lookup: everything but the students' and
+     * the instructor's own words, which go in quotable() instead (AE1).
+     *
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    public static function factual(string $name, array $result): array
+    {
+        if ($name !== 'get_team_explanations' || ! isset($result['firms'])) {
+            return $result;
+        }
+        $result['firms'] = array_map(fn ($firm) => array_diff_key($firm, ['answers' => true, 'instructor_comment' => true]), $result['firms']);
+
+        return $result;
     }
 
     /**

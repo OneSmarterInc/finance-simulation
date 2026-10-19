@@ -9,7 +9,7 @@
         <flux:callout icon="clock" heading="No quarters yet" text="The warm-up quarters appear here as soon as the firm is set up." />
     @else
         <flux:card>
-            <x-firm-report :columns="$columns" :decisions="$decisionColumns" :disclosures="$disclosureColumns" :parameters="$parameters" />
+            <x-firm-report :columns="$columns" :decisions="$decisionColumns" :disclosures="$disclosureColumns" :parameters="$parameters" :readings="$readings" />
         </flux:card>
     @endif
 

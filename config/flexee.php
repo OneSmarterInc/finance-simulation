@@ -52,6 +52,8 @@ return [
         'max_lookup_rounds' => 4,
         'timeout_seconds' => 55,
         'keep_days' => 90,
+        // L15: Claude's reading of each closed quarter, written by flexee:readings each minute.
+        'readings_per_run' => (int) env('FLEXEE_AI_READINGS_PER_RUN', 6),
     ],
 
 ];

@@ -8,6 +8,8 @@
     // scenario parameters, for supplier names in the Decisions tab
     'parameters' => [],
     'initialTab' => 'summary',
+    // L15: Claude's reading under each report (QuarterReadings), or null when it's off
+    'readings' => null,
 ])
 
 @php
@@ -45,6 +47,7 @@
 
     <div x-show="tab === 'summary'" role="tabpanel">
         <x-statement statement="summary" :columns="$columns" caption="Summary" />
+        <x-reading :readings="$readings" section="summary" />
     </div>
 
     @if ($decisions !== null)
@@ -92,6 +95,7 @@
     @foreach (StatementPresenter::STATEMENTS as $key => $label)
         <div x-show="tab === @js($key)" x-cloak role="tabpanel">
             <x-statement :statement="$key" :columns="$columns" :caption="$label" />
+            <x-reading :readings="$readings" :section="$key" />
         </div>
     @endforeach
 
@@ -120,5 +124,6 @@
                 </section>
             @endforeach
         @endif
+        <x-reading :readings="$readings" section="notes" />
     </div>
 </div>

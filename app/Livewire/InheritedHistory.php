@@ -7,6 +7,7 @@ use App\Models\Firm;
 use App\Models\FirmEngineResult;
 use App\Models\FirmQuarterInterpretation;
 use App\Services\Accounting\AccountingChangeDisclosures;
+use App\Services\Ai\QuarterReadings;
 use App\Services\Decisions\FirmDecisionHistory;
 use App\Services\Decisions\FirmDecisionService;
 use Illuminate\Contracts\View\View;
@@ -52,7 +53,7 @@ class InheritedHistory extends Component
         $this->firm = $firm->load('course');
     }
 
-    public function render(FirmDecisionHistory $history, FirmDecisionService $decisions, AccountingChangeDisclosures $disclosures): View
+    public function render(FirmDecisionHistory $history, FirmDecisionService $decisions, AccountingChangeDisclosures $disclosures, QuarterReadings $readings): View
     {
         $results = $this->firm->engineResults()->orderBy('quarter_number')->get();
 
@@ -72,6 +73,8 @@ class InheritedHistory extends Component
             'decisionColumns' => $decisionColumns,
             'disclosureColumns' => $disclosureColumns,
             'parameters' => $decisions->parameters($this->firm),
+            // L15: Claude's reading under each report, for faculty ("Show to me") or the team ("Show to students", AR1).
+            'readings' => $this->facultyView ? $readings->forFaculty($this->firm->course, $columns) : $readings->forStudents($this->firm, $columns),
             // U11: the team's explanations, newest quarter first, with the instructor's comments.
             'explanations' => FirmQuarterInterpretation::query()->where('firm_id', $this->firm->id)
                 ->with(['courseQuarter', 'submittedBy.user'])->get()

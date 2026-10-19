@@ -3,6 +3,7 @@
 use App\Models\AiQuestion;
 use App\Models\Course;
 use App\Models\Faculty;
+use App\Services\Ai\QuarterReadings;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
 use App\Services\Quarters\QuarterScheduler;
@@ -110,6 +111,17 @@ Artisan::command('flexee:ai-check', function () {
 
     return 0;
 })->purpose('Check the Anthropic key and connection for Ask Claude');
+
+/*
+ * Live walkthrough L15 (U11 layer 2): Claude's reading of each closed
+ * quarter, written by the clock and never inside the close, a few at a time,
+ * for courses with "Show to me" or "Show to students" on.
+ */
+Artisan::command('flexee:readings {--limit= : how many to write this run}', function (QuarterReadings $readings) {
+    $this->info('Readings written: '.$readings->tick($this->option('limit') !== null ? (int) $this->option('limit') : null));
+})->purpose('Write Claude\'s reading of quarters that have closed');
+
+Schedule::command('flexee:readings')->everyMinute()->withoutOverlapping(5)->onOneServer();
 
 // Ask Claude's question log is kept for 90 days (U1, AC7).
 Schedule::command('model:prune', ['--model' => [AiQuestion::class]])->daily()->onOneServer();

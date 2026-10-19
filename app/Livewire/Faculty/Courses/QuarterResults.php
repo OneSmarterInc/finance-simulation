@@ -8,6 +8,7 @@ use App\Models\CourseFacultyRole;
 use App\Models\Firm;
 use App\Models\FirmEngineResult;
 use App\Services\Accounting\AccountingChangeDisclosures;
+use App\Services\Ai\QuarterReadings;
 use App\Services\Ai\ResultMeasures;
 use App\Services\Decisions\FirmDecisionHistory;
 use App\Services\Decisions\FirmDecisionService;
@@ -94,7 +95,16 @@ class QuarterResults extends Component
         }
     }
 
-    public function render(FirmDecisionHistory $history, FirmDecisionService $decisions, AccountingChangeDisclosures $disclosures): View
+    /** L15 (N6): the two switches for Claude's reading, "Show to me" and "Show to students". */
+    public function toggleReading(string $who): void
+    {
+        $this->authorizeAccess($this->course);
+        abort_unless(in_array($who, ['faculty', 'students'], true), 404);
+        $column = $who === 'faculty' ? 'ai_reading_faculty' : 'ai_reading_students';
+        $this->course->forceFill([$column => ! $this->course->{$column}])->save();
+    }
+
+    public function render(FirmDecisionHistory $history, FirmDecisionService $decisions, AccountingChangeDisclosures $disclosures, QuarterReadings $readings): View
     {
         $firms = $this->course->firms()->orderBy('code')->get();
         $columns = [];
@@ -156,6 +166,8 @@ class QuarterResults extends Component
             'decisionColumns' => $decisionColumns,
             'disclosureColumns' => $disclosureColumns,
             'parameters' => $firms->isNotEmpty() ? $decisions->parameters($firms->first()) : [],
+            'readingsReady' => QuarterReadings::siteReady() && ! $this->course->is_practice,
+            'readings' => $columns === [] ? null : $readings->forFaculty($this->course, $columns),
         ]);
     }
 

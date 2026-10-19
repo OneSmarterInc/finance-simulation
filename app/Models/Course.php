@@ -43,6 +43,8 @@ class Course extends Model
         'practice_last_played_at',
         'practice_team_settings',
         'interpretations_required',
+        'ai_reading_faculty',
+        'ai_reading_students',
     ];
 
     protected function casts(): array
@@ -64,6 +66,8 @@ class Course extends Model
             'practice_last_played_at' => 'datetime',
             'practice_team_settings' => 'array',
             'interpretations_required' => 'boolean',
+            'ai_reading_faculty' => 'boolean',
+            'ai_reading_students' => 'boolean',
             'deployed_at' => 'datetime',
         ];
     }
