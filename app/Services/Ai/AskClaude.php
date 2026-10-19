@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai;
 
+use App\Models\AccountingRequestReview;
 use App\Models\AiQuestion;
 use App\Models\Course;
 use App\Models\Faculty;
@@ -120,13 +121,14 @@ class AskClaude
             ->where('created_at', '>=', now()->startOfMonth())->where('status', AiQuestion::ANSWERED)->count());
     }
 
-    /** The whole site's AI spending this month: questions and the quarter readings (L15) together. */
+    /** The whole site's AI spending this month: questions, the quarter readings (L15) and the request reviews (U12) together. */
     public static function spentThisMonth(): float
     {
         $since = now()->startOfMonth();
 
         return (float) AiQuestion::query()->where('created_at', '>=', $since)->sum('cost_usd')
-            + (float) FirmQuarterReading::query()->where('written_at', '>=', $since)->sum('cost_usd');
+            + (float) FirmQuarterReading::query()->where('written_at', '>=', $since)->sum('cost_usd')
+            + (float) AccountingRequestReview::query()->where('written_at', '>=', $since)->sum('cost_usd');
     }
 
     private function guard(Faculty $faculty, Course $course, string $question): void

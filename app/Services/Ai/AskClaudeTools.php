@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai;
 
+use App\Models\AccountingRequestReview;
 use App\Models\CfPlusAuctionResult;
 use App\Models\CfPlusConsultantReport;
 use App\Models\CfPlusOffer;
@@ -326,7 +327,7 @@ class AskClaudeTools
         if (! $this->course->accounting_election_enabled) {
             return ['requests' => [], 'note' => 'Teams can\'t ask to change methods in this course.'];
         }
-        $query = FirmAccountingElectionRequest::query()->with(['firm', 'courseQuarter'])->where('course_id', $this->course->id)->latest();
+        $query = FirmAccountingElectionRequest::query()->with(['firm', 'courseQuarter', 'claudeReview'])->where('course_id', $this->course->id)->latest();
         match ($status) {
             'waiting' => $query->where('status', 'pending'),
             'decided' => $query->where('status', '!=', 'pending'),
@@ -357,6 +358,11 @@ class AskClaudeTools
                 'reason' => filled($r->justification) ? $r->justification : 'No reason given (filed before reasons were required).',
                 'applies_from_quarter' => $r->effective_quarter_number,
                 'instructor_note' => $r->faculty_note,
+                // U12: Claude's stored review, when the course has it switched on.
+                'claude_review' => RequestReviews::enabled($this->course) && $r->claudeReview?->isWritten() ? [
+                    'suggests' => AccountingRequestReview::RECOMMENDATIONS[$r->claudeReview->recommendation] ?? $r->claudeReview->recommendation,
+                    'reasons' => (array) $r->claudeReview->reasons,
+                ] : null,
             ];
         })->all()];
     }

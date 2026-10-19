@@ -4,6 +4,7 @@ use App\Models\AiQuestion;
 use App\Models\Course;
 use App\Models\Faculty;
 use App\Services\Ai\QuarterReadings;
+use App\Services\Ai\RequestReviews;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
 use App\Services\Quarters\QuarterScheduler;
@@ -122,6 +123,16 @@ Artisan::command('flexee:readings {--limit= : how many to write this run}', func
 })->purpose('Write Claude\'s reading of quarters that have closed');
 
 Schedule::command('flexee:readings')->everyMinute()->withoutOverlapping(5)->onOneServer();
+
+/*
+ * U12: Claude's review of each accounting-method request, written by the
+ * clock once the request is filed, for courses with the review switched on.
+ */
+Artisan::command('flexee:request-reviews {--limit= : how many to write this run}', function (RequestReviews $reviews) {
+    $this->info('Request reviews written: '.$reviews->tick($this->option('limit') !== null ? (int) $this->option('limit') : null));
+})->purpose('Write Claude\'s review of accounting-method requests waiting for faculty');
+
+Schedule::command('flexee:request-reviews')->everyMinute()->withoutOverlapping(5)->onOneServer();
 
 // Ask Claude's question log is kept for 90 days (U1, AC7).
 Schedule::command('model:prune', ['--model' => [AiQuestion::class]])->daily()->onOneServer();

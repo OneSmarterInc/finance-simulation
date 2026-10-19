@@ -45,6 +45,7 @@ class Course extends Model
         'interpretations_required',
         'ai_reading_faculty',
         'ai_reading_students',
+        'ai_request_review',
     ];
 
     protected function casts(): array
@@ -68,6 +69,7 @@ class Course extends Model
             'interpretations_required' => 'boolean',
             'ai_reading_faculty' => 'boolean',
             'ai_reading_students' => 'boolean',
+            'ai_request_review' => 'boolean',
             'deployed_at' => 'datetime',
         ];
     }

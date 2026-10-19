@@ -247,6 +247,32 @@ class FirmAccountingElectionRequestService
         return $request->refresh();
     }
 
+    /**
+     * U12: send any request back to the team with the instructor's note (often Claude's
+     * draft, edited). The team sees the note and can file again in the same quarter.
+     */
+    public function sendBack(Faculty $faculty, FirmAccountingElectionRequest $request, ?string $note): FirmAccountingElectionRequest
+    {
+        $course = $request->course()->firstOrFail();
+        $this->authorize($faculty, $course);
+        if (blank($note)) {
+            throw ValidationException::withMessages(['request' => 'Write a note so the team knows what to add before it files again.']);
+        }
+
+        $updated = FirmAccountingElectionRequest::query()->whereKey($request->id)->where('status', self::PENDING)->update([
+            'status' => self::RETURNED,
+            'reviewed_by_faculty_id' => $faculty->id,
+            'reviewed_at' => now(),
+            'faculty_note' => trim((string) $note),
+            'updated_at' => now(),
+        ]);
+        if ($updated === 0) {
+            throw ValidationException::withMessages(['request' => 'This request has already been decided.']);
+        }
+
+        return $request->refresh();
+    }
+
     /** "Please file again with your reason: why does double-declining balance describe your firm better than straight-line?" */
     /** @param array<string, string>|null $current */
     public static function reasonNote(FirmAccountingElectionRequest $request, ?array $current = null): string

@@ -40,7 +40,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <flux:heading size="lg" level="2">Your team's request this quarter</flux:heading>
                     <flux:badge :color="match ($request->status) { 'approved' => 'emerald', 'rejected' => 'red', 'returned' => 'sky', default => 'amber' }">
-                        {{ match ($request->status) { 'approved' => 'Approved', 'rejected' => 'Declined', 'returned' => 'Your instructor asked for your reason', default => 'Waiting for your instructor' } }}
+                        {{ match ($request->status) { 'approved' => 'Approved', 'rejected' => 'Declined', 'returned' => $request->justification ? 'Sent back by your instructor' : 'Your instructor asked for your reason', default => 'Waiting for your instructor' } }}
                     </flux:badge>
                 </div>
                 <flux:text size="sm">Filed by {{ $request->student?->user?->name }} on {{ Dates::dateTime($request->created_at) }}.</flux:text>
@@ -70,7 +70,7 @@
                         </flux:button>
                     </div>
                 @elseif ($request->status === 'returned' && $quarter->state === 'open')
-                    <flux:text size="sm">File the request again with your reason. Your team can do that this quarter.</flux:text>
+                    <flux:text size="sm">{{ $request->justification ? 'Read your instructor\'s note, then file the request again. Your team can do that this quarter.' : 'File the request again with your reason. Your team can do that this quarter.' }}</flux:text>
                 @elseif ($quarter->state === 'open')
                     <flux:text size="sm">Your team can file another request next quarter.</flux:text>
                 @endif
