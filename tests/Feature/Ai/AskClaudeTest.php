@@ -137,6 +137,21 @@ class AskClaudeTest extends TestCase
         $this->assertSame('not recorded', $q4row['Units sold'], 'a figure this engine does not keep says so, rather than a dash');
     }
 
+    public function test_earlier_answers_go_back_as_checked_and_a_first_question_gets_no_such_line(): void
+    {
+        // Live, 19 October 2026: with no lookups in view, Claude told the instructor to disregard its own correct earlier answer.
+        $answer = fn (string $text) => ['content' => [['type' => 'text', 'text' => $text]], 'stop_reason' => 'end_turn', 'usage' => ['input_tokens' => 100, 'output_tokens' => 10]];
+        Http::fake(['*' => Http::sequence()->push($answer('Quarter 4 is open.'))->push($answer('Still open.'))]);
+
+        app(AskClaude::class)->ask($this->faculty, $this->course, $this->context(), 'Who still has to submit?');
+        app(AskClaude::class)->ask($this->faculty, $this->course, $this->context(), 'And now?', [['question' => 'Who still has to submit?', 'answer' => 'Quarter 4 is open.']]);
+
+        [$first, $second] = array_map(fn ($pair) => $pair[0]->data(), Http::recorded()->all());
+        $this->assertStringNotContainsString('Your earlier answers', $first['system'][1]['text']);
+        $this->assertStringContainsString('every figure in them was checked', $second['system'][1]['text']);
+        $this->assertSame(['role' => 'assistant', 'content' => 'Quarter 4 is open.'], $second['messages'][1]);
+    }
+
     public function test_students_reach_claude_only_as_numbers_and_the_panel_puts_names_back(): void
     {
         $this->fakeClaude('Student 1 is the only member and has nothing saved yet.');

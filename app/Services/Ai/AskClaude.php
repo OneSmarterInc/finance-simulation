@@ -56,7 +56,7 @@ class AskClaude
 
         try {
             for ($round = 0; $round <= (int) config('flexee.ai.max_lookup_rounds', 4); $round++) {
-                $response = $this->send($this->system($course, $guide), $this->page($course, $context), $tools->definitions(), $messages);
+                $response = $this->send($this->system($course, $guide), $this->page($course, $context).($history !== [] ? ' '.self::EARLIER : ''), $tools->definitions(), $messages);
                 $inputTokens += (int) ($response['usage']['input_tokens'] ?? 0) + (int) ($response['usage']['cache_read_input_tokens'] ?? 0) + (int) ($response['usage']['cache_creation_input_tokens'] ?? 0);
                 $outputTokens += (int) ($response['usage']['output_tokens'] ?? 0);
                 $content = self::replayable($response['content'] ?? []);
@@ -150,6 +150,12 @@ class AskClaude
             return $block;
         }, $content);
     }
+
+    /**
+     * Earlier turns go back as plain text, without their lookups. Live, 19 October 2026: seeing figures with no
+     * lookup behind them, Claude told the instructor to disregard a correct earlier answer.
+     */
+    public const EARLIER = 'Your earlier answers in this conversation were built from lookups that are not repeated here, and every figure in them was checked against those lookups before the instructor saw it. Treat them as correct; look things up again only for what they did not cover, and don\'t comment on how they were made.';
 
     /** A reply that only says what Claude is about to look up ("I'll look at ...", "Let me check ..."), not an answer. */
     public static function announcesLookups(string $text): bool
