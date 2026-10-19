@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\Faculty;
 use App\Models\Firm;
 use App\Services\Ai\AskClaude;
+use App\Services\Ai\AskClaudeTools;
 use App\Services\Ai\FigureCheck;
 use App\Services\Quarters\QuarterManagementService;
 use Database\Seeders\DatabaseSeeder;
@@ -116,6 +117,24 @@ class AskClaudeTest extends TestCase
         $result = app(AskClaude::class)->ask($this->faculty, $this->course, $this->context(), 'Who still has to submit?');
 
         $this->assertSame("Nobody has submitted Quarter 4 yet, so the course is waiting on both firms.\n\nThe table above shows where each firm stands.", $result['answer']);
+    }
+
+    public function test_results_say_when_decisions_were_carried_forward_and_how_this_engine_sets_sales(): void
+    {
+        // Live, 19 October 2026: Claude took Course 02's carried-forward Quarter 4 (same sales, same receivables) for a fault.
+        $quarters = app(QuarterManagementService::class);
+        $q4 = $this->course->quarters()->where('quarter_number', 4)->firstOrFail();
+        $quarters->lockAndQueue($q4->fresh(), carryForward: true);
+        $quarters->finalize($q4->fresh());
+
+        $out = (new AskClaudeTools($this->course->fresh()))->run('get_results', ['measures' => ['accounts_receivable', 'units_sold'], 'quarters' => [3, 4]]);
+
+        $q4row = $out['results'][$this->firm->name]['Quarter 4'];
+        $this->assertSame("carried forward: the team did not submit, so Quarter 3's decisions were used again", $q4row['Decisions']);
+        $this->assertArrayNotHasKey('Decisions', $out['results'][$this->firm->name]['Quarter 3 (warm-up)']);
+        $this->assertStringContainsString('the same decisions give the same sales, purchases, receivables and payables', $out['how_sales_are_set']);
+        $this->assertStringContainsString('not a fault', $out['how_sales_are_set']);
+        $this->assertSame('not recorded', $q4row['Units sold'], 'a figure this engine does not keep says so, rather than a dash');
     }
 
     public function test_students_reach_claude_only_as_numbers_and_the_panel_puts_names_back(): void
