@@ -122,6 +122,20 @@ jobs:
             public/build/ \
             "$SSH_USER@$SSH_HOST:$APP_DIR/public/build/"
 
+      - name: Run production database migrations
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o IdentitiesOnly=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "cd '$APP_DIR' && \
+             /opt/cpanel/ea-php84/root/usr/bin/php \
+             -d extension=/opt/alt/php84/usr/lib64/php/modules/fileinfo.so \
+             artisan migrate --force --path=database/migrations-mysql"
+
       - name: Refresh Laravel caches
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
