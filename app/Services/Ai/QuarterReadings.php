@@ -310,7 +310,10 @@ class QuarterReadings
     /** @return array<string, mixed> */
     private function send(string $system, string $data): array
     {
-        @set_time_limit(90);
+        // A web request needs room for one call to Claude; the console has no limit, and setting one there would cap the whole run.
+        if (! app()->runningInConsole()) {
+            @set_time_limit(90);
+        }
         $properties = [];
         foreach (self::SECTIONS as $key => $label) {
             $properties[$key] = ['type' => 'string', 'description' => "What the {$label} tab shows for this quarter: two to four sentences."];

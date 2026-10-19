@@ -125,7 +125,10 @@ class DebriefCaptions
     /** @param list<string> $keys @return array<string, mixed> */
     private function send(string $system, string $facts, array $keys): array
     {
-        @set_time_limit(90);
+        // A web request needs room for one call to Claude; the console has no limit, and setting one there would cap the whole run.
+        if (! app()->runningInConsole()) {
+            @set_time_limit(90);
+        }
         $properties = [];
         foreach ($keys as $key) {
             $properties[$key] = ['type' => 'string', 'description' => 'The caption for the slide marked ['.$key.'].'];
