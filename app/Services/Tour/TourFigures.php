@@ -4,9 +4,11 @@ namespace App\Services\Tour;
 
 use App\Models\Course;
 use App\Models\Faculty;
+use App\Models\Firm;
 use App\Models\FirmEngineResult;
 use App\Models\Scenario;
 use App\Services\Courses\CourseConfigurationService;
+use App\Services\Debrief\QuarterReplay;
 use App\Services\Decisions\FirmDecisionService;
 use App\Services\Practice\PracticeRunService;
 use App\Support\Presentation\DecisionPresenter;
@@ -127,6 +129,8 @@ final class TourFigures
         $taxRate = $pretax > 0 ? (float) $after->income_statement['income_tax_expense'] / $pretax : 0.0;
         $extra = (float) $after->fields['cf_depr'] - (float) $before->fields['cf_depr'];
 
+        $explainer = $this->depreciationExplainer($firms['careful'], $q4, (array) ($decision['notes_elections'] ?? []));
+
         $value = [];
         foreach ($this->runs->valueCreated($practice) as $q => $teams) {
             foreach ($teams as $team => $v) {
@@ -153,10 +157,55 @@ final class TourFigures
                 'after_tax_effect' => round($extra * (1 - $taxRate), 2),
             ],
             'value_created' => $value,
+            'depreciation_explainer' => $explainer,
             'evaluation' => [
                 'firms' => array_map(fn ($r) => array_intersect_key($r, array_flip(['team', 'consultant', 'true_worth'])), $evaluation['firms'] ?? []),
                 'results' => array_map(fn ($r) => array_intersect_key($r, array_flip(['target', 'winner', 'price', 'true_stake', 'difference'])), $evaluation['results'] ?? []),
             ],
+        ];
+    }
+
+    /**
+     * U4 layer 2 (MO2): Careful's Quarter 4 as it was played, on straight-line,
+     * and the same quarter played again in memory on double-declining balance,
+     * with the same decisions. The engine works out both; nothing is saved.
+     *
+     * @param  array<string, mixed>  $played  the methods the quarter was played with
+     * @return array<string, mixed>
+     */
+    private function depreciationExplainer(Firm $firm, FirmEngineResult $stored, array $played): array
+    {
+        if (($played['depreciation_method'] ?? null) !== 'straight_line') {
+            throw new RuntimeException('The reference team no longer plays Quarter 4 on straight-line; the depreciation explainer needs it.');
+        }
+        $declining = app(QuarterReplay::class)->replay($firm, 4, ['depreciation_method' => 'double_declining_balance'])
+            ?? throw new RuntimeException('Quarter 4 could not be played again for the depreciation explainer.');
+
+        $side = function (array $fields, array $is, array $cf, array $bs): array {
+            $money = fn ($v): float => round((float) $v, 2);
+
+            $sold = array_sum(array_map(fn ($k) => (float) $fields[$k], array_filter(array_keys($fields), fn ($k) => str_starts_with((string) $k, 'n2_sold_'))));
+
+            return [
+                'units_sold' => (int) round($sold),
+                'depreciation' => $money($fields['cf_depr']),
+                'cost_of_goods_sold' => $money($is['cost_of_goods_sold']),
+                'operating_expenses' => $money($is['operating_expenses']),
+                'income_before_taxes' => $money($is['income_before_income_taxes']),
+                'income_tax' => $money($is['income_tax_expense']),
+                'net_income' => $money($is['net_income']),
+                'operating_cash_flow' => $money($cf['operating_cash_flow']),
+                'net_plant' => $money((float) $fields['bs_ppe_gross'] - (float) $fields['bs_accum_depr']),
+                'inventory' => $money($fields['bs_inventory']),
+                'cash' => $money($fields['bs_cash']),
+                'equity' => $money($bs['equity']),
+            ];
+        };
+
+        return [
+            'quarter' => 4,
+            'straight_line' => $side((array) $stored->fields, (array) $stored->income_statement, (array) $stored->cash_flow_statement, (array) $stored->balance_sheet),
+            'double_declining' => $side($declining->fields, $declining->incomeStatement, $declining->cashFlowStatement, $declining->balanceSheet),
         ];
     }
 

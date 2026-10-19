@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Services\Courses\CourseStatus;
+use App\Support\Explainers\Explainers;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -30,7 +31,7 @@ class Guide extends Component
                 'Flexee Financial Accounting+' => $read('one-pager-plus'),
             ];
 
-            return view('livewire.guide', ['sections' => $sections, 'audience' => 'faculty'])
+            return view('livewire.guide', ['sections' => $sections, 'audience' => 'faculty', 'explainers' => Explainers::all()])
                 ->layout('layouts.app', ['title' => 'Guide']);
         }
 
@@ -42,7 +43,7 @@ class Guide extends Component
             $sections['The evaluation stage'] = $read('student-guide-plus');
         }
 
-        return view('livewire.guide', ['sections' => $sections, 'audience' => 'student'])
+        return view('livewire.guide', ['sections' => $sections, 'audience' => 'student', 'explainers' => Explainers::all()])
             ->layout('layouts.student', ['title' => 'Guide']);
     }
 }

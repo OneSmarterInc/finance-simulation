@@ -9,7 +9,7 @@
                 <tbody><tr class="bg-amber-50 dark:bg-amber-400/10"><td class="py-1.5">Depreciation method</td><td class="py-1.5">Straight-line</td><td class="py-1.5 font-semibold">Double-declining balance</td></tr></tbody>
             </table>
         </div>
-        <p class="text-xs text-zinc-500">Puts more depreciation in the early years and less later, so reported profit is lower early and higher later. Cash is unchanged.</p>
+        <p class="text-xs text-zinc-500">Puts more depreciation in the early years and less later, so reported profit is lower early and higher later. Cash moves only by the tax on that profit.</p>
         <div class="rounded-md bg-zinc-50 p-2 dark:bg-white/5"><p class="text-xs font-medium">The team's reason</p><p>"Our new line wears fastest in its first years, so most of its cost belongs early."</p></div>
         <div class="flex gap-2"><span class="rounded-md bg-emerald-700 px-3 py-1 text-xs font-semibold text-white">Approve</span><span class="rounded-md border border-zinc-300 px-3 py-1 text-xs font-medium dark:border-white/20">Decline</span></div>
     </div>

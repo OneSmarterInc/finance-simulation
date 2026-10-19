@@ -15,7 +15,7 @@ final class AccountingMethodGuide
         ],
         'depreciation_method' => [
             'straight_line' => 'Spreads the cost of plant and equipment evenly, so depreciation expense is the same every quarter.',
-            'double_declining_balance' => 'Puts more depreciation in the early years and less later, so reported profit is lower early and higher later. Cash is unchanged.',
+            'double_declining_balance' => 'Puts more depreciation in the early years and less later, so reported profit is lower early and higher later. Cash moves only by the tax on that profit.',
             'units_of_production' => 'Ties depreciation to how much the plant produces, so the expense rises and falls with output.',
         ],
         'shipping_terms' => [

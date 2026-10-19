@@ -143,7 +143,7 @@ class LiveWalkthroughTest extends TestCase
 
         $this->actingAs($student->user)->get(route('student.accounting-election', [$firm, $q4]))->assertOk()
             ->assertSee('Accounting methods')->assertDontSee('Accounting elections')
-            ->assertSee('These are the methods your firm uses to measure and report its results. Changing one moves the reported figures but not the cash, and your statements will show you how.')
+            ->assertSee('These are the methods your firm uses to measure and report its results. Changing one moves the reported figures, and cash only through the tax on them. Your statements will show you how.')
             ->assertSee('No reason given: filed before reasons were required.');
 
         $note = 'Please file again with your reason: why does double-declining balance describe your firm better than straight-line?';
