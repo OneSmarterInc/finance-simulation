@@ -26,6 +26,7 @@ final class PageTrail
         'faculty.courses.quarters' => 'Quarters',
         'faculty.courses.quarter-results' => 'Quarter results',
         'faculty.courses.explanations' => 'Team explanations',
+        'faculty.courses.debrief' => 'Debrief',
         'faculty.courses.practice' => 'Practice run',
         'faculty.courses.accounting-election-requests' => 'Accounting methods',
         'faculty.courses.cf-plus-auction' => 'Evaluation stage',
@@ -161,6 +162,7 @@ final class PageTrail
             'student.decisions.workspace' => $number ? "Quarter {$number} decisions" : 'Decisions',
             'student.accounting-election' => 'Accounting methods',
             'student.cf-plus.evaluation' => 'Evaluation stage',
+            'firms.debrief' => 'Class debrief',
             default => 'Firm',
         };
     }

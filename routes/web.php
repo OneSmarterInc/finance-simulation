@@ -87,6 +87,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('faculty/courses/{course}/explanations/download', \App\Http\Controllers\Faculty\ExplanationsDownloadController::class)
         ->name('faculty.courses.explanations.download');
 
+    // U4: the class debrief, presented in class; shared with students after the course.
+    Route::get('faculty/courses/{course}/debrief', \App\Livewire\Faculty\Courses\Debrief::class)
+        ->name('faculty.courses.debrief');
+
+    Route::get('firms/{firm}/debrief', \App\Livewire\Student\CourseDebrief::class)
+        ->middleware(\App\Http\Middleware\EnsureStudentAccessConfirmed::class)
+        ->name('firms.debrief');
+
     Route::get('faculty/courses/{course}/practice', PracticeRun::class)
         ->name('faculty.courses.practice');
 

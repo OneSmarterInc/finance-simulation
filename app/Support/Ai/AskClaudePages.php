@@ -26,6 +26,7 @@ final class AskClaudePages
         'faculty.courses.accounting-election-requests' => ['Accounting method requests', ['Summarise the requests waiting for me.', 'What happens if I approve a request?', 'How should I judge a request to change methods?']],
         'faculty.courses.cf-plus-auction' => ['Evaluation stage', ['How many offers has each firm received?', 'Who paid more than the stake was worth?', 'How is the consultant\'s valuation worked out?']],
         'faculty.courses.explanations' => ['Team explanations', ['Where do the explanations not match the teams\' results?', 'Which teams haven\'t explained this quarter yet?', 'What did each team say changed most?']],
+        'faculty.courses.debrief' => ['Debrief', ['Which firm led for longest, and when did the lead change?', 'Why did profit and cash differ most for one firm?', 'What did the method changes do to reported profit?']],
         'faculty.courses.practice' => ['Practice run', ['Why is the Careless team\'s cash so low?', 'What do the three reference teams do differently?', 'Does the Careful team lead every quarter?']],
         'firms.dashboard' => ['Firm dashboard', ['How has this firm done quarter by quarter?', 'What did this firm decide last quarter?', 'Has this firm submitted this quarter?']],
         'firms.history' => ['Firm history', ['Where did this firm\'s cash go?', 'What are the warm-up quarters?']],
