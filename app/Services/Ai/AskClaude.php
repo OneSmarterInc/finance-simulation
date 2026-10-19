@@ -52,6 +52,7 @@ class AskClaude
         $answer = '';
         $status = AiQuestion::FAILED;
         $nudged = false;
+        $parts = [];
 
         try {
             for ($round = 0; $round <= (int) config('flexee.ai.max_lookup_rounds', 4); $round++) {
@@ -62,6 +63,11 @@ class AskClaude
                 $stop = (string) ($response['stop_reason'] ?? '');
                 $uses = array_values(array_filter($content, fn ($block) => ($block['type'] ?? '') === 'tool_use'));
                 $text = trim(implode("\n\n", array_map(fn ($b) => $b['text'], array_filter($content, fn ($b) => ($b['type'] ?? '') === 'text'))));
+                // Live, 19 October 2026: Claude wrote its explanation beside the show_table call and ended with only
+                // "The table above shows ...". The answer is every round's text, less the "I'll look at ..." lines.
+                if ($text !== '' && ! self::announcesLookups($text)) {
+                    $parts[] = $text;
+                }
                 // A long turn the API paused: send it back as it is, and Claude carries on.
                 if ($stop === 'pause_turn') {
                     $messages[] = ['role' => 'assistant', 'content' => $content];
@@ -79,7 +85,7 @@ class AskClaude
 
                         continue;
                     }
-                    $answer = $text;
+                    $answer = implode("\n\n", $parts);
                     $status = AiQuestion::ANSWERED;
                     break;
                 }

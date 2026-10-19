@@ -85,7 +85,7 @@ class AskClaudeTest extends TestCase
         $announce = ['content' => [['type' => 'text', 'text' => "I'll look at Alpha's receivables, revenue, and decisions around Quarter 4, along with the course setup."]], 'stop_reason' => 'end_turn', 'usage' => ['input_tokens' => 900, 'output_tokens' => 30]];
         $lookup = ['content' => [['type' => 'tool_use', 'id' => 'tu_1', 'name' => 'get_course_status', 'input' => new \stdClass]], 'stop_reason' => 'tool_use', 'usage' => ['input_tokens' => 1000, 'output_tokens' => 40]];
         $answer = ['content' => [['type' => 'text', 'text' => 'Quarter 4 is open.']], 'stop_reason' => 'end_turn', 'usage' => ['input_tokens' => 1100, 'output_tokens' => 20]];
-        $paused = ['content' => [['type' => 'text', 'text' => 'Working.']], 'stop_reason' => 'pause_turn', 'usage' => ['input_tokens' => 100, 'output_tokens' => 5]];
+        $paused = ['content' => [['type' => 'text', 'text' => 'Both firms are still deciding.']], 'stop_reason' => 'pause_turn', 'usage' => ['input_tokens' => 100, 'output_tokens' => 5]];
         $endWithLookup = ['stop_reason' => 'end_turn'] + $lookup;
         Http::fake(['*' => Http::sequence()->push($announce)->push($lookup)->push($answer)->push($paused)->push($endWithLookup)->push($answer)]);
 
@@ -98,9 +98,24 @@ class AskClaudeTest extends TestCase
 
         // A lookup that comes with any stop reason is still run, and a paused turn carries on.
         $again = app(AskClaude::class)->ask($this->faculty, $this->course, $this->context(), 'Who still has to submit?');
-        $this->assertSame(['Quarter 4 is open.', ['get_course_status']], [$again['answer'], array_column($again['lookups'], 'name')]);
+        $this->assertSame(["Both firms are still deciding.\n\nQuarter 4 is open.", ['get_course_status']], [$again['answer'], array_column($again['lookups'], 'name')], 'the paused turn\'s text is part of the answer');
 
         $this->assertFalse(AskClaude::announcesLookups('Quarter 4 is open, and nobody has submitted yet.'));
+    }
+
+    public function test_the_answer_keeps_what_claude_wrote_beside_a_lookup(): void
+    {
+        // Live, 19 October 2026: the explanation came beside the show_table call, and the last turn said only "The table above ...".
+        $withLookup = ['content' => [
+            ['type' => 'text', 'text' => 'Nobody has submitted Quarter 4 yet, so the course is waiting on both firms.'],
+            ['type' => 'tool_use', 'id' => 'tu_1', 'name' => 'get_course_status', 'input' => new \stdClass],
+        ], 'stop_reason' => 'tool_use', 'usage' => ['input_tokens' => 1000, 'output_tokens' => 60]];
+        $last = ['content' => [['type' => 'text', 'text' => 'The table above shows where each firm stands.']], 'stop_reason' => 'end_turn', 'usage' => ['input_tokens' => 1100, 'output_tokens' => 20]];
+        Http::fake(['*' => Http::sequence()->push($withLookup)->push($last)]);
+
+        $result = app(AskClaude::class)->ask($this->faculty, $this->course, $this->context(), 'Who still has to submit?');
+
+        $this->assertSame("Nobody has submitted Quarter 4 yet, so the course is waiting on both firms.\n\nThe table above shows where each firm stands.", $result['answer']);
     }
 
     public function test_students_reach_claude_only_as_numbers_and_the_panel_puts_names_back(): void
