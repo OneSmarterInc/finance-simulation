@@ -11,6 +11,12 @@ class LoginResponse implements LoginResponseContract
     {
         $user = $request->user();
 
+        // U3: an admin signing in to connect the reporting connector goes back to its consent page.
+        $intended = $request->session()->get('url.intended');
+        if ($user?->admin !== null && is_string($intended) && str_starts_with($intended, route('reporting.oauth.authorize'))) {
+            return redirect()->intended();
+        }
+
         if ($user?->admin !== null) {
             return redirect()->route('admin.dashboard');
         }

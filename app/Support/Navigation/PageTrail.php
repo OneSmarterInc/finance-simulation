@@ -38,6 +38,7 @@ final class PageTrail
         'admin.faculty' => 'Faculty',
         'admin.students' => 'Students',
         'admin.courses' => 'Courses',
+        'admin.reporting' => 'Reporting',
     ];
 
     private const SETTINGS_PAGES = [

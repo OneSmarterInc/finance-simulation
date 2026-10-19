@@ -273,7 +273,10 @@ class RequestReviews
     /** @return array<string, mixed> */
     private function send(string $system, string $data): array
     {
-        @set_time_limit(90);
+        // A web request needs room for one call to Claude; the console has no limit, and setting one there would cap the whole run.
+        if (! app()->runningInConsole()) {
+            @set_time_limit(90);
+        }
 
         return Http::withHeaders([
             'x-api-key' => (string) config('services.anthropic.key'),

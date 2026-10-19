@@ -56,4 +56,21 @@ return [
         'readings_per_run' => (int) env('FLEXEE_AI_READINGS_PER_RUN', 6),
     ],
 
+    /*
+     * U3 (RP1 to RP3): the read-only reporting connector at /mcp/reporting.
+     * Only One Smarter admins can connect. Claude's published identity is
+     * read from these hosts only, and sign-ins return only to these hosts.
+     */
+    'reporting' => [
+        'enabled' => (bool) env('FLEXEE_REPORTING_ENABLED', true),
+        'sim' => 'financial_accounting',
+        'contract' => 'v1',
+        'client_metadata_hosts' => ['claude.ai', 'claude.com'],
+        'redirect_hosts' => ['claude.ai', 'claude.com', 'localhost', '127.0.0.1'],
+        'access_minutes' => 60,
+        'refresh_days' => 30,
+        'calls_per_minute' => 120,
+        'closes_days' => 90,
+    ],
+
 ];
