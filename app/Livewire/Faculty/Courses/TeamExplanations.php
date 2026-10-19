@@ -2,11 +2,15 @@
 
 namespace App\Livewire\Faculty\Courses;
 
+use App\Models\CfPlusAuctionResult;
+use App\Models\CfPlusOffer;
 use App\Models\Course;
 use App\Models\CourseQuarter;
 use App\Models\FirmQuarterInterpretation;
+use App\Models\FirmRivalAnalysis;
 use App\Services\Courses\CourseStatus;
 use App\Services\Interpretations\InterpretationService;
+use App\Services\Interpretations\RivalAnalysisService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -31,6 +35,13 @@ class TeamExplanations extends Component
     /** @var array<string, string> comments as typed, keyed by firm id */
     public array $comments = [];
 
+    /** U11 layer 3: "quarters" or, on + courses, "rivals" */
+    #[Url(as: 'show')]
+    public string $show = 'quarters';
+
+    /** @var array<string, string> comments on rival analyses as typed, keyed by analysis id */
+    public array $rivalComments = [];
+
     public string $statusMessage = '';
 
     public function mount(Course $course, InterpretationService $service): void
@@ -48,12 +59,36 @@ class TeamExplanations extends Component
         if ($this->selectedQuarter === null || ! $quarters->contains($this->selectedQuarter)) {
             $this->selectedQuarter = $quarters->last();
         }
+        $this->show = $this->show === 'rivals' && $course->cf_plus_enabled ? 'rivals' : 'quarters';
         $this->loadComments();
+    }
+
+    public function showRivals(): void
+    {
+        abort_unless($this->course->cf_plus_enabled, 404);
+        $this->show = 'rivals';
+        $this->statusMessage = '';
+        $this->loadRivalComments();
+    }
+
+    /** RA3: comments open once the stage is settled. */
+    public function saveRivalComment(string $id, RivalAnalysisService $service): void
+    {
+        $row = FirmRivalAnalysis::query()->where('course_id', $this->course->id)->with('bidder.course', 'target')->findOrFail($id);
+        try {
+            $service->comment(auth()->user()->faculty, $row, $this->rivalComments[$id] ?? '');
+        } catch (ValidationException $e) {
+            $this->addError('rivalComments.'.$id, collect($e->errors())->flatten()->first());
+
+            return;
+        }
+        $this->statusMessage = "Comment saved. {$row->bidder->name} sees it on its evaluation page, under its analysis of {$row->target->name}.";
     }
 
     public function showQuarter(int $quarter): void
     {
         abort_unless($this->quarters()->contains($quarter), 404);
+        $this->show = 'quarters';
         $this->selectedQuarter = $quarter;
         $this->statusMessage = '';
         $this->loadComments();
@@ -82,9 +117,12 @@ class TeamExplanations extends Component
             : 'Teams can now submit decisions without an explanation. Explanations already written stay here.';
     }
 
-    public function render(): View
+    public function render(RivalAnalysisService $rivals): View
     {
         $status = CourseStatus::for($this->course);
+        if ($this->show === 'rivals' && $this->rivalComments === []) {
+            $this->loadRivalComments();
+        }
         $rows = $this->rows()->keyBy('firm_id');
         $quarter = $this->selectedQuarter ? $status->quarters->firstWhere('quarter_number', $this->selectedQuarter) : null;
         $next = $quarter ? $status->quarters->firstWhere('quarter_number', $quarter->quarter_number + 1) : null;
@@ -96,6 +134,9 @@ class TeamExplanations extends Component
             'quarter' => $quarter,
             'dueBy' => $next?->decision_deadline_at,
             'submitted' => $rows->filter(fn (FirmQuarterInterpretation $r) => $r->isSubmitted())->count(),
+            // U11 layer 3 (RA3): who has analysed whom, and after settlement the text beside the outcome.
+            'rivalRows' => $this->show === 'rivals' ? $this->rivalRows($rivals) : collect(),
+            'settled' => $this->course->cf_plus_enabled && $rivals->settled($this->course),
         ]);
     }
 
@@ -118,6 +159,25 @@ class TeamExplanations extends Component
         $quarter = CourseQuarter::query()->where('course_id', $this->course->id)->where('quarter_number', $this->selectedQuarter)->first();
 
         return $quarter ? FirmQuarterInterpretation::query()->where('course_quarter_id', $quarter->id)->with(['firm', 'submittedBy.user'])->get() : collect();
+    }
+
+    /** @return Collection<int, array{analysis: FirmRivalAnalysis, offer: float|null, result: CfPlusAuctionResult|null}> */
+    private function rivalRows(RivalAnalysisService $rivals): Collection
+    {
+        $offers = CfPlusOffer::query()->where('course_id', $this->course->id)->get()->keyBy(fn ($o) => $o->bidder_firm_id.'|'.$o->target_firm_id);
+        $results = CfPlusAuctionResult::query()->where('course_id', $this->course->id)->with('winner')->get()->keyBy('target_firm_id');
+
+        return $rivals->forCourse($this->course)->map(fn (FirmRivalAnalysis $a): array => [
+            'analysis' => $a,
+            'offer' => ($o = $offers->get($a->bidder_firm_id.'|'.$a->target_firm_id)) ? (float) $o->offered_amount : null,
+            'result' => $results->get($a->target_firm_id),
+        ]);
+    }
+
+    private function loadRivalComments(): void
+    {
+        $this->rivalComments = FirmRivalAnalysis::query()->where('course_id', $this->course->id)->get()
+            ->mapWithKeys(fn (FirmRivalAnalysis $r) => [$r->id => (string) $r->faculty_comment])->all();
     }
 
     private function loadComments(): void

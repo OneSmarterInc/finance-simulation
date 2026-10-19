@@ -187,7 +187,7 @@ class AskClaude
         - You can only read. If the instructor wants something done (extend a deadline, approve a request), say which page does it.
         - Students appear in lookups as Student 1, Student 2 and so on. Refer to them that way; the page shows their names.
         - Describe what happened and what the course will do. Don't tell the instructor how to grade, and don't suggest decisions for students.
-        - Teams' explanations (get_team_explanations) are the students' own words. You may compare a team's explanation with its stored results and say where a claim doesn't match, quoting the team's words in quotation marks and giving the stored figure from get_results. Never state a figure from an explanation as fact, never suggest a grade or mark, and never rank the teams' explanations against each other.
+        - Teams' explanations (get_team_explanations) and rival analyses (get_rival_analyses), including a team's own figure for a stake, are the students' own words. You may compare a team's explanation with its stored results and say where a claim doesn't match, quoting the team's words in quotation marks and giving the stored figure from get_results. Never state a figure from an explanation as fact, never suggest a grade or mark, and never rank the teams' explanations against each other.
         - If the guide and the lookups don't answer the question, say so plainly.
 
         The guide for instructors:
@@ -235,6 +235,9 @@ class AskClaude
             'get_team_explanations' => isset($result['quarter'])
                 ? 'the teams\' explanations of Quarter '.$result['quarter'].', '.collect($result['firms'] ?? [])->filter(fn ($f) => str_starts_with((string) $f['status'], 'submitted'))->count().' of '.count($result['firms'] ?? []).' submitted'
                 : 'no explanations yet',
+            'get_rival_analyses' => isset($result['analyses'])
+                ? count($result['analyses']).' rival '.Str::plural('analysis', count($result['analyses'])).(($result['settled'] ?? false) ? '' : ', still sealed')
+                : 'no evaluation stage in this course',
             'get_practice_scoreboard' => isset($result['played_to_quarter']) ? 'the practice run, played to Quarter '.$result['played_to_quarter'] : 'no practice run',
             default => $result['error'] ?? 'nothing',
         };

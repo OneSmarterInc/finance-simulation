@@ -7,6 +7,7 @@ use App\Models\CfPlusOffer;
 use App\Models\Course;
 use App\Models\CourseQuarter;
 use App\Models\Firm;
+use App\Services\Interpretations\RivalAnalysisService;
 use DomainException;
 use Illuminate\Validation\ValidationException;
 
@@ -25,6 +26,11 @@ final class CfPlusOfferService
         $this->assertWindowOpen($course);
         if ($amount < 0) {
             throw ValidationException::withMessages(['offer' => 'Offer must be zero or greater.']);
+        }
+        // U11 layer 3 (RA1): a positive offer needs the team's submitted analysis of that rival.
+        $analyses = app(RivalAnalysisService::class);
+        if (round($amount, 2) > 0 && ! $analyses->satisfied($bidder, $target)) {
+            throw ValidationException::withMessages(['offer' => $analyses->message($target)]);
         }
         $context = $this->funding->calculate($course, $bidder, $target);
         $amount = round($amount, 2);
