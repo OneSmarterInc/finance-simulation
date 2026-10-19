@@ -52,7 +52,7 @@ class QuarterReadings
     public const MAX_ATTEMPTS = 3;
 
     /** Part of source_hash: bump when the instructions change. */
-    private const PROMPT_VERSION = 'reading-v1';
+    private const PROMPT_VERSION = 'reading-v2';
 
     public function __construct(
         private readonly FirmDecisionHistory $history,
@@ -219,9 +219,12 @@ class QuarterReadings
         $columns = $previous ? ['Quarter '.($n - 1) => $previous, 'Quarter '.$n => $result] : ['Quarter '.$n => $result];
 
         $lines = [];
+        $carried = ! $warmUp && (bool) ($this->history->forQuarter($firm, $n)['carried_forward'] ?? false);
         $lines[] = "THE QUARTER TO READ: Quarter {$n}".($warmUp
             ? ', a warm-up quarter, run by the simulation before the team took over the firm.'
-            : ', decided by the team.');
+            : ($carried
+                ? ', but the team did not submit decisions for it, so Quarter '.($n - 1).'\'s decisions were used again.'
+                : ', decided by the team.'));
         $lines[] = $previous ? 'COMPARED WITH: Quarter '.($n - 1).'.' : 'This is the firm\'s first quarter, so there is no quarter before it.';
 
         $blocks = ['summary' => 'SUMMARY'] + array_map('strtoupper', StatementPresenter::STATEMENTS);
@@ -302,6 +305,8 @@ class QuarterReadings
         {$only}
 
         - Each paragraph is two to four plain sentences about that report: which lines moved most since the quarter before, and what caused each move (one of the decisions, customers' orders, or an accounting method), using only what you are given. For the first quarter, say where the firm stands instead.
+        - Name the cause you can see in what you're given, such as a decision, a line in the notes, or a method change. Don't explain a line only by saying an earlier change "did not repeat"; say what happened instead.
+        - When the team did not submit and the quarter before's decisions were used again, say so in the first sentence of the summary. Then, in each paragraph, say which lines that explains: lines that stayed the same, or barely moved, because the same decisions gave the same sales and purchases. Name what did change, and why.
         - The notes paragraph names something the notes show that the three statements don't show on their own.
         - Quote figures exactly as given, for example "\$21,613,457.97", "18.4%" or "3.49x". Don't add, subtract, round or work out new figures, and don't give a change as an amount or a percentage: describe its size in words ("more than doubled", "fell slightly"). Any sentence with a figure that isn't in what you're given is removed.
         - Describe what happened. Never tell the team what to do, what to try, or what to change next quarter, and don't judge their choices as good or bad. Any sentence that gives advice is removed.

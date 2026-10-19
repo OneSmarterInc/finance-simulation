@@ -235,6 +235,33 @@ class QuarterReadingsTest extends TestCase
         $this->assertCount(4, $out['dropped']);
     }
 
+    public function test_a_carried_forward_quarter_is_named_first_and_readings_can_be_rewritten(): void
+    {
+        // The live Course 02 case (19 October 2026): nobody submitted Quarter 4, so Quarter 3's decisions were used again.
+        $quarters = app(QuarterManagementService::class);
+        $q4 = $this->course->quarters()->where('quarter_number', 4)->firstOrFail();
+        $quarters->open($this->faculty, $q4);
+        $quarters->lockAndQueue($q4->fresh(), carryForward: true);
+        $quarters->finalize($q4->fresh());
+        $this->fakeReading();
+
+        $result = $this->firm->engineResults()->where('quarter_number', 4)->firstOrFail();
+        app(QuarterReadings::class)->write($result);
+
+        Http::assertSent(function (Request $request): bool {
+            $body = $request->data();
+
+            return str_contains($body['messages'][0]['content'], "THE QUARTER TO READ: Quarter 4, but the team did not submit decisions for it, so Quarter 3's decisions were used again.")
+                && str_contains($body['system'][0]['text'], 'say so in the first sentence of the summary')
+                && str_contains($body['system'][0]['text'], 'Don\'t explain a line only by saying an earlier change "did not repeat"');
+        });
+
+        // After a change to the prompt, every reading can be written again.
+        $this->assertSame(1, FirmQuarterReading::query()->where('status', 'written')->count());
+        $this->artisan('flexee:ai-retry', ['--rewrite-readings' => true])->expectsOutputToContain('Cleared 1 readings (to be rewritten)')->assertSuccessful();
+        $this->assertTrue(app(QuarterReadings::class)->due(10)->contains('id', $result->id));
+    }
+
     private function fakeReading(): void
     {
         Http::fake(['*' => Http::response([
