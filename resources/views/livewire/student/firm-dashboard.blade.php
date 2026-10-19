@@ -39,6 +39,9 @@
                     @default
                         Your team hasn't submitted yet. If nothing is submitted by the deadline, last quarter's decisions are used again.
                 @endswitch
+                @if ($toExplain)
+                    <span class="mt-1 block font-medium" data-test="explain-first">First, explain Quarter {{ $toExplain->quarter_number }}: your team submits its explanation of that quarter's statements, then its decisions. Both are on the decisions page.</span>
+                @endif
             </flux:callout.text>
             @unless ($facultyView)
                 <x-slot name="actions">

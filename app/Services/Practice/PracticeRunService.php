@@ -416,7 +416,7 @@ class PracticeRunService
                 'cf_plus_auction_results', 'cf_plus_offers', 'cf_plus_auction_economics', 'cf_plus_auction_economics_snapshots',
                 'cf_plus_consultant_reports', 'cf_plus_disclosure_snapshots',
                 'firm_quarter_closes', 'firm_quarter_decisions', 'firm_accounting_election_requests', 'firm_accounting_elections',
-                'firm_engine_results', 'firm_memberships', 'enrollments',
+                'firm_engine_results', 'firm_quarter_interpretations', 'firm_memberships', 'enrollments',
             ] as $table) {
                 DB::table($table)->where('course_id', $id)->delete();
             }

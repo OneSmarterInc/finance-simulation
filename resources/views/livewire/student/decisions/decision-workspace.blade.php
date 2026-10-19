@@ -60,6 +60,67 @@
         </flux:callout>
     @endif
 
+    {{-- U11 (IN1, IN2): the team explains last quarter before it submits this quarter's decisions. --}}
+    @if ($explainedQuarter)
+        <flux:card class="space-y-4" data-test="explanation">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+                <div class="space-y-1">
+                    <flux:heading size="lg" level="2">Explain Quarter {{ $explainedQuarter->quarter_number }} before you decide</flux:heading>
+                    <flux:text class="max-w-3xl">
+                        Before your team submits Quarter {{ $quarter->quarter_number }}'s decisions, write what Quarter {{ $explainedQuarter->quarter_number }}'s statements show.
+                        Your instructor reads it. Anyone on the team can write it, and everyone sees the same draft.
+                    </flux:text>
+                </div>
+                @if ($explanationRecord?->isSubmitted())
+                    <flux:badge color="emerald">Submitted</flux:badge>
+                @elseif ($explanationRecord)
+                    <flux:badge color="amber">Draft saved</flux:badge>
+                @else
+                    <flux:badge color="amber">Not started</flux:badge>
+                @endif
+            </div>
+
+            @foreach ([
+                'changed' => ['What changed?', 'Name two or three lines on the statements that moved most since the quarter before, and say by how much. For example: net income rose from $9.1 million to $14.2 million.'],
+                'why' => ['Why did it change?', 'For each line, say what caused the move: one of your team\'s decisions, customers\' orders, or an accounting method.'],
+                'notes' => ['What do the notes show?', 'Name one thing in the notes that the three statements don\'t show on their own. For example, goods still on their way from the supplier, or orders you couldn\'t fill.'],
+            ] as $key => [$label, $hint])
+                <flux:textarea wire:model="explanation.{{ $key }}" rows="3" :label="$label" :description="$hint"
+                    :disabled="! $explanationEditable" wire:key="explanation-{{ $key }}" />
+            @endforeach
+            @error('interpretation')
+                <flux:callout variant="danger" icon="exclamation-triangle" :heading="$message" />
+            @enderror
+
+            @if ($explanationRecord?->isSubmitted())
+                <flux:text size="sm">
+                    Submitted by {{ $explanationRecord->submittedBy?->user?->name ?? 'your team' }} on {{ Dates::dateTime($explanationRecord->submitted_at) }}.
+                    @if ($explanationEditable)
+                        You can change it and submit again until the deadline.
+                    @endif
+                </flux:text>
+            @endif
+            @if ($explanationRecord?->faculty_comment)
+                <div class="rounded-lg bg-zinc-50 p-3 text-sm dark:bg-white/5" data-test="explanation-comment">
+                    <p class="font-medium">Your instructor's comment</p>
+                    <p class="mt-1 whitespace-pre-line">{{ $explanationRecord->faculty_comment }}</p>
+                </div>
+            @endif
+
+            @if ($explanationEditable)
+                <div class="flex flex-wrap items-center gap-3">
+                    <flux:button wire:click="saveExplanation" icon="document-check">Save draft</flux:button>
+                    <flux:button wire:click="submitExplanation" variant="primary" icon="paper-airplane">
+                        {{ $explanationRecord?->isSubmitted() ? 'Submit the changes' : 'Submit the explanation' }}
+                    </flux:button>
+                    @if ($explanationMessage)
+                        <flux:text size="sm" role="status">{{ $explanationMessage }}</flux:text>
+                    @endif
+                </div>
+            @endif
+        </flux:card>
+    @endif
+
     {{-- Last quarter at a glance (item 79) --}}
     @if ($lastResult && $quarter->quarter_number >= 4)
         <flux:card class="space-y-3">
@@ -164,7 +225,12 @@
 
     @unless ($readOnly)
         <div class="flex flex-wrap items-center gap-3">
-            @if (($teamStatus['state'] ?? null) === 'submitted')
+            @if ($explainedQuarter && ! $explanationRecord?->isSubmitted())
+                {{-- U11 (IN1): Submit unlocks once the explanation is in. Drafts can still be saved. --}}
+                <flux:button wire:click="saveDraft" wire:loading.attr="disabled" icon="document-check">Save draft</flux:button>
+                <flux:button icon="lock-closed" variant="primary" disabled data-test="decisions-locked">Submit for the team</flux:button>
+                <flux:text size="sm">Submit your team's explanation of Quarter {{ $explainedQuarter->quarter_number }} first. Then you can submit Quarter {{ $quarter->quarter_number }}'s decisions.</flux:text>
+            @elseif (($teamStatus['state'] ?? null) === 'submitted')
                 <flux:button wire:click="submit" wire:loading.attr="disabled" icon="paper-airplane" variant="primary">Submit changes for the team</flux:button>
                 <flux:text size="sm">Your team has submitted. Submitting again replaces it.</flux:text>
             @else

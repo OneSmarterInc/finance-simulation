@@ -25,6 +25,7 @@ final class PageTrail
         'faculty.courses.students' => 'Students',
         'faculty.courses.quarters' => 'Quarters',
         'faculty.courses.quarter-results' => 'Quarter results',
+        'faculty.courses.explanations' => 'Team explanations',
         'faculty.courses.practice' => 'Practice run',
         'faculty.courses.accounting-election-requests' => 'Accounting methods',
         'faculty.courses.cf-plus-auction' => 'Evaluation stage',

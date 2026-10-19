@@ -21,7 +21,7 @@
         $navRoute = request()->route()?->getName();
         $navSwitchable = in_array($navRoute, [
             'faculty.courses.wizard', 'faculty.courses.firms', 'faculty.courses.students', 'faculty.courses.quarters',
-            'faculty.courses.quarter-results', 'faculty.courses.practice', 'faculty.courses.accounting-election-requests', 'faculty.courses.cf-plus-auction',
+            'faculty.courses.quarter-results', 'faculty.courses.explanations', 'faculty.courses.practice', 'faculty.courses.accounting-election-requests', 'faculty.courses.cf-plus-auction',
         ], true) ? $navRoute : 'faculty.courses.quarters';
     @endphp
 
@@ -71,6 +71,14 @@
             :current="request()->routeIs('faculty.courses.quarter-results')" wire:navigate>
             {{ __('Quarter results') }}
         </flux:sidebar.item>
+
+        {{-- U11: the teams' explanations of each quarter. --}}
+        @unless ($navCourse->is_practice)
+            <flux:sidebar.item icon="pencil" :href="route('faculty.courses.explanations', $navCourse)"
+                :current="request()->routeIs('faculty.courses.explanations')" wire:navigate>
+                {{ __('Team explanations') }}
+            </flux:sidebar.item>
+        @endunless
 
         {{-- U9: rehearse the course with the three reference teams. Owner only, current engine only. --}}
         @if (! $navCourse->is_practice && $navCourse->faculty_id === $navFaculty->id && $navCourse->engineVersion() === 2)

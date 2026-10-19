@@ -80,6 +80,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('faculty/courses/{course}/quarter-results/download', \App\Http\Controllers\Faculty\ResultsDownloadController::class)
         ->name('faculty.courses.quarter-results.download');
 
+    // U11: the teams' explanations of each quarter.
+    Route::get('faculty/courses/{course}/explanations', \App\Livewire\Faculty\Courses\TeamExplanations::class)
+        ->name('faculty.courses.explanations');
+
+    Route::get('faculty/courses/{course}/explanations/download', \App\Http\Controllers\Faculty\ExplanationsDownloadController::class)
+        ->name('faculty.courses.explanations.download');
+
     Route::get('faculty/courses/{course}/practice', PracticeRun::class)
         ->name('faculty.courses.practice');
 

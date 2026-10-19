@@ -42,6 +42,7 @@ class Course extends Model
         'practice_source_course_id',
         'practice_last_played_at',
         'practice_team_settings',
+        'interpretations_required',
     ];
 
     protected function casts(): array
@@ -62,6 +63,7 @@ class Course extends Model
             'ai_questions_per_month' => 'integer',
             'practice_last_played_at' => 'datetime',
             'practice_team_settings' => 'array',
+            'interpretations_required' => 'boolean',
             'deployed_at' => 'datetime',
         ];
     }

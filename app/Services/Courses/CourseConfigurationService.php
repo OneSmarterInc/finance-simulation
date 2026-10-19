@@ -56,7 +56,8 @@ class CourseConfigurationService
         if (! $data['cf_plus_enabled']) {
             $data['build_quarters'] = $data['adversarial_quarters'] = $data['post_bid_quarters'] = null;
         }
-        $course ??= new Course(['faculty_id' => $actor->id, 'status' => Course::STATUS_DRAFT]);
+        // U11 (IN1): new courses ask teams to explain each quarter before deciding; faculty can switch it off.
+        $course ??= new Course(['faculty_id' => $actor->id, 'status' => Course::STATUS_DRAFT, 'interpretations_required' => true]);
         $course->fill($data)->save();
         CourseFacultyRole::withTrashed()->updateOrCreate(
             ['course_id' => $course->id, 'faculty_id' => $actor->id],

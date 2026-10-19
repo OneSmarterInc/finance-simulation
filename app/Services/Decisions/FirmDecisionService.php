@@ -16,6 +16,7 @@ use App\Services\Engines\CorporateFinance\Contracts\DividendLimit;
 use App\Services\Engines\CorporateFinance\Contracts\ManufacturingEngineInput;
 use App\Services\Engines\CorporateFinance\Contracts\OpeningFinancialPosition;
 use App\Services\Engines\CorporateFinance\Exceptions\EngineCalculationException;
+use App\Services\Interpretations\InterpretationService;
 use App\Services\Engines\CorporateFinance\MarketPath;
 use App\Services\Quarters\QuarterScheduler;
 use App\Support\Scenario\CfManufacturingScenarioDefinition;
@@ -179,6 +180,13 @@ class FirmDecisionService
         mixed $dividend
     ): FirmQuarterDecision {
         $this->authorize($student, $firm);
+
+        // U11 (IN1): the team explains its last closed quarter before it submits the next quarter's decisions.
+        $interpretations = app(InterpretationService::class);
+        if (! $interpretations->satisfied($firm, $quarter)) {
+            $explained = $interpretations->explainedQuarter($firm, $quarter);
+            throw ValidationException::withMessages(['interpretation' => "Submit your team's explanation of Quarter {$explained?->quarter_number} first. Then you can submit Quarter {$quarter->quarter_number}'s decisions."]);
+        }
 
         $validated = $this->validatePayload($quarter, $payload, true);
 

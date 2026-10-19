@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Services\Courses\CourseConfigurationService;
 use App\Services\Decisions\FirmDecisionService;
 use App\Services\Firms\FirmAssignmentService;
+use App\Services\Interpretations\InterpretationService;
 use App\Services\Quarters\QuarterManagementService;
 use App\Support\Scenario\CfManufacturingScenarioDefinition;
 use Illuminate\Database\Seeder;
@@ -20,6 +21,13 @@ class Phase8DemoSeeder extends Seeder
     public const CLOSED_COURSE = 'Phase 8 Demo - Closed History';
 
     public const WALKTHROUGH_COURSE = 'Phase 8 Demo - Live Walkthrough';
+
+    /** A team's explanation of Quarter 3 (U11), as a demo team might write it. */
+    public const DEMO_EXPLANATION = [
+        'changed' => 'Net revenue rose again in Quarter 3, and cash at quarter end grew by about $10 million, much faster than net income.',
+        'why' => 'Customers ordered more in Quarter 3 because of the season, and our forecast kept up. Cash grew faster than profit because depreciation is an expense that uses no cash.',
+        'notes' => 'The inventory note shows goods still on their way from the supplier, which we own under FOB shipping point, so inventory and accounts payable both include them.',
+    ];
 
     public function run(
         CourseConfigurationService $courses,
@@ -65,6 +73,10 @@ class Phase8DemoSeeder extends Seeder
             if ($dividend <= 0) {
                 throw new RuntimeException('The real dividend validator did not provide a positive legal Phase 8 demo dividend.');
             }
+            // U11: each team explains Quarter 3 before it submits Quarter 4's decisions.
+            $explanations = app(InterpretationService::class);
+            $explanations->submit($students[0], $firmA, $q4, self::DEMO_EXPLANATION);
+            $explanations->submit($students[2], $firmB, $q4, self::DEMO_EXPLANATION);
             $decisions->submit($students[0], $firmA, $q4, $payload, $dividend);
             $decisions->submit($students[2], $firmB, $q4, $payload, 0);
             $quarters->queueClose($faculty, $q4);

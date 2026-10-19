@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Services\Courses\CourseStatus;
 use App\Services\Decisions\FirmDecisionService;
 use App\Services\Engines\CorporateFinance\Exceptions\EngineCalculationException;
+use App\Services\Interpretations\InterpretationService;
 use App\Support\Presentation\DecisionPresenter;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
@@ -41,6 +42,11 @@ class DecisionWorkspace extends Component
 
     public bool $prefilledFromLastQuarter = false;
 
+    /** @var array{changed: string, why: string, notes: string} U11: the team's explanation of last quarter */
+    public array $explanation = ['changed' => '', 'why' => '', 'notes' => ''];
+
+    public string $explanationMessage = '';
+
     public function mount(Firm $firm, CourseQuarter $quarter, FirmDecisionService $service): void
     {
         $service->authorize($this->student(), $firm);
@@ -50,6 +56,11 @@ class DecisionWorkspace extends Component
 
         if ($quarter->quarter_number < 4) {
             return;
+        }
+
+        $explained = app(InterpretationService::class)->explainedQuarter($firm, $quarter);
+        if ($explained && ($row = app(InterpretationService::class)->find($firm, $explained))) {
+            $this->explanation = array_merge($this->explanation, array_map('strval', array_intersect_key($row->answers ?? [], $this->explanation)));
         }
 
         $record = $service->decision($firm, $quarter);
@@ -95,6 +106,22 @@ class DecisionWorkspace extends Component
         $this->refreshMaximum($service);
     }
 
+    /** U11: save the team's explanation as a draft. */
+    public function saveExplanation(InterpretationService $explanations): void
+    {
+        $this->resetValidation();
+        $explanations->saveDraft($this->student(), $this->firm, $this->quarter, $this->explanation);
+        $this->explanationMessage = 'Explanation saved as a draft. Your teammates see it too.';
+    }
+
+    /** U11 (IN1): submitting the explanation unlocks Submit for the decisions. */
+    public function submitExplanation(InterpretationService $explanations): void
+    {
+        $this->resetValidation();
+        $explanations->submit($this->student(), $this->firm, $this->quarter, $this->explanation);
+        $this->explanationMessage = 'Explanation submitted for your team. You can now submit the decisions.';
+    }
+
     public function render(FirmDecisionService $service): View
     {
         $isStudentQuarter = $this->quarter->quarter_number >= 4;
@@ -131,6 +158,9 @@ class DecisionWorkspace extends Component
             'parameters' => $service->parameters($this->firm),
             'result' => $this->firm->engineResults()->where('quarter_number', $this->quarter->quarter_number)->first(),
             'engineVersion' => $version,
+            'explainedQuarter' => $explained = $isStudentQuarter ? app(InterpretationService::class)->explainedQuarter($this->firm, $this->quarter) : null,
+            'explanationRecord' => $explained ? app(InterpretationService::class)->find($this->firm, $explained) : null,
+            'explanationEditable' => $explained && app(InterpretationService::class)->editable($this->quarter),
         ]);
     }
 

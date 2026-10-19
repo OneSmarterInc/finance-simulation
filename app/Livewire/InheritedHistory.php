@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\CourseFacultyRole;
 use App\Models\Firm;
 use App\Models\FirmEngineResult;
+use App\Models\FirmQuarterInterpretation;
 use App\Services\Accounting\AccountingChangeDisclosures;
 use App\Services\Decisions\FirmDecisionHistory;
 use App\Services\Decisions\FirmDecisionService;
@@ -71,6 +72,10 @@ class InheritedHistory extends Component
             'decisionColumns' => $decisionColumns,
             'disclosureColumns' => $disclosureColumns,
             'parameters' => $decisions->parameters($this->firm),
+            // U11: the team's explanations, newest quarter first, with the instructor's comments.
+            'explanations' => FirmQuarterInterpretation::query()->where('firm_id', $this->firm->id)
+                ->with(['courseQuarter', 'submittedBy.user'])->get()
+                ->sortByDesc(fn ($row) => $row->courseQuarter?->quarter_number)->values(),
         ])->layout($this->facultyView ? 'layouts.app' : 'layouts.student', ['title' => $this->firm->name.' history']);
     }
 
