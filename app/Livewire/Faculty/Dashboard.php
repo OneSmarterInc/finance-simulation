@@ -4,6 +4,7 @@ namespace App\Livewire\Faculty;
 
 use App\Models\Course;
 use App\Models\Faculty;
+use App\Support\Navigation\Home;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -11,6 +12,21 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class Dashboard extends Component
 {
+    /** Live, 19 October 2026: "Go to your courses" sent students and admins here, to a bare 403. They go to their own start page. */
+    public function mount()
+    {
+        $user = auth()->user();
+        if ($user?->faculty) {
+            return null;
+        }
+        $home = Home::routeFor($user);
+        if ($home === null) {
+            return Home::signOut();
+        }
+
+        return $this->redirectRoute($home, navigate: true);
+    }
+
     public function render(): View
     {
         $faculty = $this->faculty();

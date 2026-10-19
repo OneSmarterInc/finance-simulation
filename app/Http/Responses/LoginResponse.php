@@ -2,6 +2,7 @@
 
 namespace App\Http\Responses;
 
+use App\Support\Navigation\Home;
 use Illuminate\Http\RedirectResponse;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 
@@ -17,18 +18,8 @@ class LoginResponse implements LoginResponseContract
             return redirect()->intended();
         }
 
-        if ($user?->admin !== null) {
-            return redirect()->route('admin.dashboard');
-        }
+        $home = Home::routeFor($user);
 
-        if ($user?->faculty !== null) {
-            return redirect()->route('dashboard');
-        }
-
-        if ($user?->student !== null) {
-            return redirect()->route('student.courses');
-        }
-
-        return redirect()->route('dashboard');
+        return $home !== null ? redirect()->route($home) : Home::signOut();
     }
 }
