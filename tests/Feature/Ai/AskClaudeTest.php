@@ -65,6 +65,9 @@ class AskClaudeTest extends TestCase
 
         // Two calls: the lookup, then the answer. The model is the configured one; the guide is cached.
         Http::assertSentCount(2);
+        // Live, 19 October 2026: a lookup with no arguments must go back with input {}, not [], or the API refuses it.
+        Http::assertSent(fn (Request $request) => str_contains($request->body(), '"name":"get_course_status","input":{}'));
+        Http::assertNotSent(fn (Request $request) => str_contains($request->body(), '"input":[]'));
         Http::assertSent(function (Request $request): bool {
             $body = $request->data();
 
