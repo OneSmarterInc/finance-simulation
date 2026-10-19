@@ -150,11 +150,11 @@ Artisan::command('flexee:ai-check', function () {
  * are left alone, and a debrief whose captions failed waits for new figures.
  * This clears those failures so the scheduler (or the next page view) tries again.
  */
-Artisan::command('flexee:ai-retry', function () {
-    $readings = FirmQuarterReading::query()->where('status', FirmQuarterReading::FAILED)->delete();
+Artisan::command('flexee:ai-retry {--rewrite-readings : also rewrite every reading already written, after a change to its prompt}', function () {
+    $readings = FirmQuarterReading::query()->when(! $this->option('rewrite-readings'), fn ($q) => $q->where('status', FirmQuarterReading::FAILED))->delete();
     $reviews = AccountingRequestReview::query()->where('status', AccountingRequestReview::FAILED)->delete();
     $debriefs = CourseDebrief::query()->whereNotNull('last_error')->update(['data_hash' => null, 'last_error' => null]);
-    $this->info("Cleared {$readings} failed readings, {$reviews} failed request reviews and {$debriefs} debriefs whose captions failed. They're written again within a few minutes.");
+    $this->info('Cleared '.$readings.($this->option('rewrite-readings') ? ' readings (to be rewritten)' : ' failed readings').", {$reviews} failed request reviews and {$debriefs} debriefs whose captions failed. They're written again within a few minutes.");
 })->purpose('Clear failed AI readings, reviews and captions so they are tried again');
 
 /*
