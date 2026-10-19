@@ -24,6 +24,7 @@ use App\Support\Dates;
 use App\Support\Presentation\DecisionPresenter;
 use App\Support\Product;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The lookups Ask Claude may use (U1, AC2). Read-only, and every one is
@@ -165,7 +166,7 @@ class AskClaudeTools
             'starts_on' => Dates::day($course->starts_on),
             'ends_on' => Dates::day($course->ends_on),
             'status' => $course->status,
-            'engine' => $course->engineVersion() === 2 ? 'current engine (demand comes from the market)' : 'earlier engine (courses created before October 2026)',
+            'engine' => ($course->engineVersion() === 2 ? 'current engine' : 'earlier engine (courses created before October 2026)').'. '.self::howSalesAreSet($course),
             'quarters' => $quarters->map(fn (CourseQuarter $q): array => [
                 'quarter' => $q->quarter_number,
                 'warm_up' => $q->quarter_number <= 3,
@@ -269,16 +270,29 @@ class AskClaudeTools
         }
         $quarters = $quarters->slice(-12)->values();
 
+        // Live, 19 October 2026: without these, Claude took a carried-forward quarter's repeated figures for a fault.
+        $carried = DB::table('firm_quarter_decisions as d')->join('course_quarters as q', 'q.id', '=', 'd.course_quarter_id')
+            ->whereIn('d.firm_id', $firms->pluck('id'))->whereIn('q.quarter_number', $quarters->all())
+            ->get(['d.firm_id', 'q.quarter_number', 'd.carried_forward', 'd.submitted_at']);
         $out = [];
         $rows = [];
         foreach ($firms as $firm) {
             $own = $results->get($firm->id, collect());
+            foreach ($quarters as $q) {
+                if ($q >= 4 && $own->firstWhere('quarter_number', $q)) {
+                    $d = $carried->first(fn ($row) => $row->firm_id === $firm->id && (int) $row->quarter_number === $q);
+                    $out[$firm->name]['Quarter '.$q]['Decisions'] = $d && $d->carried_forward
+                        ? 'carried forward: the team did not submit, so Quarter '.($q - 1).'\'s decisions were used again'
+                        : 'submitted by the team';
+                }
+            }
             foreach ($measures as $measure) {
                 [$label, $where] = ResultMeasures::MEASURES[$measure];
                 $cells = [];
                 foreach ($quarters as $q) {
                     $result = $own->firstWhere('quarter_number', $q);
-                    $text = $result ? ResultMeasures::format($measure, ResultMeasures::value($measure, $result, $own)) : '–';
+                    $value = $result ? ResultMeasures::value($measure, $result, $own) : null;
+                    $text = ! $result ? '–' : ($value === null ? 'not recorded' : ResultMeasures::format($measure, $value));
                     $out[$firm->name]['Quarter '.$q.($q <= 3 ? ' (warm-up)' : '')][$label] = $text;
                     $cells[] = ['text' => $text, 'source' => "{$firm->name} · Quarter {$q} · {$where} · {$label}"];
                 }
@@ -293,7 +307,15 @@ class AskClaudeTools
             ];
         }
 
-        return ['results' => $out] + ($show ? ['shown' => 'The instructor sees this table beside your answer.'] : []);
+        return ['results' => $out, 'how_sales_are_set' => self::howSalesAreSet($this->course)] + ($show ? ['shown' => 'The instructor sees this table beside your answer.'] : []);
+    }
+
+    /** What decides a firm's sales on this course's engine, in a sentence Claude can rely on. */
+    public static function howSalesAreSet(Course $course): string
+    {
+        return $course->engineVersion() === 2
+            ? 'On this course\'s engine, demand comes from one market shared by the course\'s firms, so a firm\'s sales also depend on its rivals\' prices and marketing.'
+            : 'On this course\'s earlier engine, each firm sells what its own sales forecast says, so the same decisions give the same sales, purchases, receivables and payables. A quarter played on repeated decisions can show the same figures as the quarter before; that is expected, not a fault. Depreciation on new capital spending still changes the result.';
     }
 
     /** @param array<string, mixed> $input @return array<string, mixed> */

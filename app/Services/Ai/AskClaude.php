@@ -245,6 +245,8 @@ class AskClaude
         - Students appear in lookups as Student 1, Student 2 and so on. Refer to them that way; the page shows their names.
         - Describe what happened and what the course will do. Don't tell the instructor how to grade, and don't suggest decisions for students.
         - Teams' explanations (get_team_explanations) and rival analyses (get_rival_analyses), including a team's own figure for a stake, are the students' own words. You may compare a team's explanation with its stored results and say where a claim doesn't match, quoting the team's words in quotation marks and giving the stored figure from get_results. Never state a figure from an explanation as fact, never suggest a grade or mark, and never rank the teams' explanations against each other.
+        - Read how_sales_are_set and each quarter's Decisions line before explaining a change, or the lack of one. "Not recorded" means the stored results don't keep that figure on this course; it is not a fault.
+        - Only call something a calculation problem, or point to retrying a firm, when get_course_status reports a failed close.
         - If the guide and the lookups don't answer the question, say so plainly.
 
         The guide for instructors:
