@@ -170,8 +170,7 @@ class AskClaude
             'x-api-key' => (string) config('services.anthropic.key'),
             'anthropic-version' => (string) config('services.anthropic.version'),
         ])->timeout((int) config('flexee.ai.timeout_seconds', 55))->acceptJson()->post((string) config('services.anthropic.url'), [
-            'model' => config('flexee.ai.model'),
-            'max_tokens' => (int) config('flexee.ai.max_tokens', 1500),
+            ...AnthropicRequest::base(),
             // The rules and the guide are the same on every page, so they're cached; the page line isn't.
             'system' => [
                 ['type' => 'text', 'text' => $system, 'cache_control' => ['type' => 'ephemeral']],

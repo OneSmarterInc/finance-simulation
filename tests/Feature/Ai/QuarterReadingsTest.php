@@ -74,7 +74,11 @@ class QuarterReadingsTest extends TestCase
         Http::assertSent(function (Request $request): bool {
             $body = $request->data();
 
-            return $body['tool_choice'] === ['type' => 'tool', 'name' => 'write_reading']
+            // Claude Sonnet 5.5 refuses a forced tool_choice: the tool is offered with auto, and the prompt says to use it.
+            return $body['tool_choice'] === ['type' => 'auto']
+                && $body['tools'][0]['name'] === 'write_reading'
+                && $body['thinking'] === ['type' => 'between_tools']
+                && str_contains($body['system'][0]['text'], 'Answer only by calling the write_reading tool')
                 && ! isset($body['messages'][1])
                 && str_contains($body['messages'][0]['content'], 'THE QUARTER TO READ: Quarter 3, a warm-up quarter')
                 && str_contains($body['messages'][0]['content'], 'COMPARED WITH: Quarter 2.')
@@ -119,6 +123,10 @@ class QuarterReadingsTest extends TestCase
 
         $entries = $readings->forFaculty($this->course, ['Q1 · warm-up' => $q1()])['entries'];
         $this->assertSame('failed', $entries['Q1 · warm-up']['state']);
+
+        // Once the fault is fixed, flexee:ai-retry puts it back in the queue.
+        $this->artisan('flexee:ai-retry')->expectsOutputToContain('Cleared 1 failed readings')->assertSuccessful();
+        $this->assertTrue($readings->due(10)->contains('id', $q1()->id));
     }
 
     public function test_students_see_a_quarter_only_after_their_explanation_or_its_deadline(): void

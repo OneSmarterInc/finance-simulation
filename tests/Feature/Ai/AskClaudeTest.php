@@ -176,8 +176,17 @@ class AskClaudeTest extends TestCase
 
     public function test_the_connection_check_reports_what_it_finds(): void
     {
-        Http::fake(['*' => Http::response(['content' => [['type' => 'text', 'text' => 'ready']], 'stop_reason' => 'end_turn', 'usage' => ['input_tokens' => 5, 'output_tokens' => 1]])]);
-        $this->artisan('flexee:ai-check')->expectsOutputToContain('Anthropic answered with claude-sonnet-5-5: ready')->assertSuccessful();
+        $text = Http::response(['content' => [['type' => 'thinking', 'thinking' => '', 'signature' => 's'], ['type' => 'text', 'text' => 'ready']], 'stop_reason' => 'end_turn', 'usage' => ['input_tokens' => 5, 'output_tokens' => 1]]);
+        $tool = Http::response(['content' => [['type' => 'tool_use', 'id' => 't1', 'name' => 'write_check', 'input' => ['word' => 'ready']]], 'stop_reason' => 'tool_use', 'usage' => ['input_tokens' => 5, 'output_tokens' => 1]]);
+        Http::fakeSequence()->pushResponse($text)->pushResponse($tool)->pushResponse($text)
+            // The live fault of 19 October: Claude Sonnet 5.5 refused a forced tool_choice.
+            ->push(['type' => 'error', 'error' => ['type' => 'invalid_request_error', 'message' => 'tool_choice: type "tool" and "any" are not supported for this model.']], 400);
+        $this->artisan('flexee:ai-check')
+            ->expectsOutputToContain('Anthropic answered with claude-sonnet-5-5: ready')
+            ->expectsOutputToContain('Tool use works (between_tools thinking): {"word":"ready"}')
+            ->assertSuccessful();
+        Http::assertSent(fn ($r) => ($r->data()['tool_choice'] ?? null) === ['type' => 'auto'] && $r->data()['thinking'] === ['type' => 'between_tools']);
+        $this->artisan('flexee:ai-check')->expectsOutputToContain('A tool-use request failed')->assertFailed();
 
         config(['services.anthropic.key' => null]);
         $this->artisan('flexee:ai-check')->expectsOutputToContain('ANTHROPIC_API_KEY is not set')->assertFailed();

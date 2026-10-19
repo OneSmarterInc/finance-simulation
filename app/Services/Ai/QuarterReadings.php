@@ -293,10 +293,13 @@ class QuarterReadings
     {
         $product = Product::name($course);
 
+        $only = AnthropicRequest::only('write_reading');
+
         return <<<TXT
         You write the short reading of one quarter's financial statements for a firm in {$product}, a course simulation in reading financial statements. A team of students runs a manufacturing firm; each quarter brings an income statement, a balance sheet, a cash flow statement and notes. Your reading appears under each report on the firm's History page, headed "What this shows". Students read it after writing their own explanation of the quarter, to compare with theirs; their instructor reads it too.
 
         Write five short paragraphs with the write_reading tool, one for each report: the summary, the income statement, the balance sheet, the cash flow statement and the notes.
+        {$only}
 
         - Each paragraph is two to four plain sentences about that report: which lines moved most since the quarter before, and what caused each move (one of the decisions, customers' orders, or an accounting method), using only what you are given. For the first quarter, say where the firm stands instead.
         - The notes paragraph names something the notes show that the three statements don't show on their own.
@@ -323,15 +326,9 @@ class QuarterReadings
             'x-api-key' => (string) config('services.anthropic.key'),
             'anthropic-version' => (string) config('services.anthropic.version'),
         ])->timeout((int) config('flexee.ai.timeout_seconds', 55))->acceptJson()->post((string) config('services.anthropic.url'), [
-            'model' => config('flexee.ai.model'),
-            'max_tokens' => (int) config('flexee.ai.max_tokens', 1500),
+            ...AnthropicRequest::base(),
             'system' => [['type' => 'text', 'text' => $system, 'cache_control' => ['type' => 'ephemeral']]],
-            'tools' => [[
-                'name' => 'write_reading',
-                'description' => 'Store the reading of this quarter, one short paragraph per report.',
-                'input_schema' => ['type' => 'object', 'properties' => $properties, 'required' => array_keys(self::SECTIONS)],
-            ]],
-            'tool_choice' => ['type' => 'tool', 'name' => 'write_reading'],
+            ...AnthropicRequest::answerWith('write_reading', 'Store the reading of this quarter, one short paragraph per report.', ['type' => 'object', 'properties' => $properties, 'required' => array_keys(self::SECTIONS)]),
             'messages' => [['role' => 'user', 'content' => "Here is the firm's quarter.\n\n".$data]],
         ])->throw()->json();
     }

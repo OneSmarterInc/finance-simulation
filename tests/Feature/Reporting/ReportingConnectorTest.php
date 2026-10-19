@@ -6,6 +6,7 @@ use App\Livewire\Admin\Reporting;
 use App\Models\Admin;
 use App\Models\Faculty;
 use App\Models\FirmAccountingElectionRequest;
+use App\Models\FirmQuarterReading;
 use App\Models\ReportingCall;
 use App\Models\ReportingConnection;
 use App\Models\Student;
@@ -115,6 +116,13 @@ class ReportingConnectorTest extends TestCase
             'justification' => 'Our plant wears out fastest in its first years.',
         ]);
         Cache::forever(ReportingViews::SCHEDULER_KEY, now()->subMinute()->getTimestamp());
+        // One reading failed three times, one was written at its second try: five calls, four failures.
+        foreach ([[4, 'failed', 3, 0, null], [5, 'written', 2, 0.0123, now()]] as [$quarter, $status, $attempts, $cost, $written]) {
+            FirmQuarterReading::query()->create([
+                'firm_id' => $firm->id, 'course_id' => $converted->id, 'quarter_number' => $quarter, 'status' => $status, 'attempts' => $attempts,
+                'firm_engine_result_id' => $firm->engineResults()->where('quarter_number', $quarter)->value('id'), 'cost_usd' => $cost, 'written_at' => $written,
+            ]);
+        }
 
         $tokens = $this->connect();
         $all = [];
@@ -134,6 +142,7 @@ class ReportingConnectorTest extends TestCase
         $this->assertNotNull($q6['closed_at']);
         $this->assertCount(9, collect($all['report_closes'])->where('course', 'Autumn Section'), 'three firms, Quarters 4 to 6');
         $this->assertSame([true, 'pending', null], [$all['report_requests'][0]['has_reason'], $all['report_requests'][0]['status'], $all['report_requests'][0]['review']]);
+        $this->assertSame([5, 4, 0.01], [$all['report_ai_use'][0]['calls'], $all['report_ai_use'][0]['failures'], $all['report_ai_use'][0]['cost_usd']]);
         $this->assertTrue($all['report_health'][0]['scheduler_ok']);
         $this->assertSame(1, $all['report_health'][0]['requests_waiting']);
 

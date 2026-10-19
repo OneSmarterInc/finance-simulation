@@ -1,9 +1,13 @@
 <?php
 
+use App\Models\AccountingRequestReview;
 use App\Models\AiQuestion;
 use App\Models\Course;
+use App\Models\CourseDebrief;
 use App\Models\Faculty;
+use App\Models\FirmQuarterReading;
 use App\Models\ReportingCall;
+use App\Services\Ai\AnthropicRequest;
 use App\Services\Ai\QuarterReadings;
 use App\Services\Ai\RequestReviews;
 use App\Services\Practice\PracticeRunService;
@@ -97,25 +101,61 @@ Artisan::command('flexee:ai-check', function () {
 
         return 1;
     }
+    $post = fn (array $body) => Http::withHeaders([
+        'x-api-key' => (string) config('services.anthropic.key'),
+        'anthropic-version' => (string) config('services.anthropic.version'),
+    ])->timeout(55)->acceptJson()->post((string) config('services.anthropic.url'), $body)->throw()->json();
+    $text = fn (array $r) => trim((string) (collect($r['content'] ?? [])->firstWhere('type', 'text')['text'] ?? ''));
+
     try {
-        $response = Http::withHeaders([
-            'x-api-key' => (string) config('services.anthropic.key'),
-            'anthropic-version' => (string) config('services.anthropic.version'),
-        ])->timeout(30)->acceptJson()->post((string) config('services.anthropic.url'), [
+        $response = $post([
             'model' => config('flexee.ai.model'),
-            'max_tokens' => 20,
+            'max_tokens' => 200,
             'messages' => [['role' => 'user', 'content' => 'Reply with the single word: ready']],
-        ])->throw()->json();
+        ]);
     } catch (Throwable $e) {
         $this->error('Anthropic could not be reached: '.$e->getMessage());
 
         return 1;
     }
-    $this->info('Anthropic answered with '.config('flexee.ai.model').': '.trim((string) ($response['content'][0]['text'] ?? '')));
+    $this->info('Anthropic answered with '.config('flexee.ai.model').': '.$text($response));
+
+    // The readings, reviews and captions answer through a tool, in exactly this shape.
+    try {
+        $response = $post([
+            ...AnthropicRequest::base(),
+            'system' => 'You check that tool use works. '.AnthropicRequest::only('write_check'),
+            ...AnthropicRequest::answerWith('write_check', 'Store the check.', ['type' => 'object', 'properties' => ['word' => ['type' => 'string']], 'required' => ['word']]),
+            'messages' => [['role' => 'user', 'content' => 'Store the word "ready".']],
+        ]);
+    } catch (Throwable $e) {
+        $this->error('A tool-use request failed: '.$e->getMessage());
+
+        return 1;
+    }
+    $use = collect($response['content'] ?? [])->first(fn ($b) => ($b['type'] ?? '') === 'tool_use' && ($b['name'] ?? '') === 'write_check');
+    if (! $use) {
+        $this->error('Claude answered without the tool: '.($text($response) ?: 'no text'));
+
+        return 1;
+    }
+    $this->info('Tool use works ('.(config('flexee.ai.thinking') ?: 'default').' thinking): '.json_encode($use['input'] ?? []));
     $this->line(config('flexee.ai.enabled') ? 'Ask Claude is switched on (FLEXEE_AI_ENABLED=true).' : 'Ask Claude is still off. Set FLEXEE_AI_ENABLED=true to switch it on.');
 
     return 0;
-})->purpose('Check the Anthropic key and connection for Ask Claude');
+})->purpose('Check the Anthropic key, the connection and tool use for the AI features');
+
+/*
+ * After a fault is fixed: the readings and reviews that failed three times
+ * are left alone, and a debrief whose captions failed waits for new figures.
+ * This clears those failures so the scheduler (or the next page view) tries again.
+ */
+Artisan::command('flexee:ai-retry', function () {
+    $readings = FirmQuarterReading::query()->where('status', FirmQuarterReading::FAILED)->delete();
+    $reviews = AccountingRequestReview::query()->where('status', AccountingRequestReview::FAILED)->delete();
+    $debriefs = CourseDebrief::query()->whereNotNull('last_error')->update(['data_hash' => null, 'last_error' => null]);
+    $this->info("Cleared {$readings} failed readings, {$reviews} failed request reviews and {$debriefs} debriefs whose captions failed. They're written again within a few minutes.");
+})->purpose('Clear failed AI readings, reviews and captions so they are tried again');
 
 /*
  * Live walkthrough L15 (U11 layer 2): Claude's reading of each closed
