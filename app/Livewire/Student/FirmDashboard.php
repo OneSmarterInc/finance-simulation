@@ -5,12 +5,15 @@ namespace App\Livewire\Student;
 use App\Livewire\InheritedHistory;
 use App\Models\CourseFacultyRole;
 use App\Models\Firm;
+use App\Models\StudentExplainer;
 use App\Services\Accounting\AccountingChangeDisclosures;
 use App\Services\Courses\CourseStatus;
 use App\Services\Decisions\FirmDecisionHistory;
 use App\Services\Decisions\FirmDecisionService;
 use App\Services\Interpretations\InterpretationService;
+use App\Support\Explainers\Explainers;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Renderless;
 use Livewire\Component;
 
 /**
@@ -37,6 +40,34 @@ class FirmDashboard extends Component
         $this->firm = $firm->load('course');
     }
 
+    /**
+     * U4 layer 2 (MO3): the student reached the explainer's last step. The
+     * card stays for the rest of this visit and is gone the next time.
+     */
+    #[Renderless]
+    public function explainerWatched(): void
+    {
+        if ($student = $this->member()) {
+            StudentExplainer::mark($student, $this->firm->course_id, Explainers::QUARTER, 'watched_at');
+        }
+    }
+
+    /** U4 layer 2 (MO3): "Hide this". The explainer stays on the Guide page. */
+    public function dismissExplainer(): void
+    {
+        if ($student = $this->member()) {
+            StudentExplainer::mark($student, $this->firm->course_id, Explainers::QUARTER, 'dismissed_at');
+        }
+    }
+
+    /** The signed-in student's id, when they are on this firm (never for faculty viewing it). */
+    private function member(): ?string
+    {
+        $student = auth()->user()?->student;
+
+        return ! $this->facultyView && $student && $this->firm->memberships()->where('student_id', $student->id)->exists() ? $student->id : null;
+    }
+
     public function render(FirmDecisionHistory $history, FirmDecisionService $decisions, AccountingChangeDisclosures $disclosures): View
     {
         $status = CourseStatus::for($this->firm->course);
@@ -54,7 +85,13 @@ class FirmDashboard extends Component
             $disclosureColumns[$label] = $disclosures->forQuarter($this->firm, $result->quarter_number);
         }
 
+        $member = $this->member();
+        $explainer = $member && ! $this->firm->course->is_practice
+            && ! StudentExplainer::settled($member, $this->firm->course_id, Explainers::QUARTER)
+            ? Explainers::all()[Explainers::QUARTER] : null;
+
         return view('livewire.student.firm-dashboard', [
+            'explainer' => $explainer,
             'status' => $status,
             'active' => $active,
             'teamStatus' => $active ? $status->firmStatus($this->firm, $active) : null,

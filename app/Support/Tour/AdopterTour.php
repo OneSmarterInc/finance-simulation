@@ -69,7 +69,7 @@ final class AdopterTour
                 'short' => 'Choose methods', 'who' => 'both', 'title' => 'Accounting choices have consequences',
                 'story' => [
                     'Teams start with the methods the instructor picked at setup, and can ask to change one, <b>with a written reason</b>. The instructor approves or declines, and an approved change is disclosed in the notes, as the standards require.',
-                    'The Careless team switched depreciation to declining balance in Quarter 6. Depreciation rose from <b>'.self::m($x['careless_depreciation']['before']).'</b> to <b>'.self::m($x['careless_depreciation']['after']).'</b> a quarter, which on its own takes about '.self::m($x['careless_depreciation']['after_tax_effect']).' off after-tax profit. The machines, the orders and the sales are exactly the same. Only the reported expense moved.',
+                    'The Careless team switched depreciation to declining balance in Quarter 6. Depreciation rose from <b>'.self::m($x['careless_depreciation']['before']).'</b> to <b>'.self::m($x['careless_depreciation']['after']).'</b> a quarter, which on its own takes about '.self::m($x['careless_depreciation']['after_tax_effect']).' off after-tax profit. The machines, the orders and the sales are exactly the same. Only the reported expense moved, and the tax on it.',
                 ],
                 'lesson' => 'A change in method moves reported profit, not the business. Students see it happen to a firm they know.',
             ],

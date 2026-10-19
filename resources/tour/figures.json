@@ -6,40 +6,40 @@
     "evaluation_opens_with": 7,
     "careful": {
         "1": {
-            "revenue": 46901557.07,
-            "gross_profit": 16050325.47,
-            "net_income": 6659393.82,
-            "cash": 5347503.06,
-            "inventory": 9748260
+            "revenue": 48145931.45,
+            "gross_profit": 16634321.25,
+            "net_income": 6997335.78,
+            "cash": 5586177.12,
+            "inventory": 9956220
         },
         "2": {
-            "revenue": 57055599.99,
-            "gross_profit": 20009073.19,
-            "net_income": 8714677.79,
-            "cash": 15027328,
-            "inventory": 11857440
+            "revenue": 56888385.43,
+            "gross_profit": 20215159.83,
+            "net_income": 8903005.31,
+            "cash": 15508397.44,
+            "inventory": 11735280
         },
         "3": {
-            "revenue": 59455621.19,
-            "gross_profit": 21001884.99,
-            "net_income": 9240586.71,
-            "cash": 25736235.55,
-            "inventory": 12338700
+            "revenue": 56873521.92,
+            "gross_profit": 20268966.12,
+            "net_income": 8940032.2,
+            "cash": 26068293.01,
+            "inventory": 11714640
         },
         "4": {
-            "revenue": 74768048.08,
-            "gross_profit": 29515576.24,
-            "net_income": 14242033.21,
-            "cash": 33371264.78,
-            "inventory": 14925808.27,
-            "ordered": 262557,
-            "sold": 259123,
-            "stock": 3075,
-            "dividend": 6153664.58,
-            "in_transit": 14420890,
-            "inventory_change": 2587108.27,
-            "receivables_change": 3001235.67,
-            "payables_change": 3331504,
+            "revenue": 72527066.62,
+            "gross_profit": 28967935.82,
+            "net_income": 14067129.96,
+            "cash": 33850054.66,
+            "inventory": 13691480,
+            "ordered": 257346,
+            "sold": 248936,
+            "stock": 0,
+            "dividend": 6210093.32,
+            "in_transit": 13691480,
+            "inventory_change": 1976840,
+            "receivables_change": 3068094.76,
+            "payables_change": 3162944,
             "depreciation": 2415000
         }
     },
@@ -47,23 +47,23 @@
         "forecast": [
             {
                 "label": "Product 1, Northeast",
-                "value": 45506,
-                "last_orders": 35691
+                "value": 44292,
+                "last_orders": 34739
             },
             {
                 "label": "Product 1, Central",
-                "value": 52098,
-                "last_orders": 40861
+                "value": 44318,
+                "last_orders": 34759
             },
             {
                 "label": "Product 2, Northeast",
-                "value": 34946,
-                "last_orders": 27409
+                "value": 35584,
+                "last_orders": 27909
             },
             {
                 "label": "Product 2, Central",
-                "value": 27951,
-                "last_orders": 21922
+                "value": 30202,
+                "last_orders": 23688
             }
         ],
         "supplier": "India: $110 a unit, 2.8% defects, 45-day lead time",
@@ -76,75 +76,106 @@
     },
     "value_created": {
         "careful": {
-            "4": 138956691.53,
-            "5": 147743764.66,
-            "6": 158175012.09,
-            "7": 168765404.01,
-            "8": 185032744.48,
-            "9": 195480038.62,
-            "10": 208298307.72,
-            "11": 221783704.57
+            "4": 139007503.25,
+            "5": 147751469.64,
+            "6": 158566750.72,
+            "7": 169700646.72,
+            "8": 185830877.47,
+            "9": 196076378.48,
+            "10": 208613149.58,
+            "11": 221213658
         },
         "average": {
-            "4": 134106374.72,
-            "5": 141728621.42,
-            "6": 149357299,
-            "7": 157010423.24,
-            "8": 164650784.73,
-            "9": 172298141.92,
-            "10": 179921747.51,
-            "11": 187562749.2
+            "4": 134059269.69,
+            "5": 141796858.97,
+            "6": 149529274.68,
+            "7": 157288315.93,
+            "8": 165055895.26,
+            "9": 172808963.66,
+            "10": 180532438.49,
+            "11": 188236389.84
         },
         "careless": {
-            "4": 137843147.81,
-            "5": 143245032.09,
-            "6": 145600660.51,
-            "7": 148343025.15,
-            "8": 148483455.58,
-            "9": 146617978.58,
-            "10": 144150465.85,
-            "11": 140210124
+            "4": 137771750.49,
+            "5": 143309903.32,
+            "6": 145842404.81,
+            "7": 149335891.95,
+            "8": 149766993.19,
+            "9": 148064203.89,
+            "10": 145697399.62,
+            "11": 141766991.46
+        }
+    },
+    "depreciation_explainer": {
+        "quarter": 4,
+        "straight_line": {
+            "units_sold": 248936,
+            "depreciation": 2415000,
+            "cost_of_goods_sold": 43559130.8,
+            "operating_expenses": 10211762.54,
+            "income_before_taxes": 18756173.28,
+            "income_tax": 4689043.32,
+            "net_income": 14067129.96,
+            "operating_cash_flow": 14791854.97,
+            "net_plant": 93682500,
+            "inventory": 13691480,
+            "cash": 33850054.66,
+            "equity": 132797409.93
+        },
+        "double_declining": {
+            "units_sold": 248936,
+            "depreciation": 4414875,
+            "cost_of_goods_sold": 44657255.8,
+            "operating_expenses": 11113512.54,
+            "income_before_taxes": 16756298.28,
+            "income_tax": 4189074.57,
+            "net_income": 12567223.71,
+            "operating_cash_flow": 15291823.72,
+            "net_plant": 91682625,
+            "inventory": 13691480,
+            "cash": 34350023.41,
+            "equity": 131297503.68
         }
     },
     "evaluation": {
         "firms": [
             {
                 "team": "careful",
-                "consultant": 435252987.2,
-                "true_worth": 403502226.45
+                "consultant": 451277129.16,
+                "true_worth": 415520333.26
             },
             {
                 "team": "average",
-                "consultant": 318313291.57,
-                "true_worth": 307635031.18
+                "consultant": 322857728.19,
+                "true_worth": 309552045.05
             },
             {
                 "team": "careless",
-                "consultant": 225398379.58,
-                "true_worth": 245368028.53
+                "consultant": 231084305.23,
+                "true_worth": 249632472.86
             }
         ],
         "results": [
             {
                 "target": "careful",
                 "winner": "careless",
-                "price": 277473779.33,
-                "true_stake": 205786135.49,
-                "difference": 71687643.83999997
+                "price": 287689169.83,
+                "true_stake": 211915369.96,
+                "difference": 75773799.86999997
             },
             {
                 "target": "average",
                 "winner": "careless",
-                "price": 202924723.37,
-                "true_stake": 156893865.9,
-                "difference": 46030857.47
+                "price": 205821801.72,
+                "true_stake": 157871542.98,
+                "difference": 47950258.74000001
             },
             {
                 "target": "careless",
                 "winner": "careful",
-                "price": 118880809.82,
-                "true_stake": 125137694.55,
-                "difference": -6256884.730000004
+                "price": 120946933.1,
+                "true_stake": 127312561.16,
+                "difference": -6365628.060000002
             }
         ]
     }

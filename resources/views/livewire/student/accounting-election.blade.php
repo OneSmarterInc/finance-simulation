@@ -6,7 +6,7 @@
 @endphp
 <div class="flexee-page">
     <x-page-header :eyebrow="$firm->course->name" :title="$firm->name.' accounting methods'"
-        description="These are the methods your firm uses to measure and report its results. Changing one moves the reported figures but not the cash, and your statements will show you how." />
+        description="These are the methods your firm uses to measure and report its results. Changing one moves the reported figures, and cash only through the tax on them. Your statements will show you how." />
 
     @if (session('success'))
         <flux:callout variant="success" icon="check-circle" :heading="session('success')" role="status" />

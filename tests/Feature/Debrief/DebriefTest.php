@@ -74,6 +74,11 @@ class DebriefTest extends TestCase
         $this->assertEqualsWithDelta((float) $stored->income_statement['net_income'], $row['net_income'], 0.005);
         $this->assertNotEquals($row['net_income'], $row['net_income_old'], 'the old method gives a different profit');
         $this->assertStringStartsWith('Depreciation method: ', $row['change']);
+
+        // U4 layer 2: the slide links to the explainer that follows one change through all four statements.
+        $this->actingAs($this->faculty->user);
+        Livewire::test(Debrief::class, ['course' => $run->fresh()])->assertSee('See one method change move all four statements, step by step')
+            ->assertSeeHtml(route('guide').'#one-choice-four-statements');
     }
 
     public function test_captions_come_from_claude_when_they_pass_the_checks_and_the_fallback_otherwise(): void

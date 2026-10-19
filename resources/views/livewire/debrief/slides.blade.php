@@ -193,6 +193,7 @@
                     </table>
                 </div>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">"Old methods" is the same quarter played again by the engine with the same decisions and the methods the firm used before. Nothing is estimated.</p>
+                <p class="text-xs"><a href="{{ route('guide') }}#{{ \App\Support\Explainers\Explainers::METHODS }}" class="font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-800 dark:text-emerald-300" data-test="explainer-link">See one method change move all four statements, step by step</a></p>
             @elseif ($key === 'reveal')
                 @php
                     $rows = collect($data['rows']);

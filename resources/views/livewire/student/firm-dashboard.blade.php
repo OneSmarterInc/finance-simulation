@@ -60,6 +60,26 @@
         <flux:callout icon="calendar-days" :heading="'Quarter '.$next->quarter_number.' is not open yet.'" :text="$status->opensWhen($next)" />
     @endif
 
+    {{-- U4 layer 2 (MO3): until the student watches it or hides it. --}}
+    @if ($explainer)
+        <div x-data="{ open: false }" x-on:explainer-finished="$wire.explainerWatched()" data-test="explainer-card"
+            class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-400/20 dark:bg-emerald-400/5">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <flux:heading size="lg" level="2">New here? See how a quarter works</flux:heading>
+                    <flux:text class="mt-1 max-w-prose">A one-minute walk through your first quarter: the firm you take over, the statements you read, the decisions you make, and what happens at the deadline. It's always on the Guide page too.</flux:text>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <flux:button size="sm" variant="primary" icon="play" x-show="! open" x-on:click="open = true; $nextTick(() => $refs.player.querySelector('[data-explainer-play]')?.click())" data-explainer-open>Watch it</flux:button>
+                    <flux:button size="sm" variant="ghost" wire:click="dismissExplainer" data-explainer-dismiss>Hide this</flux:button>
+                </div>
+            </div>
+            <div x-show="open" x-cloak x-ref="player" class="mt-4">
+                <x-explainer :explainer="$explainer" />
+            </div>
+        </div>
+    @endif
+
     @if ($results->isEmpty())
         <flux:callout icon="chart-bar" heading="No results yet" text="Your firm's warm-up quarters appear here as soon as the firm is set up." />
     @else
