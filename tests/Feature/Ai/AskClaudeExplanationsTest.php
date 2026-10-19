@@ -49,6 +49,8 @@ class AskClaudeExplanationsTest extends TestCase
         config(['flexee.ai.enabled' => true, 'services.anthropic.key' => 'test-key']);
         [$this->course, $this->firm, $this->student, $q4] = $this->phase7bCourse('Explained course');
         $this->faculty = $this->course->faculty;
+        // A plain name: a factory name with a full stop ("Smith Inc.") would split the sentences differently.
+        $this->firm->forceFill(['name' => 'Alpha'])->save();
         $this->course->forceFill(['interpretations_required' => true])->save();
         app(QuarterManagementService::class)->open($this->faculty, $q4);
         app(InterpretationService::class)->submit($this->student, $this->firm->fresh(), $q4->fresh(), self::ANSWERS);

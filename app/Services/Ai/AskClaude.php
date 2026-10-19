@@ -237,6 +237,7 @@ class AskClaude
             'get_team_explanations' => isset($result['quarter'])
                 ? 'the teams\' explanations of Quarter '.$result['quarter'].', '.collect($result['firms'] ?? [])->filter(fn ($f) => str_starts_with((string) $f['status'], 'submitted'))->count().' of '.count($result['firms'] ?? []).' submitted'
                 : 'no explanations yet',
+            'project_catch_up' => isset($result['answer']) ? 'the catch-up projection on '.mb_strtolower((string) $result['measure']).', shown as a table' : ($result['error'] ?? 'no projection'),
             'get_rival_analyses' => isset($result['analyses'])
                 ? count($result['analyses']).' rival '.Str::plural('analysis', count($result['analyses'])).(($result['settled'] ?? false) ? '' : ', still sealed')
                 : 'no evaluation stage in this course',
