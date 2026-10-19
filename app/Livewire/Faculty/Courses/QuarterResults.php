@@ -12,6 +12,7 @@ use App\Services\Ai\QuarterReadings;
 use App\Services\Ai\ResultMeasures;
 use App\Services\Decisions\FirmDecisionHistory;
 use App\Services\Decisions\FirmDecisionService;
+use App\Services\Projection\CatchUpProjection;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Layout;
@@ -52,11 +53,18 @@ class QuarterResults extends Component
     #[Url(as: 'measure')]
     public string $measure = 'value_created';
 
+    /** U10 (PJ2): "Can anyone catch up?", the measure it compares on. */
+    #[Url(as: 'project')]
+    public string $projectMeasure = 'value_created';
+
+    /** @var array<string, string> U10: each firm's behaviour for the rest of the course, keyed by firm id */
+    public array $behaviours = [];
+
     public function mount(Course $course): void
     {
         $this->authorizeAccess($course);
         $this->course = $course;
-        $this->mode = in_array($this->mode, ['firm', 'quarter', 'compare'], true) ? $this->mode : 'firm';
+        $this->mode = in_array($this->mode, ['firm', 'quarter', 'compare', 'catchup'], true) ? $this->mode : 'firm';
         $this->measure = array_key_exists($this->measure, self::COMPARE_MEASURES) ? $this->measure : 'value_created';
 
         $firms = $this->course->firms()->orderBy('code')->get();
@@ -84,6 +92,11 @@ class QuarterResults extends Component
         abort_unless($this->availableQuarters()->contains($quarter), 404);
         $this->mode = 'quarter';
         $this->selectedQuarter = $quarter;
+    }
+
+    public function showCatchUp(): void
+    {
+        $this->mode = 'catchup';
     }
 
     public function showCompare(?string $measure = null): void
@@ -156,7 +169,20 @@ class QuarterResults extends Component
             }
         }
 
+        // U10: play the rest of the course in memory from each firm's real position. Nothing is saved.
+        $projection = null;
+        if ($this->mode === 'catchup' && $firms->isNotEmpty()) {
+            $projection = app(CatchUpProjection::class)->project($this->course, $this->behaviours, $this->projectMeasure);
+            $this->projectMeasure = $projection['measure'];
+            foreach ($projection['firms'] as $row) {
+                $this->behaviours[$row['id']] = $row['behaviour'];
+            }
+        }
+
         return view('livewire.faculty.courses.quarter-results', [
+            'projection' => $projection,
+            'behaviourOptions' => CatchUpProjection::behaviours($this->course),
+            'projectMeasures' => CatchUpProjection::measures($this->course),
             'compare' => $compare,
             'best' => $best,
             'measures' => collect(self::COMPARE_MEASURES)->mapWithKeys(fn ($higher, $key) => [$key => ResultMeasures::MEASURES[$key][0]])->all(),

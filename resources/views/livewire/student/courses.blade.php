@@ -40,10 +40,15 @@
                         </div>
                     </div>
 
-                    <div class="mt-6">
+                    <div class="mt-6 space-y-2">
                         <flux:button href="{{ route('firms.dashboard', ['firm' => $item['firm']]) }}" variant="primary" class="w-full" wire:navigate>
                             Open {{ $item['firm']->name }}
                         </flux:button>
+                        @if ($item['debrief'] && $item['paid'])
+                            <flux:button href="{{ route('firms.debrief', ['firm' => $item['firm']]) }}" icon="presentation-chart-line" class="w-full" wire:navigate data-test="open-debrief">
+                                See the class debrief
+                            </flux:button>
+                        @endif
                     </div>
                 </flux:card>
             @endforeach

@@ -52,6 +52,8 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <flux:button size="sm" type="button" wire:click="showCompare" icon="table-cells"
                         :variant="$mode === 'compare' ? 'primary' : 'outline'">All firms, every quarter</flux:button>
+                    <flux:button size="sm" type="button" wire:click="showCatchUp" icon="arrow-trending-up" data-test="show-catch-up"
+                        :variant="$mode === 'catchup' ? 'primary' : 'outline'">Can anyone catch up?</flux:button>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="text-sm font-medium text-zinc-600 dark:text-zinc-300">All firms in:</span>
@@ -66,6 +68,8 @@
 
             @if ($mode === 'compare')
                 @include('livewire.faculty.courses.partials.results-compare')
+            @elseif ($mode === 'catchup')
+                @include('livewire.faculty.courses.partials.results-catch-up')
             @elseif ($columns === [])
                 <flux:text>No results are available for this selection yet.</flux:text>
             @else

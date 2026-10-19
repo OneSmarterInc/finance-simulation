@@ -5,6 +5,7 @@ namespace App\Services\Ai;
 use App\Models\AccountingRequestReview;
 use App\Models\AiQuestion;
 use App\Models\Course;
+use App\Models\CourseDebrief;
 use App\Models\Faculty;
 use App\Models\FirmQuarterReading;
 use App\Support\Product;
@@ -128,7 +129,8 @@ class AskClaude
 
         return (float) AiQuestion::query()->where('created_at', '>=', $since)->sum('cost_usd')
             + (float) FirmQuarterReading::query()->where('written_at', '>=', $since)->sum('cost_usd')
-            + (float) AccountingRequestReview::query()->where('written_at', '>=', $since)->sum('cost_usd');
+            + (float) AccountingRequestReview::query()->where('written_at', '>=', $since)->sum('cost_usd')
+            + (float) CourseDebrief::query()->where('written_at', '>=', $since)->sum('cost_usd');
     }
 
     private function guard(Faculty $faculty, Course $course, string $question): void
@@ -237,6 +239,7 @@ class AskClaude
             'get_team_explanations' => isset($result['quarter'])
                 ? 'the teams\' explanations of Quarter '.$result['quarter'].', '.collect($result['firms'] ?? [])->filter(fn ($f) => str_starts_with((string) $f['status'], 'submitted'))->count().' of '.count($result['firms'] ?? []).' submitted'
                 : 'no explanations yet',
+            'project_catch_up' => isset($result['answer']) ? 'the catch-up projection on '.mb_strtolower((string) $result['measure']).', shown as a table' : ($result['error'] ?? 'no projection'),
             'get_rival_analyses' => isset($result['analyses'])
                 ? count($result['analyses']).' rival '.Str::plural('analysis', count($result['analyses'])).(($result['settled'] ?? false) ? '' : ', still sealed')
                 : 'no evaluation stage in this course',

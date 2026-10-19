@@ -106,6 +106,10 @@
                         <flux:text>The run has reached the last quarter.</flux:text>
                     @endif
                     <flux:button type="button" variant="ghost" icon="arrow-path" wire:click="$set('confirmingStartAgain', true)">Start again</flux:button>
+                    {{-- U4: the debrief this run would give the class. --}}
+                    @if ($played >= 4)
+                        <flux:button :href="route('faculty.courses.debrief', $run)" variant="ghost" icon="presentation-chart-line" wire:navigate data-test="practice-debrief">This run's debrief</flux:button>
+                    @endif
                 </div>
             @endif
             <div wire:loading.flex wire:target="play,playToEnd,startAgain" class="items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300" role="status">

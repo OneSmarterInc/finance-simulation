@@ -10,7 +10,7 @@ namespace App\Services\Ai;
 final class AdviceCheck
 {
     private const ADVICE = [
-        '/\b(you|your team|the team|the firm|students?|they)\s+(should|ought to|need to|needs to|might want to|may want to|would do well to)\b/i',
+        '/\b(you|your team|the team|teams|the firm|firms|students?|they|we|everyone)\s+(should|ought to|need to|needs to|might want to|may want to|would do well to)\b/i',
         '/\b(consider|considering|recommend|recommended|advisable|it would be wise|it would help to|try to|aim to|make sure)\b/i',
         '/\b(next quarter|in future|going forward|from now on),?\s+(try|aim|keep|cut|raise|lower|increase|reduce|order|produce|buy|spend|hold|pay)\b/i',
         '/^(keep|cut|raise|lower|increase|reduce|order|produce|buy|spend|hold|pay|watch|avoid|focus)\b/i',

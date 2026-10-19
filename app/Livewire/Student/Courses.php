@@ -46,6 +46,8 @@ class Courses extends Component
                     ->map(fn ($m) => $m->student?->user?->name)->filter()->values(),
                 'paid' => \App\Services\Students\StudentAccess::isPaid($membership->student, $course),
                 'assignedAt' => $membership->assigned_at,
+                // U4 (DB4): the class debrief, once the instructor shares it after the course.
+                'debrief' => CourseDebrief::available($firm),
             ];
         });
 

@@ -19,6 +19,7 @@ use App\Services\Interpretations\InterpretationService;
 use App\Services\Interpretations\RivalAnalysisService;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
+use App\Services\Projection\CatchUpProjection;
 use App\Support\Dates;
 use App\Support\Presentation\DecisionPresenter;
 use App\Support\Product;
@@ -109,6 +110,14 @@ class AskClaudeTools
                 'input_schema' => ['type' => 'object', 'properties' => new \stdClass],
             ],
             [
+                'name' => 'project_catch_up',
+                'description' => 'Can anyone catch the leader? Plays the rest of the course for every firm from its real position at the last closed quarter, with the course\'s own market, and compares the firms quarter by quarter on one measure. Nothing is saved. Each firm repeats its latest decisions unless you give it a behaviour (on courses created from October 2026 also: careful, average or careless, the practice run\'s reference teams). Returns real and projected figures, who leads each quarter, and a one-line answer worked out by the app; the instructor sees the table beside your answer. Say clearly that projected quarters are a projection.',
+                'input_schema' => ['type' => 'object', 'properties' => [
+                    'measure' => ['type' => 'string', 'enum' => array_keys(CatchUpProjection::MEASURES)],
+                    'behaviours' => ['type' => 'object', 'description' => 'Firm name => repeat, careful, average or careless. Firms left out repeat.', 'additionalProperties' => ['type' => 'string', 'enum' => array_keys(CatchUpProjection::BEHAVIOURS)]],
+                ]],
+            ],
+            [
                 'name' => 'get_practice_scoreboard',
                 'description' => 'The instructor\'s practice run of this course, if there is one: value created, net income and cash for the Careful, Average and Careless reference teams in each quarter played, the leader in each quarter, and each team\'s rule.',
                 'input_schema' => ['type' => 'object', 'properties' => new \stdClass],
@@ -130,6 +139,7 @@ class AskClaudeTools
             'get_evaluation_stage' => $this->evaluation(),
             'get_team_explanations' => $this->explanations($input),
             'get_rival_analyses' => $this->rivalAnalyses(),
+            'project_catch_up' => $this->catchUp($input),
             default => ['error' => "There is no lookup called {$name}."],
         };
     }
@@ -535,6 +545,57 @@ class AskClaudeTools
             'settled' => $settled,
             'analyses' => $rows,
         ] + ($settled ? [] : ['note' => 'The text and figures stay sealed until the instructor settles the evaluation stage, like the offers.']);
+    }
+
+    /** @param array<string, mixed> $input @return array<string, mixed> U10: the catch-up projection, shown beside the answer */
+    private function catchUp(array $input): array
+    {
+        $firms = $this->course->firms()->get();
+        $behaviours = [];
+        foreach ((array) ($input['behaviours'] ?? []) as $name => $behaviour) {
+            $firm = $firms->first(fn (Firm $f) => mb_strtolower($f->name) === mb_strtolower((string) $name));
+            if (! $firm) {
+                return ['error' => 'Unknown firm. The firms in this course are: '.$firms->sortBy('name')->pluck('name')->join(', ').'.'];
+            }
+            $behaviours[$firm->id] = (string) $behaviour;
+        }
+        $p = app(CatchUpProjection::class)->project($this->course, $behaviours, (string) ($input['measure'] ?? 'value_created'));
+        $format = fn (?float $v) => ResultMeasures::format('cash', $v);
+        $allowed = CatchUpProjection::behaviours($this->course);
+        $all = collect($p['firms'])->flatMap(fn ($f) => array_keys($f['values']))->unique()->sort()->values();
+        $first = collect($p['firms'])->flatMap(fn ($f) => $f['projected'])->min();
+        $quarters = $all->filter(fn ($q) => $first ? $q >= $first - 1 : $q >= ($all->contains(4) ? 4 : 3))->values();
+
+        $out = [];
+        $rows = [];
+        foreach ($p['firms'] as $f) {
+            $cells = [];
+            foreach ($quarters as $q) {
+                $projected = in_array($q, $f['projected'], true);
+                $text = $format($f['values'][$q] ?? null);
+                $out[$f['name']]['plays_from_here'] = $allowed[$f['behaviour']];
+                $out[$f['name']]['Quarter '.$q.($projected ? ' (projected)' : '')] = $text;
+                $cells[] = ['text' => $text, 'source' => $projected
+                    ? "Projection · {$f['name']} · Quarter {$q} · {$allowed[$f['behaviour']]}"
+                    : "{$f['name']} · Quarter {$q} · stored result"];
+            }
+            $rows[] = ['label' => $f['name'], 'cells' => $cells];
+        }
+        if (count($this->views) < 2) {
+            $this->views[] = [
+                'title' => 'Can anyone catch up? '.$p['label'].' (shaded: projected)',
+                'columns' => $quarters->map(fn ($q) => 'Q'.$q.(in_array($q, $p['firms'][0]['projected'] ?? [], true) ? ' projected' : ''))->all(),
+                'rows' => $rows,
+            ];
+        }
+
+        return [
+            'measure' => $p['label'],
+            'answer' => $p['answer'],
+            'leader_by_quarter' => collect($p['leaders'])->filter(fn ($id, $q) => $q >= 4)->mapWithKeys(fn ($id, $q) => ['Quarter '.$q => collect($p['firms'])->firstWhere('id', $id)['name'] ?? null])->all(),
+            'firms' => $out,
+            'note' => trim('Projected quarters are played by the engine from each firm\'s real position with the course\'s own market; nothing is saved. '.($p['note'] ?? '')),
+        ];
     }
 
     /** @return list<string> the students' and instructor's own words from this answer's lookups */

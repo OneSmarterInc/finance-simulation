@@ -21,7 +21,7 @@
         $navRoute = request()->route()?->getName();
         $navSwitchable = in_array($navRoute, [
             'faculty.courses.wizard', 'faculty.courses.firms', 'faculty.courses.students', 'faculty.courses.quarters',
-            'faculty.courses.quarter-results', 'faculty.courses.explanations', 'faculty.courses.practice', 'faculty.courses.accounting-election-requests', 'faculty.courses.cf-plus-auction',
+            'faculty.courses.quarter-results', 'faculty.courses.explanations', 'faculty.courses.debrief', 'faculty.courses.practice', 'faculty.courses.accounting-election-requests', 'faculty.courses.cf-plus-auction',
         ], true) ? $navRoute : 'faculty.courses.quarters';
     @endphp
 
@@ -77,6 +77,14 @@
             <flux:sidebar.item icon="pencil" :href="route('faculty.courses.explanations', $navCourse)"
                 :current="request()->routeIs('faculty.courses.explanations')" wire:navigate>
                 {{ __('Team explanations') }}
+            </flux:sidebar.item>
+        @endunless
+
+        {{-- U4: the class debrief. --}}
+        @unless ($navCourse->is_practice)
+            <flux:sidebar.item icon="presentation-chart-line" :href="route('faculty.courses.debrief', $navCourse)"
+                :current="request()->routeIs('faculty.courses.debrief')" wire:navigate>
+                {{ __('Debrief') }}
             </flux:sidebar.item>
         @endunless
 
