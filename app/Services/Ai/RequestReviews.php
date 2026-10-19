@@ -253,6 +253,7 @@ class RequestReviews
     private function system(Course $course): string
     {
         $product = Product::name($course);
+        $only = AnthropicRequest::only('write_review');
 
         return <<<TXT
         You review a team's request to change one of its firm's accounting methods in {$product}, a course simulation in reading financial statements. Each team of students runs a manufacturing firm. Your review is for the instructor only; the students never see it. The instructor always decides.
@@ -267,6 +268,8 @@ class RequestReviews
         - The team's reason is the students' own words. Quote it in quotation marks; never state a figure from it as fact.
         - Judge the reasoning, not the students. Don't mention grades.
         - No headings, bold or lists inside a reason or the reply.
+
+        {$only}
         TXT;
     }
 
@@ -282,19 +285,13 @@ class RequestReviews
             'x-api-key' => (string) config('services.anthropic.key'),
             'anthropic-version' => (string) config('services.anthropic.version'),
         ])->timeout((int) config('flexee.ai.timeout_seconds', 55))->acceptJson()->post((string) config('services.anthropic.url'), [
-            'model' => config('flexee.ai.model'),
-            'max_tokens' => (int) config('flexee.ai.max_tokens', 1500),
+            ...AnthropicRequest::base(),
             'system' => [['type' => 'text', 'text' => $system, 'cache_control' => ['type' => 'ephemeral']]],
-            'tools' => [[
-                'name' => 'write_review',
-                'description' => 'Store the review of this request.',
-                'input_schema' => ['type' => 'object', 'properties' => [
-                    'recommendation' => ['type' => 'string', 'enum' => array_keys(AccountingRequestReview::RECOMMENDATIONS)],
-                    'reasons' => ['type' => 'array', 'items' => ['type' => 'string'], 'minItems' => 2, 'maxItems' => 4],
-                    'reply' => ['type' => 'string'],
-                ], 'required' => ['recommendation', 'reasons', 'reply']],
-            ]],
-            'tool_choice' => ['type' => 'tool', 'name' => 'write_review'],
+            ...AnthropicRequest::answerWith('write_review', 'Store the review of this request.', ['type' => 'object', 'properties' => [
+                'recommendation' => ['type' => 'string', 'enum' => array_keys(AccountingRequestReview::RECOMMENDATIONS)],
+                'reasons' => ['type' => 'array', 'items' => ['type' => 'string'], 'minItems' => 2, 'maxItems' => 4],
+                'reply' => ['type' => 'string'],
+            ], 'required' => ['recommendation', 'reasons', 'reply']]),
             'messages' => [['role' => 'user', 'content' => "Here is the request.\n\n".$data]],
         ])->throw()->json();
     }

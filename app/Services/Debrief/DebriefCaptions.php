@@ -5,6 +5,7 @@ namespace App\Services\Debrief;
 use App\Models\Course;
 use App\Models\CourseDebrief;
 use App\Services\Ai\AdviceCheck;
+use App\Services\Ai\AnthropicRequest;
 use App\Services\Ai\AskClaude;
 use App\Services\Ai\FigureCheck;
 use App\Services\Ai\QuarterReadings;
@@ -110,12 +111,14 @@ class DebriefCaptions
     private function system(Course $course, array $built): string
     {
         $product = Product::name($course);
+        $only = AnthropicRequest::only('write_captions');
         $sofar = $built['finished'] ? 'The course has finished.' : 'The course is still running; these are its results so far.';
 
         return <<<TXT
         You write the caption for each slide of a class debrief in {$product}, a course simulation in reading financial statements. Each team of students ran a manufacturing firm. The instructor shows these slides to the class. {$sofar}
 
         For each slide, write one or two plain sentences that say what the figures show, with the write_captions tool.
+        {$only}
         - Use only the figures given for that slide, quoted exactly as given, for example "\$21,613,457.97". Don't add, subtract or work out new figures; describe a difference in words ("more than twice", "well above"). Any sentence with a figure that isn't given is removed.
         - Name firms as given. Don't name or judge students, and don't tell anyone what they should have done. Any sentence that gives advice is removed.
         - Short sentences, one idea each, in words a first-year student knows. No headings, bold or lists.
@@ -138,15 +141,9 @@ class DebriefCaptions
             'x-api-key' => (string) config('services.anthropic.key'),
             'anthropic-version' => (string) config('services.anthropic.version'),
         ])->timeout((int) config('flexee.ai.timeout_seconds', 55))->acceptJson()->post((string) config('services.anthropic.url'), [
-            'model' => config('flexee.ai.model'),
-            'max_tokens' => (int) config('flexee.ai.max_tokens', 1500),
+            ...AnthropicRequest::base(),
             'system' => [['type' => 'text', 'text' => $system, 'cache_control' => ['type' => 'ephemeral']]],
-            'tools' => [[
-                'name' => 'write_captions',
-                'description' => 'Store one caption per slide.',
-                'input_schema' => ['type' => 'object', 'properties' => $properties, 'required' => $keys],
-            ]],
-            'tool_choice' => ['type' => 'tool', 'name' => 'write_captions'],
+            ...AnthropicRequest::answerWith('write_captions', 'Store one caption per slide.', ['type' => 'object', 'properties' => $properties, 'required' => $keys]),
             'messages' => [['role' => 'user', 'content' => "The slides and their figures.\n\n".$facts]],
         ])->throw()->json();
     }

@@ -136,8 +136,8 @@ class ReportingViews
                     'course' => 'The course\'s name.',
                     'month' => 'The month, as YYYY-MM.',
                     'feature' => 'ask_claude, readings, request_reviews or debrief_captions.',
-                    'calls' => 'Calls to Claude.',
-                    'failures' => 'Calls that failed.',
+                    'calls' => 'Calls to Claude, each retry counted.',
+                    'failures' => 'Calls that failed or came back unusable.',
                     'sentences_dropped' => 'Sentences the figure and advice checks removed.',
                     'input_tokens' => 'Input tokens.',
                     'output_tokens' => 'Output tokens.',
@@ -345,20 +345,21 @@ class ReportingViews
         $since = now()->startOfMonth()->subMonths(11);
         $sources = [
             'ask_claude' => AiQuestion::query()->where('created_at', '>=', $since)->get(['course_id', 'created_at', 'status', 'dropped', 'input_tokens', 'output_tokens', 'cost_usd'])
-                ->map(fn ($r) => [$r->course_id, $r->created_at, $r->status === AiQuestion::FAILED, $r->dropped, $r]),
+                ->map(fn ($r) => [$r->course_id, $r->created_at, $r->status === AiQuestion::FAILED, $r->dropped, $r, 1]),
             'readings' => FirmQuarterReading::query()->where('updated_at', '>=', $since)->whereIn('status', [FirmQuarterReading::WRITTEN, FirmQuarterReading::FAILED])
-                ->get(['course_id', 'written_at', 'updated_at', 'status', 'dropped', 'input_tokens', 'output_tokens', 'cost_usd'])
-                ->map(fn ($r) => [$r->course_id, $r->written_at ?? $r->updated_at, $r->status === FirmQuarterReading::FAILED, $r->dropped, $r]),
+                ->get(['course_id', 'written_at', 'updated_at', 'status', 'attempts', 'dropped', 'input_tokens', 'output_tokens', 'cost_usd'])
+                ->map(fn ($r) => [$r->course_id, $r->written_at ?? $r->updated_at, $r->status === FirmQuarterReading::FAILED, $r->dropped, $r, (int) $r->attempts]),
             'request_reviews' => AccountingRequestReview::query()->where('updated_at', '>=', $since)->whereIn('status', [AccountingRequestReview::WRITTEN, AccountingRequestReview::FAILED])
-                ->get(['course_id', 'written_at', 'updated_at', 'status', 'dropped', 'input_tokens', 'output_tokens', 'cost_usd'])
-                ->map(fn ($r) => [$r->course_id, $r->written_at ?? $r->updated_at, $r->status === AccountingRequestReview::FAILED, $r->dropped, $r]),
+                ->get(['course_id', 'written_at', 'updated_at', 'status', 'attempts', 'dropped', 'input_tokens', 'output_tokens', 'cost_usd'])
+                ->map(fn ($r) => [$r->course_id, $r->written_at ?? $r->updated_at, $r->status === AccountingRequestReview::FAILED, $r->dropped, $r, (int) $r->attempts]),
             'debrief_captions' => CourseDebrief::query()->where('updated_at', '>=', $since)->where(fn ($q) => $q->whereNotNull('written_at')->orWhereNotNull('last_error'))
                 ->get(['course_id', 'written_at', 'updated_at', 'last_error', 'dropped', 'input_tokens', 'output_tokens', 'cost_usd'])
-                ->map(fn ($r) => [$r->course_id, $r->written_at ?? $r->updated_at, filled($r->last_error), $r->dropped, $r]),
+                ->map(fn ($r) => [$r->course_id, $r->written_at ?? $r->updated_at, filled($r->last_error), $r->dropped, $r, 1]),
         ];
         $rows = [];
         foreach ($sources as $feature => $items) {
-            foreach ($items as [$courseId, $at, $failed, $dropped, $r]) {
+            // A reading or review is tried up to three times: each try is a call. One answered in code makes none.
+            foreach ($items as [$courseId, $at, $failed, $dropped, $r, $tries]) {
                 if (! isset($courses[$courseId])) {
                     continue;
                 }
@@ -368,8 +369,8 @@ class ReportingViews
                     'sim' => $this->sim(), 'course_id' => $courseId, 'course' => $courses[$courseId]->name, 'month' => $month, 'feature' => $feature,
                     'calls' => 0, 'failures' => 0, 'sentences_dropped' => 0, 'input_tokens' => 0, 'output_tokens' => 0, 'cost_usd' => 0.0,
                 ];
-                $rows[$key]['calls']++;
-                $rows[$key]['failures'] += $failed ? 1 : 0;
+                $rows[$key]['calls'] += $tries;
+                $rows[$key]['failures'] += $failed ? $tries : max(0, $tries - 1);
                 $rows[$key]['sentences_dropped'] += is_array($dropped) ? count($dropped) : 0;
                 $rows[$key]['input_tokens'] += (int) $r->input_tokens;
                 $rows[$key]['output_tokens'] += (int) $r->output_tokens;

@@ -48,7 +48,10 @@ return [
         'monthly_spend_ceiling_usd' => (float) env('FLEXEE_AI_MONTHLY_CEILING_USD', 200),
         'price_input_per_mtok' => (float) env('FLEXEE_AI_PRICE_INPUT', 2.0),
         'price_output_per_mtok' => (float) env('FLEXEE_AI_PRICE_OUTPUT', 10.0),
-        'max_tokens' => 1500,
+        // Room for Claude Sonnet 5.5's thinking as well as the answer; only what is used is paid for.
+        'max_tokens' => (int) env('FLEXEE_AI_MAX_TOKENS', 4000),
+        // Claude Sonnet 5.5 thinks by default; between_tools is its lowest setting. Empty sends no thinking field.
+        'thinking' => env('FLEXEE_AI_THINKING', 'between_tools'),
         'max_lookup_rounds' => 4,
         'timeout_seconds' => 55,
         'keep_days' => 90,

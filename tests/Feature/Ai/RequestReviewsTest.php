@@ -92,7 +92,9 @@ class RequestReviewsTest extends TestCase
         Http::assertSent(function (Request $r): bool {
             $text = $r->data()['messages'][0]['content'];
 
-            return $r->data()['tool_choice'] === ['type' => 'tool', 'name' => 'write_review']
+            return $r->data()['tool_choice'] === ['type' => 'auto']
+                && $r->data()['tools'][0]['name'] === 'write_review'
+                && str_contains($r->data()['system'][0]['text'], 'Answer only by calling the write_review tool')
                 && str_contains($text, 'Change: Depreciation method, from Straight-line to Double-declining balance.')
                 && str_contains($text, '"'.self::REASON.'"')
                 && str_contains($text, 'None. This is the firm\'s first request.')
