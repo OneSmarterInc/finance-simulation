@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Faculty;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Fortify\Features;
@@ -20,7 +21,8 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
-        $user = User::factory()->create();
+        // A faculty member lands on the faculty dashboard; an account with no role is signed out (HomeByRoleTest).
+        $user = Faculty::factory()->create()->user;
 
         $response = $this->post(route('login.store'), [
             'email' => $user->email,
