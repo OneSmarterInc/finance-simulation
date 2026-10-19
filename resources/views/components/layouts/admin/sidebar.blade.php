@@ -45,6 +45,11 @@
                     {{ __('Courses') }} 
                 </flux:sidebar.item>
 
+                <flux:sidebar.item icon="chart-bar" :href="route('admin.reporting')"
+                    :current="request()->routeIs('admin.reporting')" wire:navigate>
+                    {{ __('Reporting') }}
+                </flux:sidebar.item>
+
             </flux:sidebar.group>
 
         </flux:sidebar.nav>

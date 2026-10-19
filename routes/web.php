@@ -28,6 +28,12 @@ Route::get('tour/{step?}', \App\Http\Controllers\TourController::class)
  Route::get('register/course/{token}', CourseRegistration::class)
     ->name('student.course-registration');
 
+// U3 (RP3): connecting the reporting connector in Claude. Only admins can approve.
+Route::middleware(['auth', 'reporting.enabled'])->group(function () {
+    Route::get('oauth/reporting/authorize', [\App\Http\Controllers\Reporting\ReportingConsentController::class, 'show'])->name('reporting.oauth.authorize');
+    Route::post('oauth/reporting/authorize', [\App\Http\Controllers\Reporting\ReportingConsentController::class, 'decide'])->middleware('throttle:30,1')->name('reporting.oauth.decide');
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', FacultyDashboard::class)->name('dashboard');
 
@@ -49,6 +55,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('admin/courses', \App\Livewire\Admin\Courses::class)
         ->middleware('admin')->name('admin.courses');
+
+    Route::get('admin/reporting', \App\Livewire\Admin\Reporting::class)
+        ->middleware('admin')->name('admin.reporting');
 
     Route::get('admin/courses/create', \App\Livewire\Admin\CoursePreparation::class)
         ->middleware('admin')->name('admin.courses.create');

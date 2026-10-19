@@ -3,14 +3,18 @@
 use App\Models\AiQuestion;
 use App\Models\Course;
 use App\Models\Faculty;
+use App\Models\ReportingCall;
 use App\Services\Ai\QuarterReadings;
 use App\Services\Ai\RequestReviews;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
 use App\Services\Quarters\QuarterScheduler;
+use App\Services\Reporting\ReportingViews;
 use App\Services\Tour\TourFigures;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schedule;
 
@@ -136,3 +140,21 @@ Schedule::command('flexee:request-reviews')->everyMinute()->withoutOverlapping(5
 
 // Ask Claude's question log is kept for 90 days (U1, AC7).
 Schedule::command('model:prune', ['--model' => [AiQuestion::class]])->daily()->onOneServer();
+
+/*
+ * U3: the reporting connector's health row reads when the scheduler last ran
+ * (so a stopped cron shows on the family dashboard), and, once a day, when the
+ * site's certificate expires. The same daily run drops old codes and call logs.
+ */
+Schedule::call(fn () => Cache::forever(ReportingViews::SCHEDULER_KEY, now()->getTimestamp()))
+    ->everyMinute()->name('flexee:scheduler-heartbeat')->onOneServer();
+
+Artisan::command('flexee:reporting-tidy', function () {
+    $expires = ReportingViews::checkCertificate();
+    $this->info($expires ? 'Certificate expires '.date('Y-m-d', $expires).'.' : 'Certificate not checked (APP_URL isn\'t https, or the site didn\'t answer).');
+    $codes = DB::table('reporting_codes')->where('expires_at', '<', now()->subDay())->delete();
+    $calls = ReportingCall::query()->where('created_at', '<', now()->subDays(90))->delete();
+    $this->info("Removed {$codes} old sign-in codes and {$calls} call logs over 90 days old.");
+})->purpose('Check the site certificate and tidy the reporting connector\'s logs');
+
+Schedule::command('flexee:reporting-tidy')->dailyAt('04:10')->onOneServer();
