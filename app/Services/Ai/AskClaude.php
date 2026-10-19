@@ -51,6 +51,7 @@ class AskClaude
         $inputTokens = $outputTokens = 0;
         $answer = '';
         $status = AiQuestion::FAILED;
+        $nudged = false;
 
         try {
             for ($round = 0; $round <= (int) config('flexee.ai.max_lookup_rounds', 4); $round++) {
@@ -58,9 +59,27 @@ class AskClaude
                 $inputTokens += (int) ($response['usage']['input_tokens'] ?? 0) + (int) ($response['usage']['cache_read_input_tokens'] ?? 0) + (int) ($response['usage']['cache_creation_input_tokens'] ?? 0);
                 $outputTokens += (int) ($response['usage']['output_tokens'] ?? 0);
                 $content = $response['content'] ?? [];
+                $stop = (string) ($response['stop_reason'] ?? '');
                 $uses = array_values(array_filter($content, fn ($block) => ($block['type'] ?? '') === 'tool_use'));
-                if ($uses === [] || ($response['stop_reason'] ?? '') !== 'tool_use') {
-                    $answer = trim(implode("\n\n", array_map(fn ($b) => $b['text'], array_filter($content, fn ($b) => ($b['type'] ?? '') === 'text'))));
+                $text = trim(implode("\n\n", array_map(fn ($b) => $b['text'], array_filter($content, fn ($b) => ($b['type'] ?? '') === 'text'))));
+                // A long turn the API paused: send it back as it is, and Claude carries on.
+                if ($stop === 'pause_turn') {
+                    $messages[] = ['role' => 'assistant', 'content' => $content];
+
+                    continue;
+                }
+                if ($uses === [] || $stop === 'max_tokens') {
+                    // Live, 19 October 2026: Claude Sonnet 5.5 once replied "I'll look at ..." and stopped before
+                    // any lookup. Before a single lookup, a reply that only says what it will do is sent back once.
+                    if ($lookups === [] && ! $nudged && $round < (int) config('flexee.ai.max_lookup_rounds', 4) && self::announcesLookups($text)) {
+                        Log::info('ask_claude_nudged', ['course_id' => $course->id, 'stop_reason' => $stop, 'text' => mb_substr($text, 0, 200)]);
+                        $nudged = true;
+                        $messages[] = ['role' => 'assistant', 'content' => $content];
+                        $messages[] = ['role' => 'user', 'content' => 'Go ahead: use the lookups now, then answer the question.'];
+
+                        continue;
+                    }
+                    $answer = $text;
                     $status = AiQuestion::ANSWERED;
                     break;
                 }
@@ -106,6 +125,13 @@ class AskClaude
         }
 
         return ['record' => $record, 'answer' => $check['answer'], 'dropped' => $check['dropped'], 'lookups' => $lookups, 'checked' => $check['checked'], 'names' => $tools->names(), 'views' => $tools->views()];
+    }
+
+    /** A reply that only says what Claude is about to look up ("I'll look at ...", "Let me check ..."), not an answer. */
+    public static function announcesLookups(string $text): bool
+    {
+        return $text === ''
+            || (mb_strlen($text) < 400 && (bool) preg_match('/^(I\'ll|I will|I\'m going to|Let me|First,? I|To answer (this|that),? I)\b/i', $text));
     }
 
     /** Ask Claude is available on this course for this faculty member: the site switch, the key and the course switch. */
@@ -188,6 +214,7 @@ class AskClaude
 
         How to answer:
         - Answer the instructor's question in a few short, plain sentences. No headings, no bold, and no bullet lists unless they ask for a list.
+        - Use the lookups straight away, without first saying what you will look up; the text you write is the answer the instructor reads.
         - Use the lookups for anything about this course. For results, read them with get_results; when figures matter to the answer, call show_table once so the instructor sees them beside it.
         - Quote figures exactly as the lookups give them (for example "$21,613,457.97", "18.4%", "3.49x"); don't round, add up or work out new figures. Describe a change in words ("cash fell", "more than doubled") rather than computing it. Never guess a date, a deadline, a count, a status or any other figure: if a lookup or the guide didn't give it to you, don't state it. Any sentence with a figure that no lookup or the guide gave you is removed before the instructor sees it.
         - You can only read. If the instructor wants something done (extend a deadline, approve a request), say which page does it.

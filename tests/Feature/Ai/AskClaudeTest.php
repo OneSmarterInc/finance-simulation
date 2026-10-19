@@ -76,6 +76,30 @@ class AskClaudeTest extends TestCase
         });
     }
 
+    public function test_a_reply_that_only_announces_its_lookups_is_sent_back_once(): void
+    {
+        // Live, 19 October 2026: "I'll look at Alpha's receivables, revenue, and decisions around Quarter 4 ..." and nothing else.
+        $announce = ['content' => [['type' => 'text', 'text' => "I'll look at Alpha's receivables, revenue, and decisions around Quarter 4, along with the course setup."]], 'stop_reason' => 'end_turn', 'usage' => ['input_tokens' => 900, 'output_tokens' => 30]];
+        $lookup = ['content' => [['type' => 'tool_use', 'id' => 'tu_1', 'name' => 'get_course_status', 'input' => new \stdClass]], 'stop_reason' => 'tool_use', 'usage' => ['input_tokens' => 1000, 'output_tokens' => 40]];
+        $answer = ['content' => [['type' => 'text', 'text' => 'Quarter 4 is open.']], 'stop_reason' => 'end_turn', 'usage' => ['input_tokens' => 1100, 'output_tokens' => 20]];
+        $paused = ['content' => [['type' => 'text', 'text' => 'Working.']], 'stop_reason' => 'pause_turn', 'usage' => ['input_tokens' => 100, 'output_tokens' => 5]];
+        $endWithLookup = ['stop_reason' => 'end_turn'] + $lookup;
+        Http::fake(['*' => Http::sequence()->push($announce)->push($lookup)->push($answer)->push($paused)->push($endWithLookup)->push($answer)]);
+
+        $result = app(AskClaude::class)->ask($this->faculty, $this->course, $this->context(), "Why didn't Alpha's receivables change in Quarter 4?");
+
+        $this->assertSame('Quarter 4 is open.', $result['answer']);
+        $this->assertSame(['get_course_status'], array_column($result['lookups'], 'name'));
+        Http::assertSentCount(3);
+        Http::assertSent(fn (Request $r) => str_contains(json_encode($r->data()['messages']), 'Go ahead: use the lookups now'));
+
+        // A lookup that comes with any stop reason is still run, and a paused turn carries on.
+        $again = app(AskClaude::class)->ask($this->faculty, $this->course, $this->context(), 'Who still has to submit?');
+        $this->assertSame(['Quarter 4 is open.', ['get_course_status']], [$again['answer'], array_column($again['lookups'], 'name')]);
+
+        $this->assertFalse(AskClaude::announcesLookups('Quarter 4 is open, and nobody has submitted yet.'));
+    }
+
     public function test_students_reach_claude_only_as_numbers_and_the_panel_puts_names_back(): void
     {
         $this->fakeClaude('Student 1 is the only member and has nothing saved yet.');
