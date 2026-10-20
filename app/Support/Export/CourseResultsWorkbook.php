@@ -48,7 +48,9 @@ final class CourseResultsWorkbook
             [[Product::fullName($course), XlsxWriter::TEXT]],
             [['Downloaded '.Dates::dateTime(now()), XlsxWriter::TEXT]],
             [],
-            [['Every firm and every closed quarter, one sheet per statement and note, with the labels the screens use. Money is in dollars; negative amounts are in brackets.', XlsxWriter::TEXT]],
+            // Two short lines: Numbers and Preview clip a long line at the column edge instead of running it on.
+            [['Every firm and every closed quarter, one sheet per statement and note, with the labels the screens use.', XlsxWriter::TEXT]],
+            [['Money is in dollars; negative amounts are in brackets.', XlsxWriter::TEXT]],
             [[count($firms).' '.str('firm')->plural(count($firms)).', '.count($columns).' firm-quarters.', XlsxWriter::TEXT]],
         ], [110]);
 
