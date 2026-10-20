@@ -61,6 +61,15 @@ class CourseWizard extends Component
 
     public bool $deployed = false;
 
+    /**
+     * Each click starts with a clean slate, so a message from an earlier,
+     * failed save never stays on screen after the next save works (live review R10).
+     */
+    public function hydrate(): void
+    {
+        $this->resetErrorBag();
+    }
+
     public function mount(?Course $course = null): void
     {
         $faculty = $this->faculty();
