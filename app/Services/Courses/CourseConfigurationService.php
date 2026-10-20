@@ -10,7 +10,6 @@ use App\Models\CourseQuarter;
 use App\Models\Faculty;
 use App\Services\CfPlus\FirmAccountingElectionService as LegacyFirmAccountingElectionService;
 use App\Support\Dates;
-use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -90,17 +89,7 @@ class CourseConfigurationService
             return $quarter;
         }, $quarters);
         $ordered = collect($quarters)->sortBy('quarter_number')->values();
-        foreach ($ordered as $index => $quarter) {
-            $start = CarbonImmutable::parse($quarter['starts_on']);
-            $end = CarbonImmutable::parse($quarter['ends_on']);
-            $deadline = CarbonImmutable::parse($quarter['decision_deadline_at']);
-            if ((int) $quarter['quarter_number'] !== $index + 1 || $start->gt($end) || $deadline->setTimezone(Dates::zone())->startOfDay()->lt($start) || $deadline->setTimezone(Dates::zone())->startOfDay()->gt($end)) {
-                throw ValidationException::withMessages(['quarters' => 'Quarter sequence and dates must be coherent.']);
-            }
-            if ($start->lt($course->starts_on) || $end->gt($course->ends_on) || ($index && $start->lte(CarbonImmutable::parse($ordered[$index - 1]['ends_on'])))) {
-                throw ValidationException::withMessages(['quarters' => 'Quarters must be within course anchors and must not overlap.']);
-            }
-        }
+        QuarterScheduleCheck::assert($course, $ordered);
         $minimum = 3 + (int) $course->build_quarters + (int) $course->adversarial_quarters + (int) $course->post_bid_quarters;
         if ($course->cf_plus_enabled && $ordered->count() < $minimum) {
             throw ValidationException::withMessages(['quarters' => "With the evaluation stage added, this course needs at least {$minimum} quarters."]);
