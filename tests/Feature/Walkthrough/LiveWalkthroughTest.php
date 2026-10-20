@@ -223,6 +223,14 @@ class LiveWalkthroughTest extends TestCase
         foreach (['About', 'Summary', 'Income statement', 'Balance sheet', 'Cash flow statement', 'Revenue note', 'Inventory note'] as $sheet) {
             $this->assertStringContainsString('name="'.$sheet.'"', $workbook);
         }
+        // The About sheet's lines fit its 110-character column, so Numbers and Preview don't clip them.
+        $about = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $this->assertStringContainsString('Money is in dollars; negative amounts are in brackets.', $about);
+        preg_match_all('#<t[^>]*>([^<]*)</t>#', $about, $lines);
+        $this->assertNotEmpty($lines[1]);
+        foreach ($lines[1] as $line) {
+            $this->assertLessThanOrEqual(110, mb_strlen(html_entity_decode($line, ENT_XML1 | ENT_QUOTES)), $line);
+        }
         $income = $zip->getFromName('xl/worksheets/sheet3.xml');
         $this->assertStringContainsString(htmlspecialchars($firm->name, ENT_XML1 | ENT_QUOTES).' · Q1 · warm-up', $income);
         $this->assertStringContainsString('Beta · Q3 · warm-up', $income);
