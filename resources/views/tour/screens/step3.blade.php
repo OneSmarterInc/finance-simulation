@@ -25,3 +25,12 @@
     </div>
     <div class="flex gap-2"><span class="rounded-md border border-zinc-300 px-3 py-1 text-xs font-medium dark:border-white/20">Save draft</span><span class="rounded-md bg-emerald-700 px-3 py-1 text-xs font-semibold text-white">Submit for the team</span></div>
 </x-tour-frame>
+@php
+    $raised = collect($d['forecast'])->contains(fn ($f) => $f['value'] > $f['last_orders']);
+    $switched = $d['supplier'] !== $d['previous_supplier'];
+    $did = array_filter([$raised ? 'raised its forecasts' : null, $switched ? 'changed its main supplier' : null]);
+@endphp
+@if ($did !== [])
+    {{-- Live review R2: say what the team changed, so the text and the picture agree. --}}
+    <figcaption class="mt-2 text-xs text-zinc-500 dark:text-zinc-400" data-test="tour-step3-caption">Alpha's Quarter 4 form after the team {{ implode(' and ', $did) }}. The line under each field shows last quarter's figure.</figcaption>
+@endif

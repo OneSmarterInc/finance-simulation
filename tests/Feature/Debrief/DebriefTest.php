@@ -57,7 +57,12 @@ class DebriefTest extends TestCase
 
         $built = app(DebriefBuilder::class)->build($run);
         $this->assertTrue($built['finished']);
-        $this->assertSame(['race', 'profit_cash', 'reveal'], array_keys($built['slides']), 'no method changes, no method slide');
+        // Live review R28: the reference teams' own method changes are on the methods slide (Average's from Quarter 4).
+        $this->assertSame(['race', 'profit_cash', 'methods', 'reveal'], array_keys($built['slides']));
+        $this->assertSame(['Average team', 4], [$built['slides']['methods']['data']['rows'][0]['firm'], $built['slides']['methods']['data']['rows'][0]['quarter']]);
+        // R29: the lines always add up to cash from operations.
+        $cash = $built['slides']['profit_cash']['data'];
+        $this->assertEqualsWithDelta($cash['operating_cash_flow'], $cash['net_income'] + collect($cash['lines'])->sum('value'), 0.02);
         $this->assertStringContainsString('ended Quarter 11 in front', $built['slides']['race']['fallback']);
         $this->assertGreaterThanOrEqual(4, $built['slides']['profit_cash']['data']['quarter']);
         $this->assertCount(3, $built['slides']['reveal']['data']['rows']);

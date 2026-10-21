@@ -1,8 +1,8 @@
 <div class="space-y-6">
-    <x-page-header eyebrow="Administration" title="Course Preparation" :description="$course ? 'Configure course: ' . $course->name : 'Create a new simulation course.'">
+    <x-page-header eyebrow="Administration" title="Course preparation" :description="$course ? 'Set up '.$course->name.' for its faculty member.' : 'Set up a new course for a faculty member.'">
         <x-slot:actions>
             <flux:button :href="route('admin.courses')" variant="ghost" icon="arrow-left" wire:navigate>
-                Simulation Courses
+                Courses
             </flux:button>
         </x-slot:actions>
     </x-page-header>
@@ -43,16 +43,16 @@
         <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
             <div class="mb-6">
                 <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">
-                    Course Setup
+                    Course setup
                 </h2>
 
                 <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                    Configure the core course details and assign the operational Faculty.
+                    The course's details and the faculty member who will run it.
                 </p>
             </div>
 
             <div class="grid gap-6 md:grid-cols-2">
-                <flux:input wire:model="name" label="Course Name" />
+                <flux:input wire:model="name" label="Course name" />
 
                 <flux:select wire:model="institution_id" label="Institution">
                     <option value="">Select institution</option>
@@ -64,8 +64,8 @@
                     @endforeach
                 </flux:select>
 
-                <flux:select wire:model="faculty_id" label="Operational Faculty">
-                    <option value="">Select Faculty</option>
+                <flux:select wire:model="faculty_id" label="Faculty">
+                    <option value="">Select faculty</option>
 
                     @foreach ($faculties as $faculty)
                         <option value="{{ $faculty->id }}">
@@ -84,9 +84,9 @@
                     @endforeach
                 </flux:select>
 
-                <flux:input wire:model="starts_on" type="date" label="Starts On" />
+                <flux:input wire:model="starts_on" type="date" label="Course starts" />
 
-                <flux:input wire:model="ends_on" type="date" label="Ends On" />
+                <flux:input wire:model="ends_on" type="date" label="Course ends" />
 
             </div>
 
@@ -127,7 +127,7 @@
 
         <div class="flex justify-end">
             <flux:button wire:click="saveSetup" variant="primary" icon="arrow-right">
-                Save & Continue
+                Save and continue
             </flux:button>
         </div>
 
@@ -141,27 +141,28 @@
 
                 <div class="mb-6">
                     <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">
-                        Course Schedule
+                        Course schedule
                     </h2>
 
                     <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                        Configure the quarter schedule for this course.
+                        Quarters 1 to 3 are the warm-up. The simulation plays them the moment the course is deployed, so they take none of the term.
+                        Quarter 4 starts on the course start date.
                     </p>
                 </div>
 
                 <div class="flex flex-wrap items-end gap-3">
                     <flux:input class="w-40" wire:model="quarter_count" type="number" min="4"
-                        label="Configured Quarters" />
+                        label="Quarters, warm-up included" />
 
                     <flux:button type="button" wire:click="buildScheduleRows" icon="table-cells">
-                        Generate Rows
+                        Generate rows
                     </flux:button>
                 </div>
 
                 @if ($cf_plus_enabled)
                     <flux:callout class="mt-6" variant="warning" icon="information-circle"
                         heading="Schedule for the evaluation stage"
-                        text="This course needs 3 warm-up + {{ $build_quarters }} operating + {{ $adversarial_quarters }} evaluation + {{ $post_bid_quarters }} later quarters." />
+                        text="This course needs {{ $this->minimumQuarters() }} quarters: 3 warm-up + {{ $build_quarters }} operating + {{ $adversarial_quarters }} evaluation + {{ $post_bid_quarters }} later." />
                 @endif
 
                 <div class="mt-6 overflow-x-auto">
@@ -171,22 +172,26 @@
                                 <th class="p-3">Quarter</th>
                                 <th class="p-3">Start</th>
                                 <th class="p-3">End</th>
-                                <th class="p-3">Decision Deadline</th>
+                                <th class="p-3">Decision deadline (end of day)</th>
                             </tr>
                         </thead>
 
                         <tbody>
+                            @if (collect($quarters)->contains(fn ($q) => $q['quarter_number'] <= 3))
+                                <tr class="border-b border-zinc-200 dark:border-zinc-800" data-test="warmup-row">
+                                    <td class="p-3 font-medium">Q1 to Q3
+                                        <span class="block text-xs font-normal text-zinc-500">Warm-up</span></td>
+                                    <td class="p-3 text-zinc-600 dark:text-zinc-300" colspan="3">Played when the course is deployed, before it starts. No dates to set.</td>
+                                </tr>
+                            @endif
                             @forelse($quarters as $index => $quarter)
+                                @continue($quarter['quarter_number'] <= 3)
                                 <tr class="border-b border-zinc-200 dark:border-zinc-800">
 
                                     <td class="p-3 font-medium">
                                         Q{{ $quarter['quarter_number'] }}
 
-                                        @if ($quarter['quarter_number'] <= 3)
-                                            <span class="block text-xs font-normal text-zinc-500">
-                                                Warm-up / reserved
-                                            </span>
-                                        @elseif($quarter['quarter_number'] === 4)
+                                        @if ($quarter['quarter_number'] === 4)
                                             <span
                                                 class="block text-xs font-normal text-emerald-700 dark:text-emerald-400">
                                                 Student control begins
@@ -230,7 +235,7 @@
                 </flux:button>
 
                 <flux:button type="submit" icon="arrow-right" variant="primary">
-                    Save & Continue
+                    Save and continue
                 </flux:button>
             </div>
 
@@ -326,7 +331,7 @@
                 </flux:button>
 
                 <flux:button type="submit" icon="arrow-right" variant="primary">
-                    Save & Continue
+                    Save and continue
                 </flux:button>
 
             </div>
@@ -378,19 +383,18 @@
 
             <div>
                 <flux:heading size="lg">
-                    Operational Faculty
+                    Faculty
                 </flux:heading>
 
                 <flux:text class="mt-2">
-                    This Faculty member will manage the course after deployment,
-                    including teams, quarters, accounting-method requests, decisions,
-                    the evaluation stage, and other faculty operations.
+                    This faculty member runs the course once it's deployed: its teams, quarters,
+                    accounting-method requests and evaluation stage.
                 </flux:text>
             </div>
 
             <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
                 <div class="text-sm text-zinc-500 dark:text-zinc-400">
-                    Assigned Faculty
+                    Faculty member
                 </div>
 
                 @if ($course->faculty)
@@ -407,7 +411,7 @@
                     </div>
                 @else
                     <flux:callout variant="danger" icon="exclamation-triangle"
-                        heading="No operational Faculty assigned" />
+                        heading="No faculty member assigned" />
                 @endif
             </div>
 
@@ -430,7 +434,7 @@
                 <div>
                     <div class="flex items-center justify-between gap-4">
                         <flux:heading size="lg">
-                            Course Configuration
+                            How the course is set up
                         </flux:heading>
 
                         @if ($course->status === 'deployed')
@@ -439,7 +443,7 @@
                             </flux:badge>
                         @else
                             <flux:badge color="amber">
-                                Ready for deployment
+                                Ready to deploy
                             </flux:badge>
                         @endif
                     </div>
@@ -466,7 +470,7 @@
 
                         <div>
                             <dt class="text-xs text-zinc-500">
-                                Operational Faculty
+                                Faculty
                             </dt>
                             <dd class="font-medium">
                                 {{ $course->faculty?->user?->name ?? 'Not assigned' }}
@@ -479,7 +483,7 @@
                             </dt>
                             <dd>
                                 {{ count($quarters) }} quarters,
-                                {{ $starts_on }} to {{ $ends_on }}
+                                {{ \App\Support\Dates::day(\Carbon\CarbonImmutable::parse($starts_on)) }} to {{ \App\Support\Dates::day(\Carbon\CarbonImmutable::parse($ends_on)) }}
                             </dd>
                         </div>
 
@@ -489,18 +493,18 @@
                             </dt>
                             <dd>
                                 <flux:badge :color="$cf_plus_enabled ? 'emerald' : 'zinc'">
-                                    {{ $cf_plus_enabled ? 'Enabled' : 'Disabled' }}
+                                    {{ $cf_plus_enabled ? 'Added' : 'Not added' }}
                                 </flux:badge>
                             </dd>
                         </div>
 
                         <div>
                             <dt class="text-xs text-zinc-500">
-                                Method-change requests
+                                Accounting-method requests
                             </dt>
                             <dd>
                                 <flux:badge :color="$accounting_election_enabled ? 'emerald' : 'zinc'">
-                                    {{ $accounting_election_enabled ? 'Enabled' : 'Disabled' }}
+                                    {{ $accounting_election_enabled ? 'On' : 'Off' }}
                                 </flux:badge>
                             </dd>
                         </div>
@@ -517,16 +521,16 @@
 
             @if ($course->status === 'deployed')
                 <flux:callout variant="success" icon="check-circle" heading="Course deployed"
-                    text="This course is now active. Course preparation is complete and the assigned Faculty can manage the running simulation." />
+                    text="The course is running. Its faculty member manages it from their own pages." />
 
                 <div class="flex justify-start">
                     <flux:button :href="route('admin.courses')" icon="arrow-left" wire:navigate>
-                        Back to Simulation Courses
+                        Back to courses
                     </flux:button>
                 </div>
             @else
                 <flux:callout variant="warning" icon="information-circle" heading="Deployment validation"
-                    text="Deployment will revalidate the complete schedule, decision matrix, and Faculty ownership before activating the course." />
+                    text="Deploying checks the schedule, the decision areas and the faculty member once more before the course opens." />
 
                 <div class="flex justify-between">
 

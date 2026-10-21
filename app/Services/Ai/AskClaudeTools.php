@@ -19,6 +19,7 @@ use App\Services\Interpretations\InterpretationService;
 use App\Services\Interpretations\RivalAnalysisService;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
+use App\Services\Practice\TeamSettings;
 use App\Services\Projection\CatchUpProjection;
 use App\Support\Dates;
 use App\Support\Presentation\DecisionPresenter;
@@ -70,12 +71,12 @@ class AskClaudeTools
             ],
             [
                 'name' => 'get_results',
-                'description' => 'Stored results for firms in the course on screen, quarter by quarter, already formatted as the screens show them. Quarters 1 to 3 are the warm-up. Leave firms out for every firm, and quarters out for the last three quarters with results. Quote these figures exactly as given.',
+                'description' => 'Stored results for firms in the course on screen, quarter by quarter, already formatted as the screens show them. Quarters 1 to 3 are the warm-up. Leave firms out for every firm, and quarters out for the last three quarters with results. For the practice run, name its teams (Careful team, Average team, Careless team). Quote these figures exactly as given.',
                 'input_schema' => $this->resultsSchema(),
             ],
             [
                 'name' => 'show_table',
-                'description' => 'Show the instructor a table of stored results beside your answer. Call it once when figures matter to the answer, naming the measures, firms and quarters; the app fills in every number from the stored results and returns them to you. Keep it small: one to six measures.',
+                'description' => 'Show the instructor a table of stored results beside your answer. Call it once when figures matter to the answer, naming the measures, firms and quarters; the app fills in every number from the stored results and returns them to you. The practice run\'s teams (Careful team, Average team, Careless team) can be named too. Keep it small: one to six measures.',
                 'input_schema' => $this->resultsSchema(true),
             ],
             [
@@ -232,8 +233,18 @@ class AskClaudeTools
             'practice_run' => $practice ? [
                 'played_to_quarter' => app(PracticeRunService::class)->playedTo($practice),
                 'team_rules' => app(PracticeRunService::class)->rules($practice),
+                'areas_open_to_students' => $this->openAreaWords(app(PracticeRunService::class)->openAreas($practice)),
             ] : 'none',
         ];
+    }
+
+    /**
+     * @param  list<string>  $areas
+     * @return list<string>
+     */
+    private function openAreaWords(array $areas): array
+    {
+        return array_values(array_map(fn (string $area): string => TeamSettings::AREA_WORDS[$area] ?? $area, $areas));
     }
 
     /** @return array<string, mixed> */
@@ -289,17 +300,24 @@ class AskClaudeTools
             foreach ($measures as $measure) {
                 [$label, $where] = ResultMeasures::MEASURES[$measure];
                 $cells = [];
+                $stored = false;
                 foreach ($quarters as $q) {
                     $result = $own->firstWhere('quarter_number', $q);
                     $value = $result ? ResultMeasures::value($measure, $result, $own) : null;
                     $text = ! $result ? '–' : ($value === null ? 'not recorded' : ResultMeasures::format($measure, $value));
                     $out[$firm->name]['Quarter '.$q.($q <= 3 ? ' (warm-up)' : '')][$label] = $text;
-                    $cells[] = ['text' => $text, 'source' => "{$firm->name} · Quarter {$q} · {$where} · {$label}"];
+                    // R20: a missing figure is a plain dash with no source to click.
+                    $cells[] = $value === null ? ['text' => '—', 'source' => null] : ['text' => $text, 'source' => "{$firm->name} · Quarter {$q} · {$where} · {$label}"];
+                    $stored = $stored || $value !== null;
+                }
+                // R20: a row with nothing stored in any column is left out of the table.
+                if (! $stored) {
+                    continue;
                 }
                 $rows[] = ['label' => $firms->count() > 1 ? ($measures === [$measure] || count($measures) === 1 ? $firm->name : "{$firm->name} · {$label}") : $label, 'cells' => $cells];
             }
         }
-        if ($show && count($this->views) < 2) {
+        if ($show && $rows !== [] && count($this->views) < 2) {
             $this->views[] = [
                 'title' => mb_substr(trim((string) ($input['title'] ?? 'Stored results')), 0, 80),
                 'columns' => $quarters->map(fn ($q) => 'Q'.$q.($q <= 3 ? ' warm-up' : ''))->all(),
@@ -307,7 +325,9 @@ class AskClaudeTools
             ];
         }
 
-        return ['results' => $out, 'how_sales_are_set' => self::howSalesAreSet($this->course)] + ($show ? ['shown' => 'The instructor sees this table beside your answer.'] : []);
+        $note = $rows === [] ? 'Nothing is stored for these measures on this course, so no table is shown.' : 'The instructor sees this table beside your answer.';
+
+        return ['results' => $out, 'how_sales_are_set' => self::howSalesAreSet($this->course)] + ($show ? ['shown' => $note] : []);
     }
 
     /** What decides a firm's sales on this course's engine, in a sentence Claude can rely on. */
@@ -425,6 +445,8 @@ class AskClaudeTools
             'played_to_quarter' => $runs->playedTo($practice),
             'leader_by_quarter' => collect($runs->leaders($practice))->mapWithKeys(fn ($t, $q) => ['Quarter '.$q => ReferenceTeams::NAMES[$t]])->all(),
             'team_rules' => collect($runs->rules($practice))->mapWithKeys(fn ($rule, $t) => [ReferenceTeams::NAMES[$t] => $rule])->all(),
+            'areas_open_to_students' => $this->openAreaWords($runs->openAreas($practice)),
+            'note_on_rules' => 'Each team rule covers only the areas students decide in this course. The simulation carries every other area forward, so it is not a reason for any difference between the teams.',
             'teams_on_custom_settings' => array_map(fn ($t) => ReferenceTeams::NAMES[$t], $runs->customTeams($practice)),
             'results' => $out,
         ];
@@ -657,11 +679,22 @@ class AskClaudeTools
         if ($names === []) {
             return $all;
         }
-        $picked = $all->filter(fn (Firm $f) => in_array(mb_strtolower($f->name), array_map('mb_strtolower', $names), true))->values();
+        $wanted = array_unique(array_map(fn (string $n): string => mb_strtolower($n), $names));
+        $match = fn ($firms) => $firms->filter(fn (Firm $f) => in_array(mb_strtolower($f->name), $wanted, true) || in_array(mb_strtolower(str_replace(' team', '', $f->name)), $wanted, true))->values();
+        $picked = $match($all);
+        if ($picked->count() === count($wanted)) {
+            return $picked;
+        }
+        // R21: the practice run's reference teams, asked about on the Practice run page or by name.
+        $practice = $this->course->is_practice ? null : app(PracticeRunService::class)->current($this->course);
+        $teams = $practice ? $practice->firms()->orderBy('code')->get() : collect();
+        $picked = $match($teams);
+        if ($teams->isNotEmpty() && $picked->count() === count($wanted)) {
+            return $picked;
+        }
 
-        return $picked->count() === count(array_unique(array_map('mb_strtolower', $names)))
-            ? $picked
-            : 'Unknown firm. The firms in this course are: '.$all->pluck('name')->join(', ').'.';
+        return 'Unknown firm. The firms in this course are: '.$all->pluck('name')->join(', ').'.'
+            .($teams->isNotEmpty() ? ' The practice run\'s teams are: '.$teams->pluck('name')->join(', ').'.' : '');
     }
 
     /** @return list<array{title: string, columns: list<string>, rows: list<array{label: string, cells: list<array{text: string, source: string}>}>}> */

@@ -8,6 +8,8 @@ use App\Models\Faculty;
 use App\Models\Institution;
 use App\Models\Scenario;
 use App\Services\Courses\CourseConfigurationService;
+use App\Services\Courses\CourseRemoval;
+use App\Services\Courses\ScheduleRows;
 use App\Support\Dates;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -101,6 +103,9 @@ class CourseWizard extends Component
             if ($course->status === Course::STATUS_DEPLOYED) {
                 $this->deployed = true;
                 $this->step = 6;
+            } else {
+                // R11: a draft opens where it was left, at the first step not yet saved.
+                $this->step = $this->quarters === [] ? 2 : ($this->matrix === [] ? 3 : 6);
             }
         } else {
             $this->institution_id = $faculty->institution_id;
@@ -118,6 +123,7 @@ class CourseWizard extends Component
     public function saveSetup(CourseConfigurationService $service): void
     {
         $this->ensureEditable();
+        $wasNew = $this->course === null;
 
         $this->course = $service->saveSetup($this->faculty(), [
             'name' => $this->name,
@@ -133,9 +139,15 @@ class CourseWizard extends Component
             'post_bid_quarters' => $this->post_bid_quarters,
         ], $this->course);
 
+        // R11: from the first save on, the address names the course, so a reload keeps it.
+        if ($wasNew) {
+            $this->js('history.replaceState(history.state, "", '.json_encode(route('faculty.courses.wizard', $this->course)).')');
+        }
+
         $this->step = 2;
 
         if ($this->quarters === []) {
+            $this->quarter_count = max($this->quarter_count, $this->minimumQuarters());
             $this->buildScheduleRows();
         }
     }
@@ -148,27 +160,14 @@ class CourseWizard extends Component
             return;
         }
 
-        $start = CarbonImmutable::parse($this->starts_on);
-        $end = CarbonImmutable::parse($this->ends_on);
+        // R9: the warm-up takes none of the term; Quarter 4 starts on the course start date.
+        $this->quarters = ScheduleRows::build($this->starts_on, $this->ends_on, $this->quarter_count);
+    }
 
-        $days = max(1, $start->diffInDays($end) + 1);
-        $length = max(1, intdiv((int) $days, $this->quarter_count));
-
-        $this->quarters = [];
-
-        for ($number = 1; $number <= $this->quarter_count; $number++) {
-            $quarterStart = $start->addDays(($number - 1) * $length);
-            $quarterEnd = $number === $this->quarter_count
-                ? $end
-                : $quarterStart->addDays($length - 1);
-
-            $this->quarters[] = [
-                'quarter_number' => $number,
-                'starts_on' => $quarterStart->toDateString(),
-                'ends_on' => $quarterEnd->toDateString(),
-                'decision_deadline_at' => $quarterEnd->toDateString(),
-            ];
-        }
+    /** How many quarters this course needs, warm-up included (the box starts here). */
+    public function minimumQuarters(): int
+    {
+        return ScheduleRows::minimum($this->cf_plus_enabled, $this->build_quarters, $this->adversarial_quarters, $this->post_bid_quarters);
     }
 
     public function saveSchedule(CourseConfigurationService $service): void
@@ -295,6 +294,14 @@ class CourseWizard extends Component
 
         $this->deployed = true;
         $this->step = 6;
+    }
+
+    /** R12: the owner deletes this draft, which was never deployed. */
+    public function deleteDraft(CourseRemoval $removal): void
+    {
+        $this->ensureEditable();
+        $removal->removeDraft($this->faculty(), $this->requiredCourse());
+        $this->redirectRoute('dashboard', navigate: true);
     }
 
     public function goToStep(int $step): void

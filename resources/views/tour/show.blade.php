@@ -50,6 +50,8 @@
                 {{-- The story --}}
                 <article class="min-w-0 space-y-4" data-test="tour-story">
                     <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $whoColor[$current['who']] }}">{{ T::who($current['who']) }}</span>
+                    {{-- Live review R31: on a phone the step row may be scrolled away, so the step is named here too. --}}
+                    <p class="text-sm text-zinc-500 sm:hidden dark:text-zinc-400" data-test="tour-step-count">Step {{ $step }} of {{ $total }}</p>
                     <h1 class="text-2xl font-semibold text-balance sm:text-3xl">{{ $current['title'] }}</h1>
                     @foreach ($current['story'] as $paragraph)
                         <p class="max-w-prose leading-7 text-zinc-700 dark:text-zinc-300">{!! $paragraph !!}</p>
@@ -81,6 +83,8 @@
         </main>
 
         <script>
+            // Live review R31: bring the current step's button into view in the step row (phones).
+            document.querySelector('[aria-current="step"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
             document.addEventListener('keydown', (e) => {
                 if (e.target.closest('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
                 const link = document.querySelector(e.key === 'ArrowRight' ? '[data-tour-next]' : e.key === 'ArrowLeft' ? '[data-tour-prev]' : null);

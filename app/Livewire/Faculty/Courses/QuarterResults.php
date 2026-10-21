@@ -65,7 +65,7 @@ class QuarterResults extends Component
         $this->authorizeAccess($course);
         $this->course = $course;
         $this->mode = in_array($this->mode, ['firm', 'quarter', 'compare', 'catchup'], true) ? $this->mode : 'firm';
-        $this->measure = array_key_exists($this->measure, self::COMPARE_MEASURES) ? $this->measure : 'value_created';
+        $this->measure = array_key_exists($this->measure, $this->compareMeasures()) ? $this->measure : 'value_created';
 
         $firms = $this->course->firms()->orderBy('code')->get();
         if ($firms->isEmpty()) {
@@ -103,7 +103,7 @@ class QuarterResults extends Component
     {
         $this->mode = 'compare';
         if ($measure !== null) {
-            abort_unless(array_key_exists($measure, self::COMPARE_MEASURES), 404);
+            abort_unless(array_key_exists($measure, $this->compareMeasures()), 404);
             $this->measure = $measure;
         }
     }
@@ -185,7 +185,7 @@ class QuarterResults extends Component
             'projectMeasures' => CatchUpProjection::measures($this->course),
             'compare' => $compare,
             'best' => $best,
-            'measures' => collect(self::COMPARE_MEASURES)->mapWithKeys(fn ($higher, $key) => [$key => ResultMeasures::MEASURES[$key][0]])->all(),
+            'measures' => collect($this->compareMeasures())->mapWithKeys(fn ($higher, $key) => [$key => ResultMeasures::MEASURES[$key][0]])->all(),
             'firms' => $firms,
             'quarters' => $this->availableQuarters(),
             'columns' => $columns,
@@ -195,6 +195,19 @@ class QuarterResults extends Component
             'readingsReady' => QuarterReadings::siteReady() && ! $this->course->is_practice,
             'readings' => $columns === [] ? null : $readings->forFaculty($this->course, $columns),
         ]);
+    }
+
+    /**
+     * R23: the earlier engine doesn't record units, so its courses compare on
+     * money measures only; a column of dashes explained nothing.
+     *
+     * @return array<string, bool>
+     */
+    private function compareMeasures(): array
+    {
+        return $this->course->engineVersion() === 2
+            ? self::COMPARE_MEASURES
+            : array_diff_key(self::COMPARE_MEASURES, array_flip(['orders_not_filled', 'units_in_stock']));
     }
 
     /** @return Collection<int, int> */

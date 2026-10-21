@@ -209,9 +209,11 @@ class LiveWalkthroughTest extends TestCase
             ->assertSee('data-test="results-compare"', false)
             ->assertSee('Value created (equity plus dividends paid from Quarter 4)')
             ->assertSee('Best this quarter')
-            ->call('showCompare', 'units_in_stock')
-            ->assertSet('measure', 'units_in_stock')
-            ->assertSee('Fewer is better here');
+            // Live review R23: this earlier-engine course records no units, so it compares on money measures.
+            ->call('showCompare', 'cash')
+            ->assertSet('measure', 'cash')
+            ->assertSee('The firm with the highest figure is marked.')
+            ->assertDontSee('Units left in stock');
 
         $this->get(route('faculty.courses.quarter-results', $course))->assertOk()->assertSee('data-test="results-download"', false);
         $response = $this->get(route('faculty.courses.quarter-results.download', $course))->assertOk();

@@ -6,19 +6,34 @@
 @php
     use App\Services\Ai\ResultMeasures;
 
-    $money = fn (?float $v) => ResultMeasures::format('cash', $v);
-    $short = function (?float $v): string {
+    // R27: a negative in brackets, as on the statements; tables keep the cents.
+    $money = function (?float $v): string {
+        $text = ResultMeasures::format('cash', $v === null ? null : abs($v));
+
+        return $v !== null && $v < 0 ? '('.$text.')' : $text;
+    };
+    $short = function (?float $v, int $decimals = 1): string {
         if ($v === null) {
             return '–';
         }
         $abs = abs($v);
+        $text = '$'.($abs >= 1e6 ? number_format($abs / 1e6, $decimals).'M' : ($abs >= 1e3 ? number_format($abs / 1e3, 0).'K' : number_format($abs, 0)));
 
-        return ($v < 0 ? '−' : '').'$'.($abs >= 1e6 ? number_format($abs / 1e6, 1).'M' : ($abs >= 1e3 ? number_format($abs / 1e3, 0).'K' : number_format($abs, 0)));
+        return $v < 0 ? '('.$text.')' : $text;
     };
     $firms = collect($built['firms']);
     $names = $firms->pluck('name', 'id');
     $slot = fn (string $id) => ($firms->firstWhere('id', $id)['slot'] ?? 99);
-    $color = fn (string $id) => $slot($id) < 8 ? 'var(--series-'.($slot($id) + 1).')' : 'var(--series-other)';
+    // R30: a reference team keeps its own colour (Careful green, Average blue, Careless orange); other firms go by their place.
+    $teamColor = ['careful' => 'var(--series-3)', 'average' => 'var(--series-1)', 'careless' => 'var(--series-2)'];
+    $color = function (string $id) use ($firms, $slot, $teamColor): string {
+        $team = $firms->firstWhere('id', $id)['team'] ?? null;
+        if ($team !== null && isset($teamColor[$team])) {
+            return $teamColor[$team];
+        }
+
+        return $slot($id) < 8 ? 'var(--series-'.($slot($id) + 1).')' : 'var(--series-other)';
+    };
 @endphp
 
 <style>
@@ -54,18 +69,25 @@
                 @php
                     $quarters = $data['quarters'];
                     $all = collect($data['values'])->flatten();
-                    $lo = $all->min(); $hi = $all->max(); $pad = max(1, ($hi - $lo) * 0.08);
-                    $lo -= $pad; $hi += $pad;
+                    // R30: axis labels at round values ($175M, $200M, $225M), four to six of them.
+                    // A flat line still gets a band around it.
+                    $range = $all->max() - $all->min() ?: max(abs((float) $all->max()) * 0.1, 1e6);
+                    $raw = $range / 4;
+                    $mag = 10 ** floor(log10($raw));
+                    $step = collect([1, 2, 2.5, 5, 10])->map(fn ($k) => $k * $mag)->first(fn ($c) => $c >= $raw) ?? 10 * $mag;
+                    $lo = floor($all->min() / $step) * $step; $hi = ceil($all->max() / $step) * $step;
+                    if ($hi - $lo < 2 * $step) { $lo -= $step; $hi += $step; }
+                    $tickDecimals = fmod($step, 1e6) == 0.0 ? 0 : (fmod($step, 1e5) == 0.0 ? 1 : 2);
                     $W = 960; $H = 380; $L = 76; $R = $firms->count() <= 4 ? 120 : 24; $T = 16; $B = 40;
                     $x = fn ($q) => $L + (count($quarters) > 1 ? (array_search($q, $quarters, true) / (count($quarters) - 1)) : 0.5) * ($W - $L - $R);
                     $y = fn ($v) => $T + (1 - ($v - $lo) / ($hi - $lo)) * ($H - $T - $B);
-                    $ticks = collect(range(0, 4))->map(fn ($i) => $lo + $pad + ($hi - $lo - 2 * $pad) * $i / 4);
+                    $ticks = collect(range(0, (int) round(($hi - $lo) / $step)))->map(fn ($i) => $lo + $i * $step);
                 @endphp
                 <div class="overflow-x-auto">
                     <svg viewBox="0 0 {{ $W }} {{ $H }}" class="w-full min-w-[36rem]" role="img" aria-label="Value created by firm and quarter">
                         @foreach ($ticks as $t)
                             <line x1="{{ $L }}" x2="{{ $W - $R }}" y1="{{ $y($t) }}" y2="{{ $y($t) }}" stroke="var(--viz-grid)" stroke-width="1" />
-                            <text x="{{ $L - 8 }}" y="{{ $y($t) + 4 }}" text-anchor="end" font-size="12" fill="var(--viz-ink-2)">{{ $short($t) }}</text>
+                            <text x="{{ $L - 8 }}" y="{{ $y($t) + 4 }}" text-anchor="end" font-size="12" fill="var(--viz-ink-2)">{{ $short($t, $tickDecimals) }}</text>
                         @endforeach
                         @foreach ($quarters as $q)
                             <text x="{{ $x($q) }}" y="{{ $H - 14 }}" text-anchor="middle" font-size="12" fill="var(--viz-ink-2)">Q{{ $q }}</text>
@@ -143,7 +165,7 @@
                         @endphp
                         <text x="20" y="{{ $yy - 8 }}" font-size="14" fill="var(--viz-ink-2)">{{ $label }}</text>
                         <rect x="{{ $x0 }}" y="{{ $yy }}" width="{{ max(1, $x1 - $x0) }}" height="34" rx="4" fill="{{ $fill }}"><title>{{ $label }} · {{ $money($v) }}</title></rect>
-                        <text x="{{ $tx }}" y="{{ $yy + 22 }}" text-anchor="{{ $v >= 0 && $x1 + 8 > 800 ? 'end' : 'start' }}" font-size="15" font-weight="600" fill="var(--viz-ink)">{{ $money($v) }}</text>
+                        <text x="{{ $tx }}" y="{{ $yy + 22 }}" text-anchor="{{ $v >= 0 && $x1 + 8 > 800 ? 'end' : 'start' }}" font-size="15" font-weight="600" fill="var(--viz-ink)">{{ $short($v) }}</text>
                     @endforeach
                     <line x1="{{ $bx(0) }}" x2="{{ $bx(0) }}" y1="20" y2="166" stroke="var(--viz-axis)" stroke-width="1" />
                 </svg>
@@ -153,7 +175,7 @@
                         <tbody>
                             @foreach ($lines as $l)
                                 <tr class="border-b border-zinc-100 dark:border-white/5">
-                                    <th class="py-1.5 pe-3 text-left font-normal">{{ $l['label'] }}</th>
+                                    <th @class(['py-1.5 pe-3 text-left font-normal', 'text-zinc-500 dark:text-zinc-400' => $l['other'] ?? false])>{{ $l['label'] }}</th>
                                     <td class="w-28 py-1.5 pe-3 text-right whitespace-nowrap">{{ $money($l['value']) }}</td>
                                     <td class="w-1/3 py-1.5" aria-hidden="true">
                                         <div class="relative h-2">

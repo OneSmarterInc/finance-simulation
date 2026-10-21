@@ -85,7 +85,7 @@ class AskClaude
 
                         continue;
                     }
-                    $answer = implode("\n\n", $parts);
+                    $answer = self::compose($parts, $text);
                     $status = AiQuestion::ANSWERED;
                     break;
                 }
@@ -156,6 +156,67 @@ class AskClaude
      * lookup behind them, Claude told the instructor to disregard a correct earlier answer.
      */
     public const EARLIER = 'Your earlier answers in this conversation were built from lookups that are not repeated here, and every figure in them was checked against those lookups before the instructor saw it. Treat them as correct; look things up again only for what they did not cover, and don\'t comment on how they were made.';
+
+    /**
+     * The answer from every round's text (live review R19, 21 October 2026). When the last round
+     * holds a full answer, only that round is shown: an earlier round's opening ("Beta is ahead,
+     * though only slightly. I'll show the table.") would otherwise open the answer twice. Either
+     * way, every sentence that announces a step ("I'll show the table", "so I'll try the team
+     * names") is left out.
+     *
+     * @param  list<string>  $parts
+     */
+    public static function compose(array $parts, string $last): string
+    {
+        $raw = implode("\n\n", array_filter($parts, fn (string $p): bool => trim($p) !== ''));
+        $parts = array_values(array_filter(array_map(self::withoutSteps(...), $parts), fn (string $p): bool => $p !== ''));
+        $last = self::withoutSteps($last);
+        // The last round stands alone only when every earlier round is a short preamble with no figures.
+        $earlier = array_slice($parts, 0, -1);
+        $preamble = $earlier !== [] && collect($earlier)->every(fn (string $p): bool => mb_strlen($p) <= self::PREAMBLE && ! preg_match('/\d/', $p));
+        $answer = $preamble && mb_strlen($last) >= self::FULL_ANSWER ? $last : implode("\n\n", $parts);
+
+        // Never lose the whole answer to the trimming.
+        return $answer !== '' ? $answer : $raw;
+    }
+
+    /** A last round at least this long is a full answer on its own. */
+    private const FULL_ANSWER = 200;
+
+    /** An earlier round this short, once its step lines are gone, only opens the answer. */
+    private const PREAMBLE = 160;
+
+    /**
+     * The text less its sentences about what Claude is doing: a sentence that starts with a step
+     * ("I'll show the table.", "Let me check ...") or reports one ("..., so I'll try the team
+     * names", "The table came back empty, so ..."), and quotes no figure. Anything with a figure stays.
+     */
+    public static function withoutSteps(string $text): string
+    {
+        $verbs = '(?:show|look|check|pull|try|use|start|get|find|compare|fetch|run|call|open|see|gather|draw|put|bring)';
+        $starts = '/^\s*(?:(?:First|Now|Next|Then),?\s+)?(?:I\'ll|I will|I\'m going to|Let me|I need to|I\'d better)\s+(?:also\s+|now\s+|first\s+)?'.$verbs.'\b/i';
+        $reports = '/,?\s+so\s+(?:I\'ll|I will|let me)\s+'.$verbs.'\b|\b(?:came back empty|returned nothing)\b/i';
+        $paragraphs = [];
+        foreach (preg_split('/\n{2,}/', trim($text)) as $paragraph) {
+            // List lines and line breaks are kept as they are; only running sentences are split.
+            $lines = [];
+            foreach (preg_split('/\n/', $paragraph) as $line) {
+                $kept = array_filter(
+                    preg_split('/(?:(?<=[.!?])|(?<=[.!?]["”]))\s+(?=[A-Z0-9"“(])/u', $line),
+                    fn (string $sentence): bool => preg_match('/\d/', $sentence) || preg_match('/["“”]/u', $sentence)
+                        || ! (preg_match($starts, $plain = str_replace(['’', '‘'], "'", $sentence)) || preg_match($reports, $plain)),
+                );
+                if ($kept !== []) {
+                    $lines[] = implode(' ', $kept);
+                }
+            }
+            if ($lines !== []) {
+                $paragraphs[] = implode("\n", $lines);
+            }
+        }
+
+        return trim(implode("\n\n", $paragraphs));
+    }
 
     /** A reply that only says what Claude is about to look up ("I'll look at ...", "Let me check ..."), not an answer. */
     public static function announcesLookups(string $text): bool

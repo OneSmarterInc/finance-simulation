@@ -11,7 +11,8 @@
 
         return $html;
     };
-    $render = fn (string $text, array $names): string => collect(preg_split('/\n{2,}/', $inline($text, $names)))->map(fn ($p) => '<p>'.nl2br($p).'</p>')->implode('');
+    // R22: bold, short lists and headings render; everything else stays text.
+    $render = fn (string $text, array $names): string => \App\Support\Presentation\AnswerFormat::render($inline($text, $names));
     $asked = collect($turns)->pluck('question')->all();
     $hasNames = collect($turns)->contains(fn ($t) => ! empty($t['names']));
 @endphp
@@ -72,8 +73,13 @@
                                                 <td class="whitespace-nowrap px-3 py-1.5 text-zinc-600 dark:text-zinc-300">{{ $row['label'] }}</td>
                                                 @foreach ($row['cells'] as $cell)
                                                     <td class="whitespace-nowrap px-3 py-1.5 text-right">
-                                                        <button type="button" data-source="{{ $cell['source'] }}" x-on:click="src = $el.dataset.source" title="{{ $cell['source'] }}"
-                                                            class="border-b border-dashed border-emerald-600 font-mono text-emerald-700 dark:border-emerald-400 dark:text-emerald-400">{{ $cell['text'] }}</button>
+                                                        @if ($cell['source'] ?? null)
+                                                            <button type="button" data-source="{{ $cell['source'] }}" x-on:click="src = $el.dataset.source" title="{{ $cell['source'] }}"
+                                                                class="border-b border-dashed border-emerald-600 font-mono text-emerald-700 dark:border-emerald-400 dark:text-emerald-400">{{ $cell['text'] }}</button>
+                                                        @else
+                                                            {{-- R20: nothing stored, so nothing to click. --}}
+                                                            <span class="font-mono text-zinc-400 dark:text-zinc-500">{{ $cell['text'] }}</span>
+                                                        @endif
                                                     </td>
                                                 @endforeach
                                             </tr>

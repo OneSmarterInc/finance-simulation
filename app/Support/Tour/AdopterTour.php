@@ -2,6 +2,9 @@
 
 namespace App\Support\Tour;
 
+use App\Support\Dates;
+use Carbon\CarbonInterface;
+
 /**
  * Live walkthrough L8: the public tour for faculty thinking of adopting
  * Flexee. Nine steps, narrated in plain words, following one course from
@@ -44,7 +47,7 @@ final class AdopterTour
                 'short' => 'Take over a firm', 'who' => 'student', 'title' => 'Every team starts with three quarters of history',
                 'story' => [
                     'Before students touch anything, the simulation runs the firm for three quarters. Each team inherits a going concern, with statements to read on day one, not a blank page.',
-                    'Here\'s Alpha\'s history, read the way an analyst reads it, quarter beside quarter. Revenue grew from <b>'.self::m($c['1']['revenue']).'</b> to <b>'.self::m($c['3']['revenue']).'</b>, and cash built up from <b>'.self::m($c['1']['cash']).'</b> to <b>'.self::m($c['3']['cash']).'</b>.',
+                    'Here\'s Alpha\'s history, read the way an analyst reads it, quarter beside quarter. '.self::revenueStory($c).', and cash built up from <b>'.self::m($c['1']['cash']).'</b> to <b>'.self::m($c['3']['cash']).'</b>.',
                 ],
                 'lesson' => 'First assignment, before any decision: what kind of business is this, and where does its cash come from?',
             ],
@@ -108,6 +111,43 @@ final class AdopterTour
                 ],
                 'lesson' => 'For accounting students and MBAs. No supply-chain background needed.',
             ],
+        ];
+    }
+
+    /**
+     * Live review R1: Alpha's revenue peaked in Quarter 2 and dipped a little in
+     * Quarter 3, so "grew to" alone hides the levelling off.
+     *
+     * @param  array<string, array<string, float|int>>  $c
+     */
+    public static function revenueStory(array $c): string
+    {
+        [$q1, $q2, $q3] = [(float) $c['1']['revenue'], (float) ($c['2']['revenue'] ?? $c['3']['revenue']), (float) $c['3']['revenue']];
+        if ($q2 > $q1 && $q3 <= $q2 && self::m($q3) === self::m($q2)) {
+            return 'Revenue grew from <b>'.self::m($q1).'</b> to <b>'.self::m($q2).'</b> by Quarter 2 and then leveled off';
+        }
+        if ($q2 > $q1 && $q3 < $q2) {
+            return 'Revenue grew from <b>'.self::m($q1).'</b> to <b>'.self::m($q2).'</b> by Quarter 2 and slipped to <b>'.self::m($q3).'</b> in Quarter 3';
+        }
+
+        return 'Revenue grew from <b>'.self::m($q1).'</b> to <b>'.self::m($q3).'</b>';
+    }
+
+    /**
+     * Live review R3: the drawings' dates follow the day the tour is viewed, so
+     * "6 days left" is always true and a deadline is never in the past.
+     *
+     * @return array{q4_due: string, q4_left: string, q5_due: string}
+     */
+    public static function dates(?CarbonInterface $now = null): array
+    {
+        $today = ($now ?? now())->copy()->setTimezone(Dates::zone())->startOfDay();
+        $due = $today->addDays(6);
+
+        return [
+            'q4_due' => $due->format('j M').', 11:59 pm',
+            'q4_left' => '6 days left',
+            'q5_due' => $due->addDays(14)->format('j M').', 11:59 pm',
         ];
     }
 

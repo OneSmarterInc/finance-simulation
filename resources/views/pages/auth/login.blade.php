@@ -5,6 +5,14 @@
         <!-- Session Status -->
         <x-auth-session-status class="text-center" :status="session('status')" />
 
+        {{-- Live review R15: a page left open past the session sends the next click here; say why. --}}
+        @if (request()->cookie(\App\Providers\AppServiceProvider::SIGNED_IN_COOKIE) && session()->has('url.intended') && ! session('status'))
+            @php($hours = intdiv((int) config('session.lifetime'), 60))
+            <flux:callout icon="clock" color="zinc" data-test="signed-out-idle">
+                <flux:callout.text>You were signed out after {{ (int) config('session.lifetime') % 60 === 0 ? ([1 => 'an hour', 2 => 'two hours', 3 => 'three hours', 4 => 'four hours'][$hours] ?? $hours.' hours') : config('session.lifetime').' minutes' }} without activity. Sign in to carry on.</flux:callout.text>
+            </flux:callout>
+        @endif
+
         <form method="POST" action="{{ route('login.store') }}" class="flex flex-col gap-6">
             @csrf
 
@@ -51,8 +59,7 @@
         </form>
 
         <div class="space-x-1 text-sm text-center rtl:space-x-reverse text-zinc-600 dark:text-zinc-400">
-            <span>{{ __('Don\'t have an account?') }}</span>
-            <flux:link :href="route('register')" wire:navigate>{{ __('Sign up') }}</flux:link>
+            <span>{{ __('Students: join from the course link your instructor sends.') }}</span>
         </div>
     </div>
 </x-layouts::auth>

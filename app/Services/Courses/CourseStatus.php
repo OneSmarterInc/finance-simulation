@@ -219,7 +219,7 @@ final class CourseStatus
 
     /**
      * @return array{state: string, label: string, decision: FirmQuarterDecision|null}
-     *         state is submitted | draft | none | locked
+     *                                                                                 state is submitted | draft | none | locked
      */
     public function firmStatus(Firm $firm, CourseQuarter $quarter): array
     {
@@ -289,7 +289,7 @@ final class CourseStatus
         // Scheduler problems faculty must see (walkthrough review): the scheduler
         // only logs, so the reasons are worked out here from the course state.
         $next = $this->next();
-        if (! $active && $next && $next->quarter_number === 4 && $next->starts_on && $next->starts_on->startOfDay()->lte(now())) {
+        if (! $active && $next && $next->quarter_number === 4 && $next->starts_on && $next->starts_on->toDateString() <= Dates::today()) {
             $notReady = $this->firms->filter(fn (Firm $f) => $f->warmup_status !== Firm::WARMUP_INITIALIZED);
             $items[] = [
                 'text' => $this->firms->isEmpty()

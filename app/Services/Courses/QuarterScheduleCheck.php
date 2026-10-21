@@ -59,13 +59,18 @@ final class QuarterScheduleCheck
             if ($deadline > $end) {
                 return "Quarter {$number}'s deadline (".self::day($deadline).') is after the quarter ends ('.self::day($end).').';
             }
-            if ($start < $courseStart) {
+            // The warm-up is played when the course is deployed, so its quarters
+            // may sit before the course starts, all on one day (R9, ScheduleRows).
+            $warmup = $number <= ScheduleRows::WARMUP_QUARTERS;
+            if (! $warmup && $start < $courseStart) {
                 return "Quarter {$number} starts (".self::day($start).') before the course starts ('.self::day($courseStart).').';
             }
             if ($end > $courseEnd) {
                 return "Quarter {$number} ends (".self::day($end).') after the course ends ('.self::day($courseEnd).').';
             }
-            if ($previousEnd !== null && $start <= $previousEnd) {
+            // Warm-up quarters stored on one day (start = end) may share it with the one before.
+            $sharedWarmupDay = $warmup && $start === $end && $start === $previousEnd;
+            if (! $sharedWarmupDay && $previousEnd !== null && $start <= $previousEnd) {
                 return "Quarter {$number} starts (".self::day($start).') before Quarter '.($number - 1).' ends ('.self::day($previousEnd).').';
             }
             $previousEnd = $end;

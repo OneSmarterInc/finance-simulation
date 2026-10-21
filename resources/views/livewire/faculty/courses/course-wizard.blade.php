@@ -1,6 +1,6 @@
 <div class="flexee-page">
     <x-page-header :eyebrow="$course?->name ?? 'New course'" :title="($cf_plus_enabled ? \App\Support\Product::PLUS_NAME : \App\Support\Product::NAME).' · '.\App\Support\Product::INDUSTRY"
-        description="{{ $deployed ? 'Review the deployed course configuration.' : 'Configure the signed six-step course setup and deployment workflow.' }}">
+        description="{{ $deployed ? 'Review the deployed course configuration.' : 'Set up your course in six steps. Students see nothing until you deploy it.' }}">
         <x-slot:actions>
             @if ($deployed)
                 <flux:badge color="emerald" size="lg">
@@ -10,6 +10,10 @@
                 <flux:badge color="emerald" size="lg">
                     Step {{ $step }} of 6
                 </flux:badge>
+                @if ($course)
+                    <flux:button size="sm" variant="ghost" icon="trash" wire:click="deleteDraft"
+                        wire:confirm="Delete the draft {{ $course->name }}? It was never deployed, so it has no students or results. One Smarter can restore it if you need it back.">Delete draft</flux:button>
+                @endif
             @endif
         </x-slot:actions>
     </x-page-header>
@@ -153,16 +157,21 @@
 
             <div class="flex flex-wrap items-end gap-3">
                 <flux:input class="w-40" wire:model="quarter_count" type="number" min="4"
-                    label="Configured quarters" />
+                    label="Quarters, warm-up included" />
 
                 <flux:button type="button" wire:click="buildScheduleRows" icon="table-cells">
                     Generate rows
                 </flux:button>
             </div>
 
+            <flux:text size="sm" class="max-w-3xl">
+                Quarters 1 to 3 are the warm-up. The simulation plays them the moment you deploy, so they take none of the term.
+                Quarter 4 starts on the course start date, and the rows below share the term between Quarter 4 and the last quarter.
+            </flux:text>
+
             @if ($cf_plus_enabled)
                 <flux:callout variant="warning" icon="information-circle" heading="Schedule for the evaluation stage"
-                    text="This course needs 3 warm-up + {{ $build_quarters }} operating + {{ $adversarial_quarters }} evaluation + {{ $post_bid_quarters }} later quarters." />
+                    text="This course needs {{ $this->minimumQuarters() }} quarters: 3 warm-up + {{ $build_quarters }} operating + {{ $adversarial_quarters }} evaluation + {{ $post_bid_quarters }} later." />
             @endif
 
             <div class="overflow-x-auto">
@@ -177,16 +186,19 @@
                     </thead>
 
                     <tbody>
+                        @if (collect($quarters)->contains(fn ($q) => $q['quarter_number'] <= 3))
+                            <tr class="border-b border-zinc-200 dark:border-zinc-800" data-test="warmup-row">
+                                <td class="p-2 font-medium">Q1 to Q3
+                                    <span class="block text-xs font-normal text-zinc-500">Warm-up</span></td>
+                                <td class="p-2 text-zinc-600 dark:text-zinc-300" colspan="3">Played when you deploy, before the course starts. No dates to set.</td>
+                            </tr>
+                        @endif
                         @foreach ($quarters as $index => $quarter)
+                            @continue($quarter['quarter_number'] <= 3)
                             <tr class="border-b border-zinc-200 dark:border-zinc-800">
                                 <td class="p-2 font-medium">
                                     Q{{ $quarter['quarter_number'] }}
-
-                                    @if ($quarter['quarter_number'] <= 3)
-                                        <span class="block text-xs font-normal text-zinc-500">
-                                            Warm-up / reserved
-                                        </span>
-                                    @elseif($quarter['quarter_number'] === 4)
+                                    @if ($quarter['quarter_number'] === 4)
                                         <span class="block text-xs font-normal text-emerald-700 dark:text-emerald-400">
                                             Student control begins
                                         </span>
@@ -447,7 +459,7 @@
                                     <tr>
                                         <td class="py-2 pr-4 font-medium">Quarter {{ $q->quarter_number }}
                                             @if ($reviewStatus->isEvaluationQuarter($q)) <span class="text-xs text-violet-700 dark:text-violet-300">· evaluation stage</span> @endif</td>
-                                        <td class="py-2 pr-4">{{ \App\Support\Dates::day($q->starts_on) }}</td>
+                                        <td class="py-2 pr-4">{{ $q->quarter_number <= 3 ? 'Played at deploy' : \App\Support\Dates::day($q->starts_on) }}</td>
                                         <td class="py-2 pr-4">{{ $q->quarter_number <= 3 ? 'Warm-up' : \App\Support\Dates::dateTime($q->decision_deadline_at) }}</td>
                                         <td class="py-2 pr-4">{{ $reviewStatus->stateLabel($q) }}</td>
                                     </tr>
@@ -531,7 +543,7 @@
                                 ? 'Close student registration for this course? Existing enrollments will not be affected.'
                                 : 'Open student registration for this course?' }}">
 
-                            {{ $course->registration_enabled ? 'Close Registration' : 'Open Registration' }} 
+                            {{ $course->registration_enabled ? 'Close registration' : 'Open registration' }} 
                         </flux:button>
 
                     </div>
@@ -600,7 +612,7 @@
 
                             <flux:text class="mt-1">
                                 {{ $accounting_election_enabled
-                                    ? 'Enabled for this simulation'
+                                    ? 'Turned on for this course'
                                     : 'Off: every firm uses the default methods' }}
                             </flux:text>
                         </div>

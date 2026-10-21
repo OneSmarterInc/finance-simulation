@@ -6,6 +6,7 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\Dates;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -226,18 +227,12 @@ class StudentCourseRegistrationService
             ]);
         }
 
-        if (
-            $course->starts_on &&
-            now()->startOfDay()->lt($course->starts_on->startOfDay())
-        ) {
-            throw ValidationException::withMessages([
-                'registration' => 'Registration for this course has not opened yet.',
-            ]);
-        }
+        // Registration opens once the course is deployed and registration is turned on, before the
+        // course starts: the warm-up is played at deploy and Quarter 4 opens on the start date (R9).
 
         if (
             $course->ends_on &&
-            now()->startOfDay()->gt($course->ends_on->endOfDay())
+            Dates::today() > $course->ends_on->toDateString()
         ) {
             throw ValidationException::withMessages([
                 'registration' => 'Registration for this course has closed.',

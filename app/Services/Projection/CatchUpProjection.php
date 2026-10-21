@@ -353,10 +353,10 @@ class CatchUpProjection
         }
         foreach ($projected as $q) {
             if (($leaders[$q] ?? $now) !== $now) {
-                return "{$names[$leaders[$q]]} catches {$names[$now]} in Quarter {$q} on these behaviours.";
+                return "{$names[$leaders[$q]]} catches {$names[$now]} in Quarter {$q} if each plays as chosen below.";
             }
         }
 
-        return "No firm catches {$names[$now]} by Quarter {$last} on these behaviours.";
+        return "No firm catches {$names[$now]} by Quarter {$last} if each plays as chosen below.";
     }
 }

@@ -6,6 +6,7 @@ use App\Models\CfPlusAuctionEconomicsSnapshot;
 use App\Models\CfPlusAuctionResult;
 use App\Models\CfPlusOffer;
 use App\Models\Course;
+use App\Models\CourseDecisionEnablement;
 use App\Models\CourseQuarter;
 use App\Models\Faculty;
 use App\Models\Firm;
@@ -192,10 +193,48 @@ class PracticeRunService
         return TeamSettings::resolve($course->practice_team_settings);
     }
 
-    /** @return array<string, string> each team's rule in plain words */
+    /**
+     * The decision areas students decide in, in any quarter from Quarter 4,
+     * plus "methods" and "evaluation" when the course has them (R17). The
+     * reference teams play only these; the simulation carries the rest forward.
+     *
+     * @return list<string>
+     */
+    public function openAreas(Course $course): array
+    {
+        $codes = CourseDecisionEnablement::query()
+            ->where('enabled', true)
+            ->whereHas('quarter', fn ($q) => $q->where('course_id', $course->id)->where('quarter_number', '>=', 4))
+            ->with('category')
+            ->get()
+            ->map(fn (CourseDecisionEnablement $row): string => (string) $row->category?->code)
+            ->unique()
+            ->values()
+            ->all();
+        if ($course->accounting_election_enabled || in_array('notes_elections', $codes, true)) {
+            $codes[] = 'methods';
+        }
+        if ($course->cf_plus_enabled) {
+            $codes[] = 'evaluation';
+        }
+
+        return array_values(array_diff(array_unique($codes), ['notes_elections', 'certification', '']));
+    }
+
+    /** @return array<string, string> each team's rule in plain words, for the areas the course opens */
     public function rules(Course $course): array
     {
-        return collect($this->settings($course))->map(fn (array $s, string $team): string => TeamSettings::describe($team, $s))->all();
+        $open = $this->openAreas($course);
+
+        return collect($this->settings($course))->map(fn (array $s, string $team): string => TeamSettings::describe($team, $s, $open))->all();
+    }
+
+    /** @return array<string, string> what the Custom badge says, changes that take effect only */
+    public function changeSummaries(Course $course): array
+    {
+        $open = $this->openAreas($course);
+
+        return collect($this->settings($course))->map(fn (array $s, string $team): string => TeamSettings::changeSummary($team, $s, $open))->all();
     }
 
     /** @return array<string, string> each team's bidding rule (FF4, FF8) */
@@ -204,10 +243,12 @@ class PracticeRunService
         return collect($this->settings($course))->map(fn (array $s, string $team): string => TeamSettings::describeBid($team, $s))->all();
     }
 
-    /** @return list<string> the teams playing something other than their standard rules */
+    /** @return list<string> the teams playing something other than their standard rules, in the areas the course opens */
     public function customTeams(Course $course): array
     {
-        return array_keys(array_filter($this->settings($course), fn (array $s, string $team): bool => ! TeamSettings::isStandard($team, $s), ARRAY_FILTER_USE_BOTH));
+        $open = $this->openAreas($course);
+
+        return array_keys(array_filter($this->settings($course), fn (array $s, string $team): bool => TeamSettings::effectiveDifferences($team, $s, $open) !== [], ARRAY_FILTER_USE_BOTH));
     }
 
     /**

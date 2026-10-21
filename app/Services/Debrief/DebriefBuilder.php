@@ -5,12 +5,15 @@ namespace App\Services\Debrief;
 use App\Models\CfPlusAuctionResult;
 use App\Models\Course;
 use App\Models\Firm;
+use App\Models\FirmAccountingElection;
 use App\Models\FirmAccountingElectionRequest;
 use App\Models\FirmEngineResult;
+use App\Models\FirmQuarterDecision;
 use App\Models\FirmRivalAnalysis;
 use App\Services\Accounting\AccountingChangeDisclosures;
 use App\Services\Ai\ResultMeasures;
 use App\Services\Courses\CourseStatus;
+use App\Services\Practice\ReferenceTeams;
 use App\Support\Presentation\StatementPresenter;
 use Illuminate\Support\Collection;
 use Throwable;
@@ -60,7 +63,8 @@ class DebriefBuilder
         return [
             'finished' => self::finished($course),
             'last_closed' => $status->lastClosed()?->quarter_number,
-            'firms' => $firms->values()->map(fn (Firm $f, int $i) => ['id' => $f->id, 'name' => $f->name, 'slot' => $i])->all(),
+            // R30: in a practice debrief each reference team keeps its own colour, as on every other page.
+            'firms' => $firms->values()->map(fn (Firm $f, int $i) => ['id' => $f->id, 'name' => $f->name, 'slot' => $i, 'team' => $course->is_practice && in_array(strtolower((string) $f->code), ReferenceTeams::TEAMS, true) ? strtolower((string) $f->code) : null])->all(),
             'slides' => $slides,
         ];
     }
@@ -75,9 +79,39 @@ class DebriefBuilder
         return ! $course->cf_plus_enabled || CfPlusAuctionResult::query()->where('course_id', $course->id)->exists();
     }
 
-    private static function money(?float $v): string
+    /**
+     * Money on a slide's sentence: millions to one decimal, a negative in
+     * brackets, as on the statements (R27). The tables keep the cents.
+     */
+    public static function money(?float $v, int $decimals = 1): string
     {
-        return ResultMeasures::format('cash', $v);
+        if ($v === null) {
+            return '–';
+        }
+        // Small amounts ("Other lines") in thousands, so they never read "$0.0M".
+        $m = abs($v) < 1e5 && $decimals === 1 ? '$'.number_format(abs($v) / 1e3, 1).'K' : '$'.number_format(abs($v) / 1e6, $decimals).'M';
+
+        return $v < 0 ? '('.$m.')' : $m;
+    }
+
+    /**
+     * Two amounts compared in one sentence, with enough decimals that they
+     * don't read the same when they differ ($3.21M against $3.19M), and to the
+     * cent if even that rounds them together.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public static function moneyPair(float $a, float $b): array
+    {
+        foreach ([1, 2, 3] as $decimals) {
+            [$x, $y] = [self::money($a, $decimals), self::money($b, $decimals)];
+            if ($x !== $y || abs($a - $b) < 0.005) {
+                return [$x, $y];
+            }
+        }
+        $cents = fn (float $v): string => ($v < 0 ? '(' : '').'$'.number_format(abs($v), 2).($v < 0 ? ')' : '');
+
+        return [$cents($a), $cents($b)];
     }
 
     /**
@@ -168,13 +202,20 @@ class DebriefBuilder
             ->skipUntil(fn ($row) => $row['type'] === 'heading')->takeUntil(fn ($row, $i) => $row['type'] === 'subtotal')
             ->filter(fn ($row) => $row['type'] === 'line' && ! in_array($row['label'], ['Net income'], true) && abs((float) ($row['values'][0] ?? 0)) >= 0.005)
             ->map(fn ($row) => ['label' => $row['label'], 'value' => round((float) $row['values'][0], 2)])
-            ->sortByDesc(fn ($l) => abs($l['value']))->take(5)->values()->all();
+            ->sortByDesc(fn ($l) => abs($l['value']))->values();
+        // R29: the lines past the five largest go in one last row, so the list always adds up.
+        $rest = round($lines->slice(5)->sum('value'), 2);
+        $lines = $lines->take(5)->all();
+        if (abs($rest) >= 0.005) {
+            $lines[] = ['label' => 'Other lines', 'value' => $rest, 'other' => true];
+        }
         $q = $best['result']->quarter_number;
         $name = $best['firm']->name;
         $facts = "{$name}, Quarter {$q}: net income ".self::money($best['ni']).'; net cash from operating activities '.self::money($best['ocf']).".\nThe lines between them on the cash flow statement: "
             .collect($lines)->map(fn ($l) => $l['label'].' '.self::money($l['value']))->join('; ').'.';
         $top = $lines[0] ?? null;
-        $fallback = "In Quarter {$q}, {$name} reported net income of ".self::money($best['ni']).' but brought in '.self::money($best['ocf']).' from operations.'
+        $fallback = "In Quarter {$q}, {$name} reported ".($best['ni'] < 0 ? 'a net loss of '.self::money(-$best['ni']) : 'net income of '.self::money($best['ni']))
+            .($best['ocf'] < 0 ? ', and its operations used '.self::money(-$best['ocf']).' of cash.' : ' but brought in '.self::money($best['ocf']).' from operations.')
             .($top ? " The biggest line between the two was {$top['label']}: ".self::money($top['value']).'.' : '');
 
         return [
@@ -193,22 +234,28 @@ class DebriefBuilder
      */
     private function methods(Course $course, Collection $firms, Collection $results): ?array
     {
-        $requests = FirmAccountingElectionRequest::query()->where('course_id', $course->id)->where('status', 'approved')
-            ->whereNotNull('effective_quarter_number')->with('firm')->orderBy('effective_quarter_number')->get();
+        $changed = FirmAccountingElectionRequest::query()->where('course_id', $course->id)->where('status', 'approved')
+            ->whereNotNull('effective_quarter_number')->with('firm')->orderBy('effective_quarter_number')->get()
+            ->map(fn (FirmAccountingElectionRequest $r) => ['firm' => $r->firm, 'quarter' => (int) $r->effective_quarter_number, 'previous' => (array) $r->previous_elections, 'proposed' => (array) $r->proposed_elections])
+            ->all();
+        if ($course->is_practice) {
+            $changed = [...$changed, ...$this->recordedChanges($course, $firms)];
+        }
         $rows = [];
-        foreach ($requests as $request) {
-            $q = (int) $request->effective_quarter_number;
-            $stored = $results->get($request->firm_id, collect())->firstWhere('quarter_number', $q);
-            if (! $stored || ! $request->firm) {
+        foreach ($changed as $change) {
+            $q = $change['quarter'];
+            $firm = $change['firm'];
+            $stored = $firm ? $results->get($firm->id, collect())->firstWhere('quarter_number', $q) : null;
+            if (! $stored || ! $firm) {
                 continue;
             }
-            $changes = AccountingChangeDisclosures::changes((array) $request->previous_elections, (array) $request->proposed_elections);
+            $changes = AccountingChangeDisclosures::changes($change['previous'], $change['proposed']);
             if ($changes === []) {
                 continue;
             }
-            $old = array_intersect_key((array) $request->previous_elections, array_flip(array_column($changes, 'key')));
+            $old = array_intersect_key($change['previous'], array_flip(array_column($changes, 'key')));
             try {
-                $before = $this->replay->replay($request->firm, $q, $old);
+                $before = $this->replay->replay($firm, $q, $old);
             } catch (Throwable) {
                 $before = null;
             }
@@ -216,7 +263,7 @@ class DebriefBuilder
                 continue;
             }
             $rows[] = [
-                'firm' => $request->firm->name,
+                'firm' => $firm->name,
                 'quarter' => $q,
                 'change' => collect($changes)->map(fn ($c) => "{$c['label']}: {$c['from']} to {$c['to']}")->join('; '),
                 'net_income' => round((float) (((array) $stored->income_statement)['net_income'] ?? 0), 2),
@@ -228,15 +275,53 @@ class DebriefBuilder
         if ($rows === []) {
             return null;
         }
-        $facts = collect($rows)->map(fn ($r) => "{$r['firm']}, from Quarter {$r['quarter']} ({$r['change']}): net income ".self::money($r['net_income'])
-            .' with the new methods, '.self::money($r['net_income_old']).' with the old ones; net cash from operating activities '.self::money($r['operating_cash_flow'])
-            .' with the new methods, '.self::money($r['operating_cash_flow_old']).' with the old ones.')->join("\n");
+        $facts = collect($rows)->map(function ($r) {
+            [$ni, $niOld] = self::moneyPair($r['net_income'], $r['net_income_old']);
+            [$cash, $cashOld] = self::moneyPair($r['operating_cash_flow'], $r['operating_cash_flow_old']);
+
+            return "{$r['firm']}, from Quarter {$r['quarter']} ({$r['change']}): net income {$ni} with the new methods, {$niOld} with the old ones; net cash from operating activities {$cash} with the new methods, {$cashOld} with the old ones.";
+        })->join("\n");
         $biggest = collect($rows)->sortByDesc(fn ($r) => abs($r['net_income'] - $r['net_income_old']))->first();
-        $fallback = "In Quarter {$biggest['quarter']}, {$biggest['firm']} reported net income of ".self::money($biggest['net_income'])
-            .' with its new methods; with the old ones it would have been '.self::money($biggest['net_income_old'])
-            .'. Cash from operations was '.self::money($biggest['operating_cash_flow']).($biggest['operating_cash_flow'] === $biggest['operating_cash_flow_old'] ? ' either way.' : ' with the new methods and '.self::money($biggest['operating_cash_flow_old']).' with the old.');
+        [$ni, $niOld] = self::moneyPair($biggest['net_income'], $biggest['net_income_old']);
+        [$cash, $cashOld] = self::moneyPair($biggest['operating_cash_flow'], $biggest['operating_cash_flow_old']);
+        $fallback = "In Quarter {$biggest['quarter']}, {$biggest['firm']} reported net income of {$ni} with its new methods; with the old ones it would have been {$niOld}."
+            .' Cash from operations was '.(abs($biggest['operating_cash_flow'] - $biggest['operating_cash_flow_old']) < 0.005 ? $cash.' either way.' : "{$cash} with the new methods and {$cashOld} with the old.");
 
         return ['data' => ['rows' => $rows], 'facts' => $facts, 'fallback' => $fallback];
+    }
+
+    /**
+     * R28: a practice run sets a reference team's methods directly, with no
+     * request (PracticeRunService), so its changes are read from the methods
+     * each quarter used: a quarter whose methods differ from the quarter
+     * before is a change, starting from the course's starting methods.
+     *
+     * @param  Collection<int, Firm>  $firms
+     * @return list<array{firm: Firm, quarter: int, previous: array<string, mixed>, proposed: array<string, mixed>}>
+     */
+    private function recordedChanges(Course $course, Collection $firms): array
+    {
+        $number = fn ($row) => (int) $row->courseQuarter?->quarter_number;
+        // With method-change requests on, the methods are set for each quarter; otherwise they're part of the quarter's decisions.
+        $set = FirmAccountingElection::query()->where('course_id', $course->id)->with('courseQuarter')->get()
+            ->groupBy('firm_id')->map(fn ($rows) => $rows->mapWithKeys(fn ($r) => [$number($r) => (array) $r->elections]));
+        $decided = FirmQuarterDecision::query()->where('course_id', $course->id)->with('quarter')->get()
+            ->groupBy('firm_id')->map(fn ($rows) => $rows->mapWithKeys(fn ($r) => [(int) $r->quarter?->quarter_number => (array) ($r->resolved_payload['notes_elections'] ?? $r->submitted_payload['notes_elections'] ?? [])]));
+        $out = [];
+        foreach ($firms as $firm) {
+            $previous = $course->startingElections();
+            $quarters = collect([...$set->get($firm->id, collect())->keys(), ...$decided->get($firm->id, collect())->keys()])->unique()->filter(fn ($q) => $q >= 4)->sort();
+            foreach ($quarters as $q) {
+                $elections = $set->get($firm->id, collect())->get($q) ?: $decided->get($firm->id, collect())->get($q, []);
+                $now = array_replace($previous, array_intersect_key($elections, $previous));
+                if (AccountingChangeDisclosures::changes($previous, $now) !== []) {
+                    $out[] = ['firm' => $firm, 'quarter' => $q, 'previous' => $previous, 'proposed' => $now];
+                }
+                $previous = $now;
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -275,12 +360,12 @@ class DebriefBuilder
             .($r['difference'] === null ? '' : '; paid '.($r['difference'] >= 0 ? self::money($r['difference']).' above' : self::money(-$r['difference']).' below').' true worth')
             .($r['closest_team'] ? "; closest team figure: {$r['closest_team']}'s ".self::money($r['closest_figure']) : '')
             .'.')->join("\n");
-        $over = collect($rows)->filter(fn ($r) => $r['difference'] !== null)->sortByDesc('difference')->first();
-        $fallback = $over
-            ? "{$over['winner']} paid ".self::money($over['price'])." for 51% of {$over['target']}, against a true worth of ".self::money($over['true'])
-                .', '.($over['difference'] >= 0 ? self::money($over['difference']).' too much' : self::money(-$over['difference']).' less than it was worth').'.'
-                .($over['closest_team'] ? " The closest team figure for {$over['target']} was {$over['closest_team']}'s ".self::money($over['closest_figure']).'.' : '')
-            : 'No firm was sold in the evaluation stage.';
+        // R27: the difference for every deal, not only the largest.
+        $sold = collect($rows)->filter(fn ($r) => $r['difference'] !== null)->sortByDesc('difference');
+        $fallback = $sold->isEmpty()
+            ? 'No firm was sold in the evaluation stage.'
+            : $sold->map(fn ($r) => "{$r['winner']} paid ".self::money($r['price'])." for 51% of {$r['target']}, "
+                .(abs($r['difference']) < 50000 ? 'about its true worth of '.self::money($r['true']) : self::money(abs($r['difference'])).($r['difference'] >= 0 ? ' above' : ' below').' its true worth of '.self::money($r['true'])).'.')->join(' ');
 
         return ['data' => ['rows' => $rows], 'facts' => $facts, 'fallback' => $fallback];
     }
