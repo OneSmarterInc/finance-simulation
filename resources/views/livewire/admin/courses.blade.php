@@ -11,7 +11,7 @@
                 icon="plus"
                 wire:navigate
             >
-                Add New Course
+                Add a course
             </flux:button>
         </x-slot:actions>
     </x-page-header>
@@ -21,37 +21,35 @@
             <table class="w-full text-left text-sm">
                 <thead class="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900/50">
                     <tr>
-                        <th class="px-6 py-4 font-medium">Course</th>
-                        <th class="px-6 py-4 font-medium">Institution</th>
-                        <th class="px-6 py-4 font-medium">Faculty</th>
-                        <th class="px-6 py-4 font-medium">Product</th>
-                        <th class="px-6 py-4 font-medium">Status</th>
-                        <th class="px-6 py-4 text-center font-medium">Quarters</th>
-                        <th class="px-6 py-4 text-center font-medium">Firms</th>
-                        <th class="px-6 py-4 text-right font-medium">Action</th>
+                        <th class="px-4 py-3 font-medium">Course</th>
+                        <th class="px-4 py-3 font-medium">Institution</th>
+                        <th class="px-4 py-3 font-medium">Faculty</th>
+                        <th class="px-4 py-3 font-medium">Status</th>
+                        <th class="px-4 py-3 text-center font-medium">Quarters</th>
+                        <th class="px-4 py-3 text-center font-medium">Firms</th>
+                        <th class="px-4 py-3 text-right font-medium">Action</th>
                     </tr>
                 </thead>
 
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                     @forelse ($courses as $course)
                         <tr>
-                            <td class="whitespace-nowrap px-6 py-4 font-medium text-zinc-900 dark:text-white">
-                                {{ $course->name }}
+                            {{-- R5: the product sits under the course name, so the row fits and its actions stay in view. --}}
+                            <td class="px-4 py-3">
+                                <span class="block whitespace-nowrap font-medium text-zinc-900 dark:text-white">{{ $course->name }}</span>
+                                <span class="block text-xs text-zinc-500 dark:text-zinc-400">{{ \App\Support\Product::fullName($course) }}</span>
                             </td>
 
-                            <td class="px-6 py-4 text-zinc-600 dark:text-zinc-300">
+                            <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">
                                 {{ $course->institution->name }}
                             </td>
 
-                            <td class="whitespace-nowrap px-6 py-4 text-zinc-600 dark:text-zinc-300">
+                            <td class="whitespace-nowrap px-4 py-3 text-zinc-600 dark:text-zinc-300">
                                 {{ $course->faculty->user->name }}
                             </td>
 
-                            <td class="px-6 py-4 text-zinc-600 dark:text-zinc-300">
-                                {{ \App\Support\Product::fullName($course) }}
-                            </td>
 
-                            <td class="px-6 py-4">
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <flux:badge
                                     :color="$course->status === \App\Models\Course::STATUS_DEPLOYED ? 'green' : 'zinc'"
                                 >
@@ -59,22 +57,22 @@
                                 </flux:badge>
                             </td>
 
-                            <td class="px-6 py-4 text-center text-zinc-600 dark:text-zinc-300">
+                            <td class="px-4 py-3 text-center text-zinc-600 dark:text-zinc-300">
                                 {{ $course->quarters_count }}
                             </td>
 
-                            <td class="px-6 py-4 text-center text-zinc-600 dark:text-zinc-300">
+                            <td class="px-4 py-3 text-center text-zinc-600 dark:text-zinc-300">
                                 {{ $course->firms_count }}
                             </td>
 
-                            <td class="px-6 py-4 text-right">
+                            <td class="px-4 py-3 text-right whitespace-nowrap">
                                 <flux:button
                                     :href="route('admin.courses.prepare', $course)"
                                     variant="ghost"
                                     size="sm"
                                     wire:navigate
                                 >
-                                    Prepare / Configure
+                                    Prepare
                                 </flux:button>
                                 <flux:button variant="ghost" size="sm" icon="trash" wire:click="remove('{{ $course->id }}')"
                                     wire:confirm="Remove {{ $course->name }}? {{ $course->status === \App\Models\Course::STATUS_DEPLOYED ? 'Its firms, students and results go with it, and it leaves every student\'s list.' : 'It was never deployed.' }} One Smarter can restore it.">Remove</flux:button>
@@ -83,7 +81,7 @@
                     @empty
                         <tr>
                             <td
-                                colspan="8"
+                                colspan="7"
                                 class="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400"
                             >
                                 No courses yet.

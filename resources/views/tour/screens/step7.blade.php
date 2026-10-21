@@ -12,11 +12,11 @@
     <p class="text-zinc-500">This practice run is private to you. Its firms, students and results never appear in your class.</p>
     <div class="overflow-x-auto">
         <p class="mb-1 font-semibold">Value created</p>
-        <table class="w-full min-w-[22rem] tabular-nums">
-            <thead><tr class="border-b border-zinc-300 text-xs text-zinc-500 dark:border-zinc-600"><th class="sticky left-0 bg-white py-1.5 pe-2 text-left font-medium dark:bg-zinc-900">Team</th>@foreach ($quarters as $q)<th class="py-1.5 text-right">Q{{ $q }}</th>@endforeach</tr></thead>
+        <table class="w-full min-w-[26rem] tabular-nums">
+            <thead><tr class="border-b border-zinc-300 text-xs text-zinc-500 dark:border-zinc-600"><th class="sticky left-0 bg-white py-1.5 pe-2 text-left font-medium dark:bg-zinc-900">Team</th>@foreach ($quarters as $q)<th class="py-1.5 ps-3 text-right">Q{{ $q }}</th>@endforeach</tr></thead>
             <tbody>
                 @foreach (['careful' => 'Careful', 'average' => 'Average', 'careless' => 'Careless'] as $team => $name)
-                    <tr class="border-b border-zinc-100 dark:border-white/5 {{ $team === 'careful' ? 'font-semibold' : '' }}"><td class="sticky left-0 bg-white py-1.5 pe-2 whitespace-nowrap dark:bg-zinc-900"><span class="me-1 inline-block size-2 rounded-full {{ $dot[$team] }}"></span>{{ $name }}</td>@foreach ($quarters as $q)<td class="py-1.5 text-right">{{ T::m($value[$team][$q]) }}</td>@endforeach</tr>
+                    <tr class="border-b border-zinc-100 dark:border-white/5 {{ $team === 'careful' ? 'font-semibold' : '' }}"><td class="sticky left-0 bg-white py-1.5 pe-2 whitespace-nowrap dark:bg-zinc-900"><span class="me-1 inline-block size-2 rounded-full {{ $dot[$team] }}"></span>{{ $name }}</td>@foreach ($quarters as $q)<td class="py-1.5 ps-3 text-right">{{ T::m($value[$team][$q]) }}</td>@endforeach</tr>
                 @endforeach
             </tbody>
         </table>

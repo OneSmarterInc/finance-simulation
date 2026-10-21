@@ -127,7 +127,7 @@
 
         <div class="flex justify-end">
             <flux:button wire:click="saveSetup" variant="primary" icon="arrow-right">
-                Save & Continue
+                Save and continue
             </flux:button>
         </div>
 
@@ -235,7 +235,7 @@
                 </flux:button>
 
                 <flux:button type="submit" icon="arrow-right" variant="primary">
-                    Save & Continue
+                    Save and continue
                 </flux:button>
             </div>
 
@@ -331,7 +331,7 @@
                 </flux:button>
 
                 <flux:button type="submit" icon="arrow-right" variant="primary">
-                    Save & Continue
+                    Save and continue
                 </flux:button>
 
             </div>
