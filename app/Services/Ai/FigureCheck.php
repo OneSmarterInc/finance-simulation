@@ -33,9 +33,10 @@ final class FigureCheck
         $dropped = [];
         $checked = 0;
         $paragraphs = [];
+        // A sentence also ends after a closing quotation mark (live review R16, as in BPM).
         foreach (preg_split('/\n{2,}/', trim($answer)) as $paragraph) {
             $kept = [];
-            foreach (preg_split('/(?<=[.!?])\s+(?=[A-Z0-9"“(])/u', $paragraph) as $sentence) {
+            foreach (preg_split('/(?:(?<=[.!?])|(?<=[.!?]["”]))\s+(?=[A-Z0-9"“(])/u', $paragraph) as $sentence) {
                 preg_match_all(self::NUMBER, $sentence, $m, PREG_OFFSET_CAPTURE);
                 $spans = self::quotedSpans($sentence);
                 $unknown = [];

@@ -119,6 +119,13 @@ class RequestReviewsTest extends TestCase
         $this->assertSame('Please file again with your reason: why does double-declining balance describe your firm better than straight-line?', $review->reply);
         $this->assertSame(0.0, $review->cost_usd);
         Http::assertNothingSent();
+
+        // Live review R25: the page doesn't promise a reason that isn't there.
+        $this->actingAs($this->course->faculty->user);
+        Livewire::test(AccountingElectionRequests::class, ['course' => $this->course])
+            ->assertSee('This request has no reason, so the review asks for one.')
+            ->assertSee('That quarter&#039;s notes will disclose the change, with no reason given.', false)
+            ->assertDontSee('Written when the request was filed, from the team');
     }
 
     public function test_the_page_shows_the_review_after_the_reason_with_the_draft_reply_ready_to_send_back(): void

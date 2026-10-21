@@ -101,7 +101,8 @@
                                 @endforeach
                             </ul>
                             <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                                Written when the request was filed, from the team's reason and the firm's stored results.{{ filled($review->reply) ? ' Claude\'s draft reply is in the note box below, for you to edit.' : '' }} You decide.
+                                {{-- R25: a request with no reason is answered in code, not written from a reason. --}}
+                                {{ filled($request->justification) ? 'Written when the request was filed, from the team\'s reason and the firm\'s stored results.' : 'This request has no reason, so the review asks for one.' }}{{ filled($review->reply) ? ' Claude\'s draft reply is in the note box below, for you to edit.' : '' }} You decide.
                             </p>
                         @elseif ($review && $review->attempts >= \App\Services\Ai\RequestReviews::MAX_ATTEMPTS)
                             <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">Claude's review of this request couldn't be written. The request works as before.</p>
@@ -123,7 +124,7 @@
                     @else
                         No quarter is left for this change to apply to.
                     @endif
-                    That quarter's notes will disclose the change and the team's reason.
+                    {{ filled($request->justification) ? 'That quarter\'s notes will disclose the change and the team\'s reason.' : 'That quarter\'s notes will disclose the change, with no reason given.' }}
                 </p>
 
                 <div class="space-y-3 border-t border-zinc-200 pt-4 dark:border-white/10">

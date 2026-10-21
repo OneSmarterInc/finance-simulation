@@ -85,7 +85,7 @@ class AskClaude
 
                         continue;
                     }
-                    $answer = implode("\n\n", $parts);
+                    $answer = self::compose($parts, $text);
                     $status = AiQuestion::ANSWERED;
                     break;
                 }
@@ -156,6 +156,54 @@ class AskClaude
      * lookup behind them, Claude told the instructor to disregard a correct earlier answer.
      */
     public const EARLIER = 'Your earlier answers in this conversation were built from lookups that are not repeated here, and every figure in them was checked against those lookups before the instructor saw it. Treat them as correct; look things up again only for what they did not cover, and don\'t comment on how they were made.';
+
+    /**
+     * The answer from every round's text (live review R19, 21 October 2026). When the last round
+     * holds a full answer, only that round is shown: an earlier round's opening ("Beta is ahead,
+     * though only slightly. I'll show the table.") would otherwise open the answer twice. Either
+     * way, every sentence that announces a step ("I'll show the table", "so I'll try the team
+     * names") is left out.
+     *
+     * @param  list<string>  $parts
+     */
+    public static function compose(array $parts, string $last): string
+    {
+        $parts = array_values(array_filter(array_map(self::withoutSteps(...), $parts), fn (string $p): bool => $p !== ''));
+        $last = self::withoutSteps($last);
+        if (count($parts) > 1 && mb_strlen($last) >= self::FULL_ANSWER) {
+            return $last;
+        }
+
+        return implode("\n\n", $parts);
+    }
+
+    /** A last round at least this long is a full answer on its own. */
+    private const FULL_ANSWER = 200;
+
+    /** The text less its sentences about what Claude is doing ("I'll look at ...", "the table came back empty"). */
+    public static function withoutSteps(string $text): string
+    {
+        $step = '/\b(I\'ll|I will|I\'m going to|Let me|I need to|I\'d better)\b|\b(came back empty|returned nothing|the lookup|this lookup|that lookup)\b/i';
+        $paragraphs = [];
+        foreach (preg_split('/\n{2,}/', trim($text)) as $paragraph) {
+            // List lines and line breaks are kept as they are; only running sentences are split.
+            $lines = [];
+            foreach (preg_split('/\n/', $paragraph) as $line) {
+                $kept = array_filter(
+                    preg_split('/(?:(?<=[.!?])|(?<=[.!?]["”]))\s+(?=[A-Z0-9"“(])/u', $line),
+                    fn (string $sentence): bool => ! preg_match($step, $sentence) || str_contains($sentence, '"'),
+                );
+                if ($kept !== []) {
+                    $lines[] = implode(' ', $kept);
+                }
+            }
+            if ($lines !== []) {
+                $paragraphs[] = implode("\n", $lines);
+            }
+        }
+
+        return trim(implode("\n\n", $paragraphs));
+    }
 
     /** A reply that only says what Claude is about to look up ("I'll look at ...", "Let me check ..."), not an answer. */
     public static function announcesLookups(string $text): bool

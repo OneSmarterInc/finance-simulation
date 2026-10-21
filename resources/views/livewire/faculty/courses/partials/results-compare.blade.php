@@ -61,6 +61,12 @@
         @else
             The firm with the highest figure is marked.
         @endif
-        Firms are marked from Quarter 4, when teams take over. Value created is equity plus dividends paid from Quarter 4.
+        Firms are marked from Quarter 4, when teams take over.
+        @if ($measure === 'value_created')
+            Value created is equity plus dividends paid from Quarter 4.
+        @endif
+        @if (! array_key_exists('units_in_stock', $measures))
+            This course runs on the earlier engine, which doesn't record units, so the unit measures aren't listed.
+        @endif
     </flux:text>
 </div>
