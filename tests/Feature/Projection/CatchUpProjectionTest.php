@@ -109,7 +109,7 @@ class CatchUpProjectionTest extends TestCase
             ->assertSet("behaviours.{$careless->id}", 'careful')
             ->set('projectMeasure', 'consultant_value')
             ->assertSet('projectMeasure', 'value_created');
-        $this->assertStringContainsString('on these behaviours.', $page->viewData('projection')['answer']);
+        $this->assertStringContainsString('if each plays as chosen below.', $page->viewData('projection')['answer']);
 
         $tools = new AskClaudeTools($practice->fresh());
         $out = $tools->run('project_catch_up', ['measure' => 'cash', 'behaviours' => ['Careless team' => 'careful']]);

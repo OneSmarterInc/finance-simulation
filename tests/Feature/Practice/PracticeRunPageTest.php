@@ -49,7 +49,7 @@ class PracticeRunPageTest extends TestCase
             ->assertSee('Leading on value created')
             ->assertSet('target', 7);
 
-        $page->call('playToEnd')->assertSee('Played to Quarter 11 of 11')->assertSee('The run has reached the last quarter.');
+        $page->call('playToEnd')->assertSee('Played to Quarter 11 of 11')->assertSee('The run has reached the last quarter.')->assertSee('The run is over.');
 
         $first = app(PracticeRunService::class)->current($source);
         $page->set('confirmingStartAgain', true)->assertSee('Keep this run')

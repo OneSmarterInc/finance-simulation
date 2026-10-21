@@ -121,7 +121,14 @@
         <section class="space-y-3" aria-labelledby="teams-heading">
             <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                 <flux:heading size="lg" level="2" id="teams-heading">The reference teams</flux:heading>
-                <flux:text size="sm" class="max-w-xl sm:text-right">View as a team to open its student pages as its students see them. The next quarter is open, so its decision screen is there too. The next Play decides it by the team's rules, whatever was typed in.</flux:text>
+                <flux:text size="sm" class="max-w-xl sm:text-right" data-test="teams-intro">
+                    @if ($run && $played >= $last)
+                        {{-- R26: there's no next quarter once the run reaches the last one. --}}
+                        The run is over. View as a team to see its final pages{{ $evaluation !== null ? ' and the evaluation stage' : '' }}.
+                    @else
+                        View as a team to open its student pages as its students see them. The next quarter is open, so its decision screen is there too. The next Play decides it by the team's rules, whatever was typed in.
+                    @endif
+                </flux:text>
             </div>
             @unless ($editingTeams)
                 <div class="flex flex-wrap items-center gap-2">
@@ -168,7 +175,7 @@
             @php
                 $main = \App\Services\Practice\TeamSettings::MAIN_GROUPS;
                 $more = \App\Services\Practice\TeamSettings::MORE_GROUPS;
-                if ($evaluation === null) {
+                if (! in_array('evaluation', $open_areas, true)) {
                     unset($more['Bids in the evaluation stage']);
                 }
             @endphp
@@ -190,8 +197,16 @@
                                 @continue($section === 1 && ! $showMore)
                                 <div class="space-y-4">
                                     @foreach ($groupsHere as $group => $keys)
+                                        @php
+                                            // R17: only the settings that change something in this course get a box.
+                                            $closedNote = \App\Services\Practice\TeamSettings::closedNote($keys, $open_areas);
+                                            $keys = array_values(array_filter($keys, fn ($key) => \App\Services\Practice\TeamSettings::takesEffect($key, $open_areas)));
+                                        @endphp
                                         <div class="space-y-3">
                                             <flux:heading level="3" size="sm" class="text-zinc-500 dark:text-zinc-400">{{ $group }}</flux:heading>
+                                            @if ($closedNote)
+                                                <flux:text size="sm" data-test="closed-area-note">{{ $closedNote }}</flux:text>
+                                            @endif
                                             @foreach ($keys as $key)
                                                 @if (in_array($key, \App\Services\Practice\TeamSettings::BOOLEANS, true))
                                                     <flux:checkbox wire:model="settings.{{ $team }}.{{ $key }}" :label="\App\Services\Practice\TeamSettings::label($key)" />
@@ -210,7 +225,7 @@
                                 </div>
                                 @if ($section === 0)
                                     <button type="button" class="text-start text-sm font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400" wire:click="toggleMore('{{ $team }}')" aria-expanded="{{ $showMore ? 'true' : 'false' }}">
-                                        {{ $showMore ? 'Fewer settings' : 'More settings: making, methods, dividend'.($evaluation !== null ? ', bids' : '') }}
+                                        {{ $showMore ? 'Fewer settings' : 'More settings: making, methods, dividend'.(in_array('evaluation', $open_areas, true) ? ', bids' : '') }}
                                     </button>
                                 @endif
                             @endforeach

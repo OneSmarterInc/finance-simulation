@@ -24,7 +24,7 @@ use Throwable;
  */
 class DebriefCaptions
 {
-    private const PROMPT_VERSION = 'debrief-v1';
+    private const PROMPT_VERSION = 'debrief-v2';
 
     public static function hash(array $built): string
     {
@@ -119,7 +119,7 @@ class DebriefCaptions
 
         For each slide, write one or two plain sentences that say what the figures show, with the write_captions tool.
         {$only}
-        - Use only the figures given for that slide, quoted exactly as given, for example "\$21,613,457.97". Don't add, subtract or work out new figures; describe a difference in words ("more than twice", "well above"). Any sentence with a figure that isn't given is removed.
+        - Use only the figures given for that slide, quoted exactly as given, in millions, for example "\$21.6M". The class reads them on a projected slide; the exact figures are in the table below it. Don't add, subtract or work out new figures; describe a difference in words ("more than twice", "well above"). Any sentence with a figure that isn't given is removed.
         - Name firms as given. Don't name or judge students, and don't tell anyone what they should have done. Any sentence that gives advice is removed.
         - Short sentences, one idea each, in words a first-year student knows. No headings, bold or lists.
         TXT;

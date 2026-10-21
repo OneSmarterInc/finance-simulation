@@ -19,6 +19,7 @@ use App\Services\Interpretations\InterpretationService;
 use App\Services\Interpretations\RivalAnalysisService;
 use App\Services\Practice\PracticeRunService;
 use App\Services\Practice\ReferenceTeams;
+use App\Services\Practice\TeamSettings;
 use App\Services\Projection\CatchUpProjection;
 use App\Support\Dates;
 use App\Support\Presentation\DecisionPresenter;
@@ -232,8 +233,18 @@ class AskClaudeTools
             'practice_run' => $practice ? [
                 'played_to_quarter' => app(PracticeRunService::class)->playedTo($practice),
                 'team_rules' => app(PracticeRunService::class)->rules($practice),
+                'areas_open_to_students' => $this->openAreaWords(app(PracticeRunService::class)->openAreas($practice)),
             ] : 'none',
         ];
+    }
+
+    /**
+     * @param  list<string>  $areas
+     * @return list<string>
+     */
+    private function openAreaWords(array $areas): array
+    {
+        return array_values(array_map(fn (string $area): string => TeamSettings::AREA_WORDS[$area] ?? $area, $areas));
     }
 
     /** @return array<string, mixed> */
@@ -425,6 +436,8 @@ class AskClaudeTools
             'played_to_quarter' => $runs->playedTo($practice),
             'leader_by_quarter' => collect($runs->leaders($practice))->mapWithKeys(fn ($t, $q) => ['Quarter '.$q => ReferenceTeams::NAMES[$t]])->all(),
             'team_rules' => collect($runs->rules($practice))->mapWithKeys(fn ($rule, $t) => [ReferenceTeams::NAMES[$t] => $rule])->all(),
+            'areas_open_to_students' => $this->openAreaWords($runs->openAreas($practice)),
+            'note_on_rules' => 'Each team rule covers only the areas students decide in this course. The simulation carries every other area forward, so it is not a reason for any difference between the teams.',
             'teams_on_custom_settings' => array_map(fn ($t) => ReferenceTeams::NAMES[$t], $runs->customTeams($practice)),
             'results' => $out,
         ];

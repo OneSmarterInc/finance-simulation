@@ -220,6 +220,93 @@ final class TeamSettings
         'Supply and shipping' => ['supplier', 'inspection', 'logistics'],
     ];
 
+    /**
+     * The decision area each setting plays in (live review R17). A practice run
+     * plays with the course's own areas, so a setting in an area students don't
+     * decide in this course changes nothing: the simulation carries that area
+     * forward. The dividend is always decided, so it has no area here.
+     * "methods" is open when the course has notes elections or method-change
+     * requests; "evaluation" when it has the evaluation stage.
+     */
+    public const AREAS = [
+        'forecast_basis' => 'forecasting', 'forecast_season' => 'forecasting', 'forecast_adjust' => 'forecasting',
+        'production_pct' => 'production', 'production_nets_stock' => 'production',
+        'price_pct' => 'pricing', 'marketing_pct' => 'marketing',
+        'supplier' => 'sourcing', 'inspection' => 'quality', 'logistics' => 'logistics',
+        'depreciation_method' => 'methods', 'depreciation_from' => 'methods', 'shipping_terms' => 'methods',
+        'bid_basis' => 'evaluation', 'bid_pct' => 'evaluation',
+    ];
+
+    /** Each area as faculty read it in "Pricing isn't open to students in this course". */
+    public const AREA_WORDS = [
+        'forecasting' => 'planning', 'production' => 'production', 'pricing' => 'pricing',
+        'marketing' => 'marketing', 'sourcing' => 'the supplier', 'quality' => 'inspection',
+        'logistics' => 'shipping', 'methods' => 'accounting methods', 'evaluation' => 'bidding',
+    ];
+
+    /**
+     * Whether a setting changes anything in a course whose open areas are
+     * $open (null means every area is open). The plan also drives how much a
+     * team makes, so planning counts when production is open.
+     *
+     * @param  list<string>|null  $open
+     */
+    public static function takesEffect(string $key, ?array $open): bool
+    {
+        $area = self::AREAS[$key] ?? null;
+        if ($open === null || $area === null) {
+            return true;
+        }
+        if ($area === 'forecasting') {
+            return in_array('forecasting', $open, true) || in_array('production', $open, true);
+        }
+
+        return in_array($area, $open, true);
+    }
+
+    /** @param list<string>|null $open */
+    public static function allOpen(?array $open): bool
+    {
+        return $open === null || array_diff(array_unique(array_values(self::AREAS)), $open) === [];
+    }
+
+    /**
+     * The changes from the standard rules that take effect in the course.
+     *
+     * @param  array<string, mixed>  $settings
+     * @param  list<string>|null  $open
+     * @return array<string, mixed>
+     */
+    public static function effectiveDifferences(string $team, array $settings, ?array $open): array
+    {
+        return array_filter(self::differences($team, $settings), fn (string $key): bool => self::takesEffect($key, $open), ARRAY_FILTER_USE_KEY);
+    }
+
+    /**
+     * "Pricing and marketing aren't open to students in this course, so the
+     * simulation sets them.", for the settings in $keys that change nothing.
+     *
+     * @param  list<string>  $keys
+     * @param  list<string>|null  $open
+     */
+    public static function closedNote(array $keys, ?array $open): ?string
+    {
+        $areas = [];
+        foreach ($keys as $key) {
+            if (! self::takesEffect($key, $open)) {
+                $areas[self::AREAS[$key]] = self::AREA_WORDS[self::AREAS[$key]];
+            }
+        }
+        if ($areas === []) {
+            return null;
+        }
+        $words = array_values($areas);
+        $list = count($words) === 1 ? $words[0] : implode(', ', array_slice($words, 0, -1)).' and '.end($words);
+        $plural = count($words) > 1 || $words[0] === 'accounting methods';
+
+        return ucfirst($list).($plural ? " aren't" : " isn't").' open to students in this course, so the simulation sets '.($plural ? 'them' : 'it').'.';
+    }
+
     public const MORE_GROUPS = [
         'Making' => ['production_pct', 'production_nets_stock'],
         'Accounting methods' => ['depreciation_method', 'depreciation_from', 'shipping_terms'],
@@ -229,13 +316,15 @@ final class TeamSettings
 
     /**
      * What changed from the team's standard rules, in a few words, for the
-     * Custom badge: "plans like Careful, buys from India".
+     * Custom badge: "plans like Careful, buys from India". Only changes that
+     * take effect in the course are named (R17).
      *
      * @param  array<string, mixed>  $s
+     * @param  list<string>|null  $open
      */
-    public static function changeSummary(string $team, array $s): string
+    public static function changeSummary(string $team, array $s, ?array $open = null): string
     {
-        $changed = self::differences($team, $s);
+        $changed = self::effectiveDifferences($team, $s, $open);
         if ($changed === []) {
             return '';
         }
@@ -266,7 +355,7 @@ final class TeamSettings
             $parts[] = 'buys from '.DecisionPresenter::supplierName($s['supplier']);
         }
         if (isset($changed['inspection'])) {
-            $parts[] = strtolower(DecisionPresenter::valueLabel('inspection_level', $s['inspection'])).' inspection';
+            $parts[] = $s['inspection'] === 'NONE' ? 'no inspection' : strtolower(DecisionPresenter::valueLabel('inspection_level', $s['inspection'])).' inspection';
         }
         if (isset($changed['logistics'])) {
             $parts[] = $s['logistics'] === 'AIR' ? 'ships by air' : strtolower(DecisionPresenter::valueLabel('logistics_mode', $s['logistics'])).' shipping';
@@ -290,32 +379,58 @@ final class TeamSettings
 
     /**
      * The team's rule in plain words: the standard wording when nothing has
-     * changed, otherwise a description of the settings.
+     * changed and every area is open, otherwise a description of the settings
+     * that take effect in the course (R17). Each option has its own phrase, so
+     * no card reads "with None inspection" (R18).
      *
      * @param  array<string, mixed>  $s
+     * @param  list<string>|null  $open
      */
-    public static function describe(string $team, array $s): string
+    public static function describe(string $team, array $s, ?array $open = null): string
     {
-        if (self::isStandard($team, $s)) {
+        if (self::allOpen($open) && self::isStandard($team, $s)) {
             return self::STANDARD_RULES[$team];
         }
-        $plan = $s['forecast_basis'] === 'orders' ? "last quarter's orders" : "last quarter's sales";
+        $on = fn (string $key): bool => self::takesEffect($key, $open);
         $parts = [];
-        $parts[] = 'Plans from '.$plan.($s['forecast_season'] ? ', adjusted for the season' : '').self::adjust($s['forecast_adjust']).'.';
-        $parts[] = 'Makes '.$s['production_pct'].'% of the plan'.($s['production_nets_stock'] ? ', less the stock on hand' : '').'.';
-        $parts[] = 'Prices at '.$s['price_pct'].'% of the base price and spends '.$s['marketing_pct'].'% of revenue on marketing.';
-        $parts[] = 'Buys from '.DecisionPresenter::supplierName($s['supplier']).' with '.DecisionPresenter::valueLabel('inspection_level', $s['inspection']).' inspection and '.strtolower(DecisionPresenter::valueLabel('logistics_mode', $s['logistics'])).($s['logistics'] === 'AIR' ? '' : ' shipping').'.';
-        if ($s['depreciation_method'] === '' && $s['shipping_terms'] === '') {
-            $parts[] = "Keeps the course's starting methods.";
-        } else {
-            $methods = [];
-            if ($s['depreciation_method'] !== '') {
-                $methods[] = lcfirst(DecisionPresenter::valueLabel('depreciation_method', $s['depreciation_method'])).' depreciation'.($s['depreciation_from'] > 4 ? ' from Quarter '.$s['depreciation_from'] : '');
+        if ($on('forecast_basis')) {
+            $plan = $s['forecast_basis'] === 'orders' ? "last quarter's orders" : "last quarter's sales";
+            $parts[] = 'Plans from '.$plan.($s['forecast_season'] ? ', adjusted for the season' : '').self::adjust($s['forecast_adjust']).'.';
+        }
+        if ($on('production_pct')) {
+            $parts[] = 'Makes '.$s['production_pct'].'% of the plan'.($s['production_nets_stock'] ? ', less the stock on hand' : '').'.';
+        }
+        $selling = [];
+        if ($on('price_pct')) {
+            $selling[] = 'prices at '.$s['price_pct'].'% of the base price';
+        }
+        if ($on('marketing_pct')) {
+            $selling[] = 'spends '.$s['marketing_pct'].'% of revenue on marketing';
+        }
+        if ($selling !== []) {
+            $parts[] = ucfirst(implode(' and ', $selling)).'.';
+        }
+        $inspection = $s['inspection'] === 'NONE' ? 'no inspection' : DecisionPresenter::valueLabel('inspection_level', $s['inspection']).' inspection';
+        $shipping = $s['logistics'] === 'AIR' ? 'air freight' : strtolower(DecisionPresenter::valueLabel('logistics_mode', $s['logistics'])).' shipping';
+        $with = array_values(array_filter([$on('inspection') ? $inspection : null, $on('logistics') ? $shipping : null]));
+        if ($on('supplier')) {
+            $parts[] = 'Buys from '.DecisionPresenter::supplierName($s['supplier']).($with !== [] ? ' with '.implode(' and ', $with) : '').'.';
+        } elseif ($with !== []) {
+            $parts[] = 'Uses '.implode(' and ', $with).'.';
+        }
+        if ($on('depreciation_method')) {
+            if ($s['depreciation_method'] === '' && $s['shipping_terms'] === '') {
+                $parts[] = "Keeps the course's starting methods.";
+            } else {
+                $methods = [];
+                if ($s['depreciation_method'] !== '') {
+                    $methods[] = lcfirst(DecisionPresenter::valueLabel('depreciation_method', $s['depreciation_method'])).' depreciation'.($s['depreciation_from'] > 4 ? ' from Quarter '.$s['depreciation_from'] : '');
+                }
+                if ($s['shipping_terms'] !== '') {
+                    $methods[] = DecisionPresenter::valueLabel('shipping_terms', $s['shipping_terms']).' terms';
+                }
+                $parts[] = 'Uses '.implode(' and ', $methods).'.';
             }
-            if ($s['shipping_terms'] !== '') {
-                $methods[] = DecisionPresenter::valueLabel('shipping_terms', $s['shipping_terms']).' terms';
-            }
-            $parts[] = 'Uses '.implode(' and ', $methods).'.';
         }
         $parts[] = match (true) {
             $s['dividend_pct'] === 0 => 'Pays no dividend.',
