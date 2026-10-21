@@ -7,6 +7,7 @@ use App\Models\Faculty;
 use App\Models\User;
 use App\Services\Tour\TourFigures;
 use App\Support\Tour\AdopterTour;
+use Carbon\CarbonImmutable;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -72,5 +73,34 @@ class AdopterTourTest extends TestCase
         $this->assertSame(['careful', 'average', 'careless'], array_column($figures['evaluation']['firms'], 'team'));
         $this->assertSame(range(4, 11), array_keys($figures['value_created']['careful']));
         $this->assertSame(array_keys(TourFigures::load()), array_keys($figures), 'the stored file has the same shape');
+    }
+
+    /** Live review, 20 October 2026: R1 to R4 and R31. */
+    public function test_the_tour_follows_the_figures_and_the_day_it_is_viewed(): void
+    {
+        $x = TourFigures::load();
+        // R1: revenue peaked in Quarter 2 and levelled off.
+        $this->get(route('tour', 2))->assertSee('by Quarter 2 and then leveled off', false);
+
+        // R2: the drawing says what the team changed.
+        $this->get(route('tour', 3))->assertSee('data-test="tour-step3-caption"', false)->assertSee('raised its forecasts');
+
+        // R3: dates follow today, in the display time zone.
+        config(['flexee.display_timezone' => 'America/New_York']);
+        $this->travelTo(CarbonImmutable::parse('2027-03-02 15:00', 'America/New_York'));
+        $this->get(route('tour', 1))->assertSee('Decisions are due 8 Mar, 11:59 pm.')->assertDontSee('24 Oct');
+        $this->get(route('tour', 6))->assertSee('8 Mar, 11:59 pm</b> (6 days left)', false)->assertSee('Decisions due 22 Mar, 11:59 pm.');
+
+        // R4: Quarter 11 shows without scrolling past Quarter 10; the team names stay pinned.
+        $html = $this->get(route('tour', 7))->getContent();
+        foreach (['Q4', 'Q6', 'Q8', 'Q10', 'Q11'] as $q) {
+            $this->assertStringContainsString('>'.$q.'</th>', $html);
+        }
+        $this->assertStringNotContainsString('>Q5</th>', $html);
+        $this->assertStringContainsString('sticky left-0', $html);
+        $this->assertStringContainsString(AdopterTour::m($x['value_created']['careless'][11]), $html);
+
+        // R31: the current step is scrolled into view and named above the title on a phone.
+        $this->get(route('tour', 7))->assertSee('data-test="tour-step-count"', false)->assertSee("scrollIntoView({ block: 'nearest', inline: 'center' })", false);
     }
 }

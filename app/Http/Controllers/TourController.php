@@ -23,6 +23,7 @@ class TourController extends Controller
             'step' => $step,
             'current' => $steps[$step - 1],
             'x' => $figures,
+            'dates' => AdopterTour::dates(),
         ]);
     }
 }
