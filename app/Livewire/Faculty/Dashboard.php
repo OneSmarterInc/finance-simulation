@@ -4,6 +4,7 @@ namespace App\Livewire\Faculty;
 
 use App\Models\Course;
 use App\Models\Faculty;
+use App\Services\Courses\CourseRemoval;
 use App\Support\Navigation\Home;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
@@ -25,6 +26,13 @@ class Dashboard extends Component
         }
 
         return $this->redirectRoute($home, navigate: true);
+    }
+
+    /** R12: the owner deletes a draft that was never deployed. */
+    public function deleteDraft(string $courseId, CourseRemoval $removal): void
+    {
+        $course = Course::query()->real()->findOrFail($courseId);
+        $removal->removeDraft($this->faculty(), $course);
     }
 
     public function render(): View

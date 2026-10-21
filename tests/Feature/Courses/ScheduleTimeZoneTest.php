@@ -68,7 +68,9 @@ class ScheduleTimeZoneTest extends TestCase
     {
         $wizard = $this->wizardAtSchedule();
         foreach ($wizard->get('quarters') as $index => $quarter) {
-            $wizard->set("quarters.{$index}.decision_deadline_at", CarbonImmutable::parse($quarter['ends_on'])->subDay()->toDateString());
+            if ($quarter['quarter_number'] >= 4) {
+                $wizard->set("quarters.{$index}.decision_deadline_at", CarbonImmutable::parse($quarter['ends_on'])->subDay()->toDateString());
+            }
         }
         $wizard->call('saveSchedule')->assertHasNoErrors()->assertSet('step', 3);
     }
@@ -77,9 +79,11 @@ class ScheduleTimeZoneTest extends TestCase
     {
         $wizard = $this->wizardAtSchedule();
         $wizard->call('saveSchedule');
-        $wizard->set('quarters.0.decision_deadline_at', '2027-01-25')->call('saveSchedule');
+        $wizard->set('quarters.3.decision_deadline_at', '2027-02-25')->call('saveSchedule');
         foreach ($wizard->get('quarters') as $index => $quarter) {
-            $wizard->set("quarters.{$index}.decision_deadline_at", CarbonImmutable::parse($quarter['ends_on'])->subDay()->toDateString());
+            if ($quarter['quarter_number'] >= 4) {
+                $wizard->set("quarters.{$index}.decision_deadline_at", CarbonImmutable::parse($quarter['ends_on'])->subDay()->toDateString());
+            }
         }
         $wizard->call('saveSchedule')->assertHasNoErrors()->assertSet('step', 3);
     }
@@ -139,7 +143,7 @@ class ScheduleTimeZoneTest extends TestCase
         $cases = [
             [0, 'decision_deadline_at', '2027-01-25', "Quarter 1's deadline (25 Jan 2027) is after the quarter ends (20 Jan 2027)."],
             [1, 'decision_deadline_at', '2027-01-19', "Quarter 2's deadline (19 Jan 2027) is before the quarter starts (21 Jan 2027)."],
-            [0, 'starts_on', '2027-01-10', 'Quarter 1 starts (10 Jan 2027) before the course starts (11 Jan 2027).'],
+            [3, 'starts_on', '2027-01-10', 'Quarter 4 starts (10 Jan 2027) before the course starts (11 Jan 2027).'],
             [3, 'ends_on', '2027-05-01', 'Quarter 4 ends (1 May 2027) after the course ends (30 Apr 2027).'],
             [2, 'starts_on', '2027-01-30', 'Quarter 3 starts (30 Jan 2027) before Quarter 2 ends (30 Jan 2027).'],
         ];

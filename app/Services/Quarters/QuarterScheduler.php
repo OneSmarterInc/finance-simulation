@@ -6,6 +6,7 @@ use App\Jobs\Quarters\CloseFirmQuarter;
 use App\Models\Course;
 use App\Models\CourseQuarter;
 use App\Models\FirmQuarterClose;
+use App\Support\Dates;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -106,7 +107,7 @@ class QuarterScheduler
         }
 
         $q4 = $quarters->firstWhere('quarter_number', 4);
-        if ($q4 && $q4->state === CourseQuarter::LOCKED && $q4->starts_on && $q4->starts_on->startOfDay()->lte(now())) {
+        if ($q4 && $q4->state === CourseQuarter::LOCKED && $q4->starts_on && $q4->starts_on->toDateString() <= Dates::today()) {
             try {
                 $this->quarters->openQuarter($q4);
 

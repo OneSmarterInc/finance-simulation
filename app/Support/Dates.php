@@ -20,6 +20,16 @@ final class Dates
         return (string) (config('flexee.display_timezone') ?: 'UTC');
     }
 
+    /**
+     * Today's date where faculty and students are, as Y-m-d (R14). A date-only
+     * value such as a quarter's start or a course's end is compared with this,
+     * not with UTC's date, which turns over at 7 or 8 pm in New York.
+     */
+    public static function today(): string
+    {
+        return now()->setTimezone(self::zone())->toDateString();
+    }
+
     /** For date-only values (a quarter's start date): no time zone shift. */
     public static function day(?DateTimeInterface $date): string
     {

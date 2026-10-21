@@ -4,6 +4,7 @@ namespace App\Livewire\Student;
 
 use App\Models\Course;
 use App\Services\Students\StudentCourseRegistrationService;
+use App\Support\Dates;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -70,18 +71,14 @@ class CourseRegistration extends Component
 
         if (
             $this->course->starts_on &&
-            now()->startOfDay()->lt(
-                $this->course->starts_on->startOfDay()
-            )
+            Dates::today() < $this->course->starts_on->toDateString()
         ) {
             return false;
         }
 
         if (
             $this->course->ends_on &&
-            now()->startOfDay()->gt(
-                $this->course->ends_on->endOfDay()
-            )
+            Dates::today() > $this->course->ends_on->toDateString()
         ) {
             return false;
         }

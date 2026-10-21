@@ -144,7 +144,8 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // R7 (live review, 20 October 2026): no open sign-up. Students join from
+        // their course link (register/course/…); One Smarter adds faculty and admins.
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

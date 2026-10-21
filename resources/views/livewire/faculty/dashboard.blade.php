@@ -83,6 +83,10 @@
                             <flux:button :href="route('faculty.courses.quarter-results', $course)" icon="chart-bar" wire:navigate>Quarter results</flux:button>
                         @else
                             <flux:button :href="route('faculty.courses.wizard', $course)" icon="pencil-square" variant="primary" wire:navigate>Continue setup</flux:button>
+                            @if ($course->faculty_id === auth()->user()->faculty?->id)
+                                <flux:button variant="ghost" icon="trash" wire:click="deleteDraft('{{ $course->id }}')"
+                                    wire:confirm="Delete the draft {{ $course->name }}? It was never deployed, so it has no students or results. One Smarter can restore it if you need it back.">Delete draft</flux:button>
+                            @endif
                         @endif
                     </div>
                 </flux:card>

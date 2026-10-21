@@ -8,8 +8,8 @@ use App\Models\Institution;
 use App\Models\Scenario;
 use App\Services\Courses\AdminCourseConfigurationService;
 use App\Services\Courses\CourseConfigurationService;
+use App\Services\Courses\ScheduleRows;
 use App\Support\Dates;
-use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -176,6 +176,7 @@ class CoursePreparation extends Component
         $this->step = 2;
 
         if ($this->quarters === []) {
+            $this->quarter_count = max($this->quarter_count, $this->minimumQuarters());
             $this->buildScheduleRows();
         }
     }
@@ -186,28 +187,14 @@ class CoursePreparation extends Component
             return;
         }
 
-        $start = CarbonImmutable::parse($this->starts_on);
-        $end = CarbonImmutable::parse($this->ends_on);
+        // R9: the warm-up takes none of the term; Quarter 4 starts on the course start date.
+        $this->quarters = ScheduleRows::build($this->starts_on, $this->ends_on, $this->quarter_count);
+    }
 
-        $days = max(1, $start->diffInDays($end) + 1);
-        $length = max(1, intdiv((int) $days, $this->quarter_count));
-
-        $this->quarters = [];
-
-        for ($number = 1; $number <= $this->quarter_count; $number++) {
-            $quarterStart = $start->addDays(($number - 1) * $length);
-
-            $quarterEnd = $number === $this->quarter_count
-                ? $end
-                : $quarterStart->addDays($length - 1);
-
-            $this->quarters[] = [
-                'quarter_number' => $number,
-                'starts_on' => $quarterStart->toDateString(),
-                'ends_on' => $quarterEnd->toDateString(),
-                'decision_deadline_at' => $quarterEnd->toDateString(),
-            ];
-        }
+    /** How many quarters this course needs, warm-up included (the box starts here). */
+    public function minimumQuarters(): int
+    {
+        return ScheduleRows::minimum($this->cf_plus_enabled, $this->build_quarters, $this->adversarial_quarters, $this->post_bid_quarters);
     }
 
     public function saveSchedule(

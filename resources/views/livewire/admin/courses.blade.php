@@ -35,7 +35,7 @@
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                     @forelse ($courses as $course)
                         <tr>
-                            <td class="px-6 py-4 font-medium text-zinc-900 dark:text-white">
+                            <td class="whitespace-nowrap px-6 py-4 font-medium text-zinc-900 dark:text-white">
                                 {{ $course->name }}
                             </td>
 
@@ -43,7 +43,7 @@
                                 {{ $course->institution->name }}
                             </td>
 
-                            <td class="px-6 py-4 text-zinc-600 dark:text-zinc-300">
+                            <td class="whitespace-nowrap px-6 py-4 text-zinc-600 dark:text-zinc-300">
                                 {{ $course->faculty->user->name }}
                             </td>
 
@@ -76,6 +76,8 @@
                                 >
                                     Prepare / Configure
                                 </flux:button>
+                                <flux:button variant="ghost" size="sm" icon="trash" wire:click="remove('{{ $course->id }}')"
+                                    wire:confirm="Remove {{ $course->name }}? {{ $course->status === \App\Models\Course::STATUS_DEPLOYED ? 'Its firms, students and results go with it, and it leaves every student\'s list.' : 'It was never deployed.' }} One Smarter can restore it.">Remove</flux:button>
                             </td>
                         </tr>
                     @empty
