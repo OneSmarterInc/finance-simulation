@@ -70,13 +70,6 @@ class CourseRegistration extends Component
         }
 
         if (
-            $this->course->starts_on &&
-            Dates::today() < $this->course->starts_on->toDateString()
-        ) {
-            return false;
-        }
-
-        if (
             $this->course->ends_on &&
             Dates::today() > $this->course->ends_on->toDateString()
         ) {

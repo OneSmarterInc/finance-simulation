@@ -227,14 +227,8 @@ class StudentCourseRegistrationService
             ]);
         }
 
-        if (
-            $course->starts_on &&
-            Dates::today() < $course->starts_on->toDateString()
-        ) {
-            throw ValidationException::withMessages([
-                'registration' => 'Registration for this course has not opened yet.',
-            ]);
-        }
+        // Registration opens once the course is deployed and registration is turned on, before the
+        // course starts: the warm-up is played at deploy and Quarter 4 opens on the start date (R9).
 
         if (
             $course->ends_on &&

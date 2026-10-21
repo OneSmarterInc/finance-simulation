@@ -33,6 +33,23 @@ final class ScheduleRows
     }
 
     /**
+     * Every save puts Quarters 1 to 3 on the warm-up date, so rows the screens
+     * don't show can never hold stale dates: a draft saved before R9, or a
+     * course whose start date moved after its rows were generated.
+     *
+     * @param  array<int, array<string, mixed>>  $quarters
+     * @return array<int, array<string, mixed>>
+     */
+    public static function withWarmup(array $quarters, string $courseStart): array
+    {
+        $warmup = self::warmupDate($courseStart);
+
+        return array_map(fn (array $q): array => (int) ($q['quarter_number'] ?? 0) <= self::WARMUP_QUARTERS && (int) ($q['quarter_number'] ?? 0) >= 1
+            ? [...$q, 'starts_on' => $warmup, 'ends_on' => $warmup, 'decision_deadline_at' => $warmup]
+            : $q, $quarters);
+    }
+
+    /**
      * @return list<array{quarter_number: int, starts_on: string, ends_on: string, decision_deadline_at: string}>
      */
     public static function build(string $courseStart, string $courseEnd, int $count): array

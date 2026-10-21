@@ -83,14 +83,35 @@ class DebriefBuilder
      * Money on a slide's sentence: millions to one decimal, a negative in
      * brackets, as on the statements (R27). The tables keep the cents.
      */
-    public static function money(?float $v): string
+    public static function money(?float $v, int $decimals = 1): string
     {
         if ($v === null) {
             return '–';
         }
-        $m = '$'.number_format(abs($v) / 1e6, 1).'M';
+        // Small amounts ("Other lines") in thousands, so they never read "$0.0M".
+        $m = abs($v) < 1e5 && $decimals === 1 ? '$'.number_format(abs($v) / 1e3, 1).'K' : '$'.number_format(abs($v) / 1e6, $decimals).'M';
 
         return $v < 0 ? '('.$m.')' : $m;
+    }
+
+    /**
+     * Two amounts compared in one sentence, with enough decimals that they
+     * don't read the same when they differ ($3.21M against $3.19M), and to the
+     * cent if even that rounds them together.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public static function moneyPair(float $a, float $b): array
+    {
+        foreach ([1, 2, 3] as $decimals) {
+            [$x, $y] = [self::money($a, $decimals), self::money($b, $decimals)];
+            if ($x !== $y || abs($a - $b) < 0.005) {
+                return [$x, $y];
+            }
+        }
+        $cents = fn (float $v): string => ($v < 0 ? '(' : '').'$'.number_format(abs($v), 2).($v < 0 ? ')' : '');
+
+        return [$cents($a), $cents($b)];
     }
 
     /**
@@ -254,13 +275,17 @@ class DebriefBuilder
         if ($rows === []) {
             return null;
         }
-        $facts = collect($rows)->map(fn ($r) => "{$r['firm']}, from Quarter {$r['quarter']} ({$r['change']}): net income ".self::money($r['net_income'])
-            .' with the new methods, '.self::money($r['net_income_old']).' with the old ones; net cash from operating activities '.self::money($r['operating_cash_flow'])
-            .' with the new methods, '.self::money($r['operating_cash_flow_old']).' with the old ones.')->join("\n");
+        $facts = collect($rows)->map(function ($r) {
+            [$ni, $niOld] = self::moneyPair($r['net_income'], $r['net_income_old']);
+            [$cash, $cashOld] = self::moneyPair($r['operating_cash_flow'], $r['operating_cash_flow_old']);
+
+            return "{$r['firm']}, from Quarter {$r['quarter']} ({$r['change']}): net income {$ni} with the new methods, {$niOld} with the old ones; net cash from operating activities {$cash} with the new methods, {$cashOld} with the old ones.";
+        })->join("\n");
         $biggest = collect($rows)->sortByDesc(fn ($r) => abs($r['net_income'] - $r['net_income_old']))->first();
-        $fallback = "In Quarter {$biggest['quarter']}, {$biggest['firm']} reported net income of ".self::money($biggest['net_income'])
-            .' with its new methods; with the old ones it would have been '.self::money($biggest['net_income_old'])
-            .'. Cash from operations was '.self::money($biggest['operating_cash_flow']).($biggest['operating_cash_flow'] === $biggest['operating_cash_flow_old'] ? ' either way.' : ' with the new methods and '.self::money($biggest['operating_cash_flow_old']).' with the old.');
+        [$ni, $niOld] = self::moneyPair($biggest['net_income'], $biggest['net_income_old']);
+        [$cash, $cashOld] = self::moneyPair($biggest['operating_cash_flow'], $biggest['operating_cash_flow_old']);
+        $fallback = "In Quarter {$biggest['quarter']}, {$biggest['firm']} reported net income of {$ni} with its new methods; with the old ones it would have been {$niOld}."
+            .' Cash from operations was '.(abs($biggest['operating_cash_flow'] - $biggest['operating_cash_flow_old']) < 0.005 ? $cash.' either way.' : "{$cash} with the new methods and {$cashOld} with the old.");
 
         return ['data' => ['rows' => $rows], 'facts' => $facts, 'fallback' => $fallback];
     }

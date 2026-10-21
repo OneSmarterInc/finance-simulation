@@ -126,5 +126,7 @@ class LiveReviewPracticeTest extends TestCase
 
         $this->assertSame('$217.0M', DebriefBuilder::money(217038711.88));
         $this->assertSame('($24.9M)', DebriefBuilder::money(-24923444.00));
+        $this->assertSame('$62.4K', DebriefBuilder::money(62368.42));
+        $this->assertSame(['$3.21M', '$3.19M'], DebriefBuilder::moneyPair(3214000, 3187000), 'two amounts never read the same when they differ');
     }
 }

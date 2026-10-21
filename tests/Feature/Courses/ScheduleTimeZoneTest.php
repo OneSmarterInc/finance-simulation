@@ -9,6 +9,7 @@ use App\Models\Faculty;
 use App\Models\Scenario;
 use App\Services\Courses\AdminCourseConfigurationService;
 use App\Services\Courses\CourseConfigurationService;
+use App\Services\Courses\ScheduleRows;
 use App\Support\Dates;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -91,12 +92,8 @@ class ScheduleTimeZoneTest extends TestCase
     /** @return list<array{quarter_number: int, starts_on: string, ends_on: string, decision_deadline_at: string}> */
     private function fourQuarters(): array
     {
-        return [
-            ['quarter_number' => 1, 'starts_on' => '2027-01-11', 'ends_on' => '2027-01-20', 'decision_deadline_at' => '2027-01-20'],
-            ['quarter_number' => 2, 'starts_on' => '2027-01-21', 'ends_on' => '2027-01-30', 'decision_deadline_at' => '2027-01-30'],
-            ['quarter_number' => 3, 'starts_on' => '2027-01-31', 'ends_on' => '2027-02-09', 'decision_deadline_at' => '2027-02-09'],
-            ['quarter_number' => 4, 'starts_on' => '2027-02-10', 'ends_on' => '2027-04-30', 'decision_deadline_at' => '2027-04-30'],
-        ];
+        // Quarters 1 to 3 are the warm-up (R9); Quarters 4 to 6 share the term.
+        return ScheduleRows::build('2027-01-11', '2027-04-30', 6);
     }
 
     private function draftCourse(Faculty $faculty): Course
@@ -117,9 +114,9 @@ class ScheduleTimeZoneTest extends TestCase
         $course = $this->draftCourse($faculty);
         app(CourseConfigurationService::class)->saveSchedule($faculty, $course, $this->fourQuarters());
 
-        $q1 = $course->quarters()->where('quarter_number', 1)->firstOrFail();
-        $this->assertSame('2027-01-21 04:59:00', $q1->decision_deadline_at->utc()->toDateTimeString());
-        $this->assertSame('20 Jan 2027, 11:59 pm EST', Dates::dateTime($q1->decision_deadline_at));
+        $q4 = $course->quarters()->where('quarter_number', 4)->firstOrFail();
+        $this->assertSame('2027-02-16 04:59:00', $q4->decision_deadline_at->utc()->toDateTimeString());
+        $this->assertSame('15 Feb 2027, 11:59 pm EST', Dates::dateTime($q4->decision_deadline_at));
     }
 
     public function test_admin_preparation_saves_last_day_deadlines_in_new_york_time(): void
@@ -131,7 +128,7 @@ class ScheduleTimeZoneTest extends TestCase
 
         app(AdminCourseConfigurationService::class)->saveSchedule($admin, $course, $this->fourQuarters());
 
-        $this->assertSame(4, $course->quarters()->count());
+        $this->assertSame(6, $course->quarters()->count());
     }
 
     public function test_a_wrong_row_is_named_with_its_dates(): void
@@ -141,11 +138,11 @@ class ScheduleTimeZoneTest extends TestCase
         $course = $this->draftCourse($faculty);
         $service = app(CourseConfigurationService::class);
         $cases = [
-            [0, 'decision_deadline_at', '2027-01-25', "Quarter 1's deadline (25 Jan 2027) is after the quarter ends (20 Jan 2027)."],
-            [1, 'decision_deadline_at', '2027-01-19', "Quarter 2's deadline (19 Jan 2027) is before the quarter starts (21 Jan 2027)."],
+            [3, 'decision_deadline_at', '2027-02-20', "Quarter 4's deadline (20 Feb 2027) is after the quarter ends (15 Feb 2027)."],
+            [4, 'decision_deadline_at', '2027-02-10', "Quarter 5's deadline (10 Feb 2027) is before the quarter starts (16 Feb 2027)."],
             [3, 'starts_on', '2027-01-10', 'Quarter 4 starts (10 Jan 2027) before the course starts (11 Jan 2027).'],
-            [3, 'ends_on', '2027-05-01', 'Quarter 4 ends (1 May 2027) after the course ends (30 Apr 2027).'],
-            [2, 'starts_on', '2027-01-30', 'Quarter 3 starts (30 Jan 2027) before Quarter 2 ends (30 Jan 2027).'],
+            [5, 'ends_on', '2027-05-01', 'Quarter 6 ends (1 May 2027) after the course ends (30 Apr 2027).'],
+            [5, 'starts_on', '2027-03-23', 'Quarter 6 starts (23 Mar 2027) before Quarter 5 ends (23 Mar 2027).'],
         ];
         foreach ($cases as [$row, $field, $value, $message]) {
             $quarters = $this->fourQuarters();

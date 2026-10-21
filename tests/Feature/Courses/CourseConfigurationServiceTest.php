@@ -70,15 +70,16 @@ class CourseConfigurationServiceTest extends TestCase
     {
         foreach (['reversed', 'deadline', 'overlap', 'gap'] as $case) {
             $course = $this->course();
-            $quarters = $this->schedule(4);
+            // Quarters 1 to 3 are put on the warm-up date on every save (R9), so the cases use Quarters 4 and 5.
+            $quarters = $this->schedule(5);
             if ($case === 'reversed') {
-                $quarters[0]['starts_on'] = '2027-02-01';
+                $quarters[3]['starts_on'] = '2027-12-01';
             }
             if ($case === 'deadline') {
-                $quarters[0]['decision_deadline_at'] = '2026-12-31';
+                $quarters[3]['decision_deadline_at'] = '2026-12-31';
             }
             if ($case === 'overlap') {
-                $quarters[1]['starts_on'] = $quarters[0]['ends_on'];
+                $quarters[4]['starts_on'] = $quarters[3]['ends_on'];
             }
             if ($case === 'gap') {
                 $quarters[2]['quarter_number'] = 8;
@@ -242,7 +243,7 @@ class CourseConfigurationServiceTest extends TestCase
             $this->assertSame($deployed->faculty_id, $event->owningFacultyId);
             $this->assertSame('deployed', $event->status);
             $this->assertSame(range(1, 7), array_column($event->quarters, 'quarter_number'));
-            $this->assertSame('2027-01-01', $event->quarters[0]['starts_on']);
+            $this->assertSame('2026-12-31', $event->quarters[0]['starts_on'], 'the warm-up sits on the day before the course starts (R9)');
             $this->assertSame('2027-12-31', $event->quarters[6]['ends_on']);
             $this->assertTrue($event->cfPlusEnabled);
             $this->assertSame(2, $event->buildQuarters);

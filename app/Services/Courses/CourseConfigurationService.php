@@ -10,6 +10,7 @@ use App\Models\CourseQuarter;
 use App\Models\Faculty;
 use App\Services\CfPlus\FirmAccountingElectionService as LegacyFirmAccountingElectionService;
 use App\Support\Dates;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -75,6 +76,8 @@ class CourseConfigurationService
             'quarters.*.starts_on' => ['required', 'date'], 'quarters.*.ends_on' => ['required', 'date'],
             'quarters.*.decision_deadline_at' => ['required', 'date'],
         ])->validate();
+        // R9: the hidden warm-up rows always sit on the day before the course starts.
+        $quarters = ScheduleRows::withWarmup($quarters, CarbonImmutable::parse($course->starts_on)->toDateString());
         // A deadline given as a date means the end of that day in the display
         // time zone, stored as UTC.
         $quarters = array_map(function (array $quarter): array {

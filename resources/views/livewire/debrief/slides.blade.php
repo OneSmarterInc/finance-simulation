@@ -70,13 +70,14 @@
                     $quarters = $data['quarters'];
                     $all = collect($data['values'])->flatten();
                     // R30: axis labels at round values ($175M, $200M, $225M), four to six of them.
-                    $range = max(1, $all->max() - $all->min());
+                    // A flat line still gets a band around it.
+                    $range = $all->max() - $all->min() ?: max(abs((float) $all->max()) * 0.1, 1e6);
                     $raw = $range / 4;
                     $mag = 10 ** floor(log10($raw));
                     $step = collect([1, 2, 2.5, 5, 10])->map(fn ($k) => $k * $mag)->first(fn ($c) => $c >= $raw) ?? 10 * $mag;
                     $lo = floor($all->min() / $step) * $step; $hi = ceil($all->max() / $step) * $step;
-                    if ($hi <= $lo) { $hi = $lo + $step; }
-                    $tickDecimals = fmod($step, 1e6) == 0.0 ? 0 : 1;
+                    if ($hi - $lo < 2 * $step) { $lo -= $step; $hi += $step; }
+                    $tickDecimals = fmod($step, 1e6) == 0.0 ? 0 : (fmod($step, 1e5) == 0.0 ? 1 : 2);
                     $W = 960; $H = 380; $L = 76; $R = $firms->count() <= 4 ? 120 : 24; $T = 16; $B = 40;
                     $x = fn ($q) => $L + (count($quarters) > 1 ? (array_search($q, $quarters, true) / (count($quarters) - 1)) : 0.5) * ($W - $L - $R);
                     $y = fn ($v) => $T + (1 - ($v - $lo) / ($hi - $lo)) * ($H - $T - $B);

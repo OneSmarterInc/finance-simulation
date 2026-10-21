@@ -28,11 +28,11 @@ final class CourseRemoval
         if ($course->is_practice || $course->faculty_id !== $faculty->id) {
             throw new AuthorizationException('Only the course owner can delete it.');
         }
-        if ($course->status === Course::STATUS_DEPLOYED) {
-            throw ValidationException::withMessages(['course' => 'A course that has been deployed can only be removed by One Smarter.']);
-        }
-
         DB::transaction(function () use ($course): void {
+            // Read the status under a lock, so a deploy at the same moment can't slip in between.
+            if (Course::query()->whereKey($course->id)->lockForUpdate()->value('status') === Course::STATUS_DEPLOYED) {
+                throw ValidationException::withMessages(['course' => 'A course that has been deployed can only be removed by One Smarter.']);
+            }
             $this->removePracticeRuns($course);
             $course->delete();
         });

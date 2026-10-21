@@ -52,6 +52,13 @@ class LiveReviewAskClaudeTest extends TestCase
         ];
         $this->assertSame('Careless paid the largest dividend allowed.', AskClaude::compose($parts, $parts[1]));
 
+        // Review follow-up: only step lines go; a caveat, a figure or a whole answer never does.
+        $this->assertSame('Let me be clear: Beta did not breach its covenant.', AskClaude::withoutSteps('Let me be clear: Beta did not breach its covenant.'));
+        $this->assertSame("Beta's cash in the lookup is \$1.2m. Gamma's is \$0.9m.", AskClaude::withoutSteps("Beta's cash in the lookup is \$1.2m. Gamma's is \$0.9m."));
+        $this->assertSame("I'll show the table.", AskClaude::compose(["I'll show the table."], "I'll show the table."), 'never an empty answer');
+        $long = 'Gamma is the one to watch: its debt doubled to $4.0m in Quarter 6 while its cash fell by half, and nothing in its decisions since then has turned that round.';
+        $this->assertStringContainsString('Gamma is the one to watch', AskClaude::compose([$long, $final], $final), 'an earlier round with substance stays');
+
         // A short last round ("The table above shows ...") keeps the explanation written beside the table.
         $this->assertSame("Alpha's cash fell.\n\nThe table above shows it.", AskClaude::compose(["Alpha's cash fell.", 'The table above shows it.'], 'The table above shows it.'));
     }

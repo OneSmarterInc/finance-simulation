@@ -12,6 +12,7 @@ use App\Models\Faculty;
 use App\Models\Scenario;
 use App\Services\Courses\CourseConfigurationService;
 use App\Services\Courses\ScheduleRows;
+use App\Services\Students\StudentCourseRegistrationService;
 use App\Support\Dates;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -163,5 +164,31 @@ class LiveReviewCourseSetupTest extends TestCase
         $this->assertSame('2027-01-10', Dates::today());
         $this->travelTo(CarbonImmutable::parse('2027-01-11 06:00:00', 'UTC'));
         $this->assertSame('2027-01-11', Dates::today());
+    }
+
+    /** Review follow-up: students can join before the course starts, since Quarter 4 opens on the start date. */
+    public function test_registration_opens_before_the_course_starts(): void
+    {
+        [$course] = $this->phase7bCourse('Joins early');
+        $course->forceFill(['registration_enabled' => true, 'starts_on' => now()->addDays(10)->toDateString(), 'ends_on' => now()->addDays(120)->toDateString()])->save();
+
+        $out = app(StudentCourseRegistrationService::class)->register($course->fresh(), 'Early Student', 'early@example.com', 'Correct-Horse-9-Battery');
+        $this->assertTrue($out['created_account']);
+    }
+
+    /** Review follow-up: hidden warm-up rows always follow the course start date when the schedule is saved. */
+    public function test_saving_puts_the_warm_up_on_the_day_before_the_start(): void
+    {
+        $faculty = Faculty::factory()->create();
+        $wizard = $this->wizard($faculty)->set('cf_plus_enabled', false)->call('saveSetup');
+        $course = Course::query()->where('name', 'Spring section')->firstOrFail();
+        $rows = ScheduleRows::build('2027-01-11', '2027-04-30', 5);
+        // Stale warm-up rows from an older draft, spread across the term.
+        foreach ([0 => ['2027-01-11', '2027-01-20'], 1 => ['2027-01-21', '2027-01-30'], 2 => ['2027-01-31', '2027-02-09']] as $i => [$start, $end]) {
+            $rows[$i] = ['quarter_number' => $i + 1, 'starts_on' => $start, 'ends_on' => $end, 'decision_deadline_at' => $end];
+        }
+        app(CourseConfigurationService::class)->saveSchedule($faculty, $course, $rows);
+
+        $this->assertSame(['2027-01-10'], $course->quarters()->where('quarter_number', '<=', 3)->get()->map(fn ($q) => $q->starts_on->toDateString())->unique()->values()->all());
     }
 }
